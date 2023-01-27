@@ -1,5 +1,6 @@
 ---
 title: "MIGRACE DAT - DEMUS / MUSEION"
+subtitle: "Narodni Muzeum - Sbirka Muzea Delnickeho hnuti"
 author: "Kateřina Křížová"
 date: "2023-01-26"
 output:
@@ -77,7 +78,6 @@ sbirky <- sbirky %>%
 rm(demus_tab)
 rm(modify_tab)
 rm(mus_tab)
-
 ```
 
 
@@ -130,7 +130,9 @@ oper_fondy <- mus_tab
 ## Skupiny
 
 **DEMUS**: Skupiny  
-**MUSEION**: CSV Skupiny
+**MUSEION**: csv_skupiny.csv
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Skupiny
 
 
 ```{r PREPROCESSING SKUPINY}
@@ -178,7 +180,9 @@ oper_skupiny <- mus_tab
 ## Adresář
 
 **DEMUS**: Adresar  
-**MUSEION**: CSV Adresář osob
+**MUSEION**: csv_adresar.csv
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Adresář osob
 
 
 ```{r LOAD AND MODIFY TABLE ADRESAR}
@@ -375,7 +379,7 @@ oper_po <- mus_tab
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Lokalita
 
-```{r LOAD AND MODIFY TABLE MATERIALY}
+```{r LOAD AND MODIFY TABLE LOKALITY}
 
 demus_tab <- read_excel(paste0(path_data, "Lokality.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
