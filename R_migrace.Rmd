@@ -36,17 +36,17 @@ require(readxl)
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
-project <- "MDH"
+project <- 
 
-sbirka <- "HM"
-podsbirka <- "H11"
+sbirka <- 
+podsbirka <- 
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
-path <- "C:/Users/krizova/Documents/R_migrace/"
+path <- # "C:/Users/krizova/Documents/R_migrace/"
 
-path_data <- paste0(path, "data/")
-path_csv <- paste0(path, "mus_csv/", project, "/")
+path_data <- # paste0(path, "data/")
+path_csv <- # paste0(path, "mus_csv/", project, "/")
 
 ```
 
@@ -100,14 +100,13 @@ rm(mus_tab)
 demus_tab <- read_excel(paste0(path_data, "Fondy.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
 
-# n = 4
+# n = 
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
   mutate('2podsbirkaCislo' = podsbirka)
 
-# n = 17
 
 # create CSV
 
@@ -132,6 +131,8 @@ oper_fondy <- mus_tab
 **DEMUS**: Skupiny  
 **MUSEION**: CSV Skupiny
 
+**IMPORTNÍ ROZHRANNÍ**: CSV Skupiny  
+
 
 ```{r PREPROCESSING SKUPINY}
 
@@ -140,8 +141,6 @@ fond_skup <- merge(oper_fondy, sbirky, by.x = "4nazev", by.y = "Fond_S") %>%
 
 ```
 
-
-SELECT "" As 1sbirkaCisloEvidInt, "" As 2podsbirkaCislo, "" As 3fondKod, "" As 4skupinaKod, "" As 5nazev, "" As 6poznamka, "" As 7popisPubli, "" As 8poradi, "" As 9oaiId, "" As 10oaiDatumHarvestingu, "" As 11oaiDatumModifikace FROM TABULKA;
 
 ```{r LOAD AND MODIFY TABLE SKUPINY}
 
@@ -180,21 +179,21 @@ oper_skupiny <- mus_tab
 **DEMUS**: Adresar  
 **MUSEION**: CSV Adresář osob
 
+**IMPORTNÍ ROZHRANNÍ**: CSV Adresář osob
+
 
 ```{r LOAD AND MODIFY TABLE ADRESAR}
 
 demus_tab <- read_excel(paste0(path_data, "Adresar.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
 
-# n = 5
+# n = 
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1typSubjektuKod' = "OO") %>% 
   mutate('2subjektKod' = paste(Prijmeni_A, Jmeno_A)) %>% 
   mutate('10osobaPohlavi' = "neznámé")
-
-# n = 17
 
 # create CSV
 
@@ -242,7 +241,7 @@ oper_material <- mus_tab
 demus_tab <- read_excel(paste0(path_data, "Osobnosti.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
 
-# n = 266
+# n = 
 
 ```
  
@@ -254,7 +253,7 @@ demus_tab[is.na(demus_tab)] <- ""
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Adresář osob
 
-```{r OSOBNOSTI OO}
+```{r MODIFY TABLE OSOBNOSTI OO}
 
 # filter 
 
@@ -266,7 +265,7 @@ modify_tab <- demus_tab %>%
   mutate('42subjektSbirka' = sbirka) %>% 
   mutate('43subjektPodsbirka' = podsbirka) 
 
-# n = 249
+# n = 
 
 # create CSV
 
@@ -323,7 +322,7 @@ oper_oo <- mus_tab
 **IMPORTNÍ ROZHRANNÍ**: CSV Adresář právnických osob
 
 
-```{r OSOBNOSTI PO}
+```{r MODIFY TABLE OSOBNOSTI PO}
 
 # filter 
 
@@ -333,7 +332,7 @@ modify_tab <- demus_tab %>%
   mutate('26subjektSbirka' = sbirka) %>% 
   mutate('27subjektPodsbirka' = podsbirka)
 
-# n = 17
+# n = 
 
 # create CSV
 
@@ -375,17 +374,15 @@ oper_po <- mus_tab
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Lokalita
 
-```{r LOAD AND MODIFY TABLE MATERIALY}
+```{r LOAD AND MODIFY TABLE LOKALITY}
 
 demus_tab <- read_excel(paste0(path_data, "Lokality.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
 
-# n = 12
+# n = 
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "")
-
-# n = 17
 
 # create CSV
 
@@ -411,7 +408,6 @@ oper_lokalita <- mus_tab
 ```
 
 
-
 ## Materiály
 
 **DEMUS**: Materialy  
@@ -424,16 +420,12 @@ oper_lokalita <- mus_tab
 demus_tab <- read_excel(paste0(path_data, "Materialy.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
 
-# n = 67
-
-# filter 
+# n = 
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
   mutate('2podsbirkaCislo' = podsbirka)
-
-# n = 17
 
 # create CSV
 
@@ -466,16 +458,12 @@ oper_material <- mus_tab
 demus_tab <- read_excel(paste0(path_data, "Techniky.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
 
-# n = ?
-
-# filter 
+# n = 
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
   mutate('2podsbirkaCislo' = podsbirka)
-
-# n = 17
 
 # create CSV
 
@@ -526,8 +514,6 @@ demus_tab <- read_excel(paste0(path_data, "Sbirky.xlsx"))
 
 ```{r MODIFY TABLE SBIRKY FOR OBP}
 
-# modify
-
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1typPredmetuKod' = "P")   %>% # always in case of OBP card
@@ -540,10 +526,7 @@ modify_tab <- demus_tab %>%
     Fond_S == "Výtvarné umění" ~ "VU"
     ))
   
-# modify_tab$'16fondKod' <- ifelse(modify_tab$Fond_S == oper_fondy$'4nazev', oper_fondy$'3fondKod', NA) # TRIED: fill the fond code by values from another table
-  
-  
-# n = 17
+# n = 
 
 # create CSV
 
@@ -556,18 +539,20 @@ mus_tab <- modify_tab %>%
     '8SPCisloDo'= MINVCDO, '9SPPoradoveCisloDo'= HPorC_S, '10SPPoradoveCisloSubDo' = MSUBDO,
     
     '11SPDatumZapisu' = DatZap_S, '12cisloCES' = MEMPTY,
-    '13prirustekCislo' = Plus2T_S,'14ciselnaRadaPrirustkuKod' = ??? MEMPTY,
-    '15nabytiPrirustkuDatum' = ??? MEMPTY,'16fondKod' = '16fondKod',
+    '13prirustekCislo' = Plus2T_S,'14ciselnaRadaPrirustkuKod' = MEMPTY,
+    '15nabytiPrirustkuDatum' = MEMPTY,'16fondKod' = '16fondKod',
     '17skupinaKod' = Skupina_S,
     '18podskupina1Kod' = MEMPTY, '19podskupina2Kod' = MEMPTY,'20podskupina3Kod' = MEMPTY,
-    '21SPPocetKusu' = Pocet_S,'22jinaEvidence1Cislo' = MEMPTY,
-    '23jinaEvidence2Cislo' = MEMPTY,'24jinaEvidence3Cislo' = JineC_S,
+    '21SPPocetKusu' = Pocet_S,
+    '22jinaEvidence1Cislo' = MEMPTY, '23jinaEvidence2Cislo' = MEMPTY,'24jinaEvidence3Cislo' = JineC_S,
     '25SPPapirovaKarta' = Karta_S,'26SPKartaJeOpsana' = Opsana_S, # LOGICKE SLOUPCE
     '27archivalie' = Archiv_S,
+    
     '28SPUIns' = Zapsal_S, '29SPDIns' = DatZap_S, # ZALOZENI ZAZNAMU
     '30SPUUpd' = MEMPTY, '31SPDUpd' = DatZm_S, # UPRAVA ZAZNAMU 
     '32stalaLokaceKod' = StLokace_S, '33aktualniLokaceKod' = AktLokace_S, # LOKACE
     '34predmetNazev' = Titul_S, '35oznaceni1Nazev' = Predmet_S, # PREDMET
+    
     '36odborneUrceniPopis' = Popis_S, '37odborneUrceniPopis2' = MEMPTY, 
     '38odborneUrceniPoznamka' = MEMPTY, '39kompletnostKod' = MEMPTY,
     '40signatura' = Sign_S, '41signatura2' = MEMPTY, '42markant' = Markant_S,
@@ -575,20 +560,24 @@ mus_tab <- modify_tab %>%
     '45dataceUrceniHodnota' = DatUrc_S, '46odborneUrceniSchvaleno' = MEMPTY,
     '47schvalilOsobaKod' = MEMPTY,'48datumSchvaleni' = MEMPTY,
     '49SPPoznamka' = MEMPTY, '50SPKlicovaSlova' = MEMPTY,
+    
     '51pojistnaCena' = MEMPTY, '52pojistnaCenaMena' = MEMPTY, # POJISTENI 
     '53pojistnaCenaDatum' = MEMPTY,'54ucetniCena' = MEMPTY, # CENA
+    
     '55SPDatumPosledniManipulace' = MEMPTY,
     '56text1' = MEMPTY, '57text2' = MEMPTY, '58text3' = MEMPTY,
     '59text4' = MEMPTY,'60text5' = MEMPTY, '61text6' = MEMPTY,
     '62text7' = MEMPTY, '63text8' = MEMPTY,'64text9' = MEMPTY,
     '65text10' = MEMPTY,'66priznak1' = MEMPTY, '67priznak2' = MEMPTY,
     '68priznak3' = MEMPTY, '69priznak4' = MEMPTY,'70priznak5' = MEMPTY,
+    
     '71zpusobNabytiKod' = MEMPTY,'72nabytiPredmetuDatum' = MEMPTY, # NABYTI
     '73nabytiPredmetuRokAkvizice' = MEMPTY,'74nabytiPredmetuDoklad' = MEMPTY,
     '75nabytiCena' = MEMPTY,'76nabytiMena' = MEMPTY,
     '77predchoziMajitelSlovy' = MEMPTY,'78puvodniMajitelKod' = MEMPTY,
     '79prispevatelKod' = MEMPTY,'80nabytiPoznamka' = MEMPTY,
-    '81lokalitaNalezuNazev' = Lokalita_S,'82lokalitaDoplneni' = MEMPTY,
+    
+    '81lokalitaNalezuNazev' = Lokalita_S,'82lokalitaDoplneni' = MEMPTY, # LOKALITA
     '83lokalitaOriginalni' = MEMPTY,'84nalezKatUzemiNazev' = MEMPTY,
     '85pozemekSlovy' = MEMPTY,'86nalezPoznamka' = MEMPTY,
     '87sGPSsirkaNS' = MEMPTY,'88sGPSsirkaStupne' = MEMPTY,
@@ -598,14 +587,19 @@ mus_tab <- modify_tab %>%
     '95sGPSvyska' = MEMPTY,'96nalezSouradniceY' = MEMPTY,
     '97nalezSouradniceX' = MEMPTY,'98nalezSouradniceH' = MEMPTY,
     '99souradniceZdroj' = MEMPTY,'100souradnicePresnost' = MEMPTY,
-    '101odborneUrceniHmotnost' = MEMPTY,'102numOuHodnota' = MEMPTY,
-    '103numOudobaPlatnosti' = MEMPTY,'104numOuStatKod' = MEMPTY,
+    '101odborneUrceniHmotnost' = MEMPTY,
+    
+    '102numOuHodnota' = MEMPTY,                                  # NU - numismatika
+    '103numOudobaPlatnosti' = MEMPTY,'104numOuStatKod' = MEMPTY, 
     '105numOuZeme' = MEMPTY,'106numOuTyp' = MEMPTY,
-    '107numOuPopisHrana' = MEMPTY,'108milDruh' = MEMPTY,
+    '107numOuPopisHrana' = MEMPTY,
+    
+    '108milDruh' = MEMPTY,                                       # MI - militaria
     '109milVzor' = MEMPTY,'110milRaze' = MEMPTY,
     '111milVyrobniCislo' = MEMPTY,'112milKategorie' = MEMPTY,
     '113milPrukaz' = MEMPTY,'114milMistoUziti' = MEMPTY,
-    '115rokPrirust' = MEMPTY,'116mnozstviSlovy' = MEMPTY,
+    
+    '115rokPrirust' = MEMPTY,'116mnozstviSlovy' = MEMPTY,        # PRIRUSTEK
     '117pocetCasti' = MEMPTY,'118popisCasti' = MEMPTY    )
 
 write.table(mus_tab, paste0(path_csv, "csv_obp.csv"), 
@@ -613,7 +607,6 @@ write.table(mus_tab, paste0(path_csv, "csv_obp.csv"),
             na = "", fileEncoding="cp1250")
 
 ```
-
 
 
 # 4. PROPOJENÍ
