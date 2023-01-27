@@ -1,5 +1,6 @@
 ---
 title: "MIGRACE DAT - DEMUS / MUSEION"
+subtitle: "Základní dokument pro úpravy dle specifik zadání projektu"
 author: "Kateřina Křížová"
 date: "2023-01-26"
 output:
@@ -22,8 +23,10 @@ knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
 
 # install.packages("tidyverse", dependencies = T)
 # install.packages("readxl")
+# install.packages("stringr")
 require(tidyverse)
 require(readxl)
+require(stringr) # ::str_split_fixed
 
 ```
 
@@ -77,6 +80,20 @@ sbirky <- sbirky %>%
 rm(demus_tab)
 rm(modify_tab)
 rm(mus_tab)
+```
+
+```{r SPLIT STRING}
+
+# https://www.geeksforgeeks.org/how-to-split-column-into-multiple-columns-in-r-dataframe/
+
+# load stringr library
+library(stringr)
+ 
+# Split name column into firstname and last name
+df[c('First Name', 'Last Name')] <- str_split_fixed(df$Name, ' ', 2)
+ 
+# Rearrange columns and remove original name column
+df <- df[c('First Name', 'Last Name', 'State')]
 
 ```
 
