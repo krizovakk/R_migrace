@@ -4,7 +4,7 @@ subtitle: "Narodni Muzeum - Sbirka Muzea Delnickeho hnuti"
 author: "Kateřina Křížová"
 date: "2023-01-26"
 output:
-  pdf_document
+  pdf_document:
     toc: true
     toc_depth: 2
     number_sections: false
@@ -35,18 +35,18 @@ require(stringr) # ::str_pad
 # PROJEKT A CESTY
 
 Narodni muzeum  
-Sbírka Muzea Delnickeho hnuti
+Sbirka Muzea Delnickeho hnuti
 
 Maska inventarniho cisla:
 
-{S}_{######}/{x}
+\{S\}_\{\#\#\#\#\#\#\}/\{x\}  
 
 S = inventarni rada
 \# = cislice
 x = podlomeni
 
 
-```{r PROJECT SPECIFICATIONS AND PATHS}
+```{r PROJECT SPECIFICATIONS AND PATHS, echo = T}
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
@@ -86,20 +86,20 @@ sbirky <- read_excel(paste0(path_data, "Sbirky.xlsx"))
 
 ## Užitečné příkazy
 
-```{r REMOVE ALL WORKING LAYERS}
+```{r REMOVE ALL WORKING LAYERS, warning=F}
 
 rm(demus_tab)
 rm(modify_tab)
 rm(mus_tab)
 ```
 
-```{r SPLIT STRING}
+```{r SPLIT STRING, warning=F}
 
-# Split name column into firstname and last name
-df[c('First Name', 'Last Name')] <- str_split_fixed(df$Name, ' ', 2)
- 
-# Rearrange columns and remove original name column
-df <- df[c('First Name', 'Last Name', 'State')]
+# # Split name column into firstname and last name
+# df[c('First Name', 'Last Name')] <- str_split_fixed(df$Name, ' ', 2)
+#  
+# # Rearrange columns and remove original name column
+# df <- df[c('First Name', 'Last Name', 'State')]
 
 ```
 
@@ -107,6 +107,8 @@ df <- df[c('First Name', 'Last Name', 'State')]
 \newpage
 
 # 1. PŘÍRŮSTKOVÁ KNIHA
+
+\newpage
 
 # 2. SLOVNÍKY
 
@@ -178,15 +180,22 @@ modify_tab <- merge(fond_skup, demus_tab,
                     by.x = "Skupina_S", by.y = "Skup_SK", all.x = T) %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
-  mutate('2podsbirkaCislo' = podsbirka)
+  mutate('2podsbirkaCislo' = podsbirka) %>% 
+  mutate('5nazev' = case_when(Slovy_SK == "" ~ Skupina_S, 
+                              TRUE ~ Slovy_SK)) %>% 
+  distinct() %>% 
+  na.omit()
 
 # create CSV
 
 mus_tab <- modify_tab %>% 
   select(
-    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', '2podsbirkaCislo'= '2podsbirkaCislo',
-    '3fondKod' ='3fondKod', '4skupinaKod'= Skupina_S,
-    '5nazev' = Slovy_SK, '6poznamka'= MEMPTY,
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinny !!
+    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinny !!
+    '3fondKod' ='3fondKod',                        # !! povinny !!
+    '4skupinaKod'= Skupina_S,                      # !! povinny !!
+    '5nazev' = '5nazev',                           # !! povinny !!
+    '6poznamka'= MEMPTY,
     '7popisPubli' = MEMPTY, '8poradi'= MEMPTY,
     '9oaiId'= MEMPTY, '10oaiDatumHarvestingu'= MEMPTY, 
     '11oaiDatumModifikace' = MEMPTY)
@@ -218,7 +227,8 @@ modify_tab <- demus_tab %>%
   mutate(MEMPTY = "") %>% 
   mutate('1typSubjektuKod' = "OO") %>% 
   mutate('2subjektKod' = paste(Prijmeni_A, Jmeno_A)) %>% 
-  mutate('10osobaPohlavi' = "neznámé")
+  mutate('10osobaPohlavi' = "neznámé") %>% 
+  mutate('18subjektStatKod' = "CZ")
 
 # create CSV
 
@@ -231,7 +241,7 @@ mus_tab <- modify_tab %>%
          '11osobaDatumNarozeni' = MEMPTY, '12osobaMistoNarozeni' =MEMPTY,
          '13okresNarozeniNazev' = MEMPTY, '14obecNarozeniNazev' = MEMPTY,
          '15statNarozeniKod' = MEMPTY, '16osobaDatumUmrti' = MEMPTY,
-         '17osobaMistoUmrti' = MEMPTY, '18subjektStatKod' = Stat_A,
+         '17osobaMistoUmrti' = MEMPTY, '18subjektStatKod' = '18subjektStatKod',
          '19kontaktEmail' = MEMPTY, '20kontaktMobil' = MEMPTY,
          '21kontaktMobil2' = MEMPTY, '22kontaktTelefon' = MEMPTY,
          '23kontaktInternet' = MEMPTY, '24kontaktInternetoveVolani' = MEMPTY,
@@ -247,8 +257,9 @@ mus_tab <- modify_tab %>%
          '43subjektPodsbirka' =  MEMPTY, '44osobaStudia' = MEMPTY,
          '45osobaSpolky' = MEMPTY, '46osobaOsobnost' = MEMPTY,
          '47subjektDatumOd' = MEMPTY, '48subjektDatumDo' = MEMPTY,
-         '49kontaktEmail2' = MEMPTY, '50text1' = MEMPTY,
-         '51text2' = MEMPTY, '52text3' = MEMPTY, '54role2' = MEMPTY, 
+         '49kontaktEmail2' = MEMPTY, 
+         '50text1' = MEMPTY, '51text2' = MEMPTY, '52text3' = MEMPTY, 
+         '53role1' = MEMPTY, '54role2' = MEMPTY, 
          '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY)
 
 write.table(mus_tab, paste0(path_csv, "csv_adresar.csv"), 
@@ -284,7 +295,6 @@ osoby <- demus_tab %>%
 osoby[c("MPRIJM", "MJMENO", "MDRJMENO")] <- str_split_fixed(osoby$Jmeno_OS, ',', 3)
 
 
-
 ```
  
  
@@ -304,6 +314,7 @@ modify_tab <- demus_tab %>%
   mutate(MKODOS = paste(MPRIJM, MJMENO)) %>% 
   mutate(MEMPTY = "") %>% 
   mutate('10osobaPohlavi' = "neznámé") %>% 
+   # mutate('18subjektStatKod' = "CZ") %>% 
   mutate('42subjektSbirka' = sbirka) %>% 
   mutate('43subjektPodsbirka' = podsbirka) 
 
@@ -343,8 +354,9 @@ mus_tab <- modify_tab %>%
          '44osobaStudia' = MEMPTY,
          '45osobaSpolky' = MEMPTY, '46osobaOsobnost' = MEMPTY,
          '47subjektDatumOd' = MEMPTY, '48subjektDatumDo' = MEMPTY,
-         '49kontaktEmail2' = MEMPTY, '50text1' = MEMPTY,
-         '51text2' = MEMPTY, '52text3' = MEMPTY, '54role2' = MEMPTY, 
+         '49kontaktEmail2' = MEMPTY, 
+         '50text1' = MEMPTY, '51text2' = MEMPTY, '52text3' = MEMPTY, 
+         '53role1' = MEMPTY, '54role2' = MEMPTY, 
          '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY)
 
 write.table(mus_tab, paste0(path_csv, "csv_oo.csv"), 
@@ -527,14 +539,16 @@ oper_technika <- mus_tab
 ```
 
 
+\newpage
+
 # 3. PŘEDMĚTY
 
-OBP = obecný předmět
-PAR = archeologie
-VUM = výtvarné umění
-FOT = fotografická karta
-BIO = přírodovědná
-BR  = ?
+OBP = obecný předmět  
+PAR = archeologie  
+VUM = výtvarné umění  
+FOT = fotografická karta  
+BIO = přírodovědná  
+BR  = ?  
 
 ```{r LOAD TABLE SBIRKY}
 
@@ -558,7 +572,7 @@ demus_tab <- demus_tab %>%
                              TRUE ~ paste0(Rada_S, "_", MPORC, "/", MSUB))) %>% 
   mutate(MINVCDO = case_when(is.na(MSUBDO) ~ "",
                              TRUE ~ paste0(Rada_S, "_", MPORCDO, "/", MSUBDO))) %>% 
-  select(-MPORC, -MPORCDO, -MSUB, -MSUBDO) %>% 
+  select(-MPORC, -MPORCDO) %>%
   relocate(MINVC, .before = JineC_S) %>% 
   relocate(MINVCDO, .after = MINVC) 
 
@@ -586,13 +600,7 @@ modify_tab <- demus_tab %>%
     Fond_S == "Plakáty" ~ "P",
     Fond_S == "Výtvarné umění" ~ "VU"
     ))
-  
-
-demus_tab[is.na(demus_tab)] <- ""
-demus_tab <- replace(demus_tab, NA, "")
-  
-# modify_tab$'16fondKod' <- ifelse(modify_tab$Fond_S == oper_fondy$'4nazev', oper_fondy$'3fondKod', NA) # TRIED: fill the fond code by values from another table
-  
+# datumova policka
   
 # n = 1087
 
@@ -603,12 +611,12 @@ mus_tab <- modify_tab %>%
     '1typPredmetuKod' = '1typPredmetuKod', '2sbirkaCisloEvidInt'= '2sbirkaCisloEvidInt',
     '3podsbirkaCislo' = '3podsbirkaCislo', '4ciselnaRadaKod'= Rada_S,
     
-    '5SPCislo' = MINVC, '6SPPoradoveCislo'= PorC_S, '7SPPoradoveCisloSub' = MSUBOD,
+    '5SPCislo' = MINVC, '6SPPoradoveCislo'= PorC_S, '7SPPoradoveCisloSub' = MSUB,
     '8SPCisloDo'= MINVCDO, '9SPPoradoveCisloDo'= HPorC_S, '10SPPoradoveCisloSubDo' = MSUBDO,
     
     '11SPDatumZapisu' = DatZap_S, '12cisloCES' = MEMPTY,
-    '13prirustekCislo' = Plus2T_S,'14ciselnaRadaPrirustkuKod' = ??? MEMPTY,
-    '15nabytiPrirustkuDatum' = ??? MEMPTY,'16fondKod' = '16fondKod',
+    '13prirustekCislo' = Plus2T_S,'14ciselnaRadaPrirustkuKod' = MEMPTY,
+    '15nabytiPrirustkuDatum' =  MEMPTY,'16fondKod' = '16fondKod',
     '17skupinaKod' = Skupina_S,
     '18podskupina1Kod' = MEMPTY, '19podskupina2Kod' = MEMPTY,'20podskupina3Kod' = MEMPTY,
     '21SPPocetKusu' = Pocet_S,'22jinaEvidence1Cislo' = MEMPTY,
@@ -657,7 +665,9 @@ mus_tab <- modify_tab %>%
     '111milVyrobniCislo' = MEMPTY,'112milKategorie' = MEMPTY,
     '113milPrukaz' = MEMPTY,'114milMistoUziti' = MEMPTY,
     '115rokPrirust' = MEMPTY,'116mnozstviSlovy' = MEMPTY,
-    '117pocetCasti' = MEMPTY,'118popisCasti' = MEMPTY    )
+    '117pocetCasti' = MEMPTY,'118popisCasti' = MEMPTY) %>% 
+  mutate_all( ~ str_replace_all(., pattern = ";", replacement = " ")) %>% # removes semicolons
+  mutate_all( ~ str_replace_all(., pattern = "[\r\n]", replacement = " ")) #removes paragraphs
 
 write.table(mus_tab, paste0(path_csv, "csv_obp.csv"), 
             sep = ";", quote = F, row.names = F, 
@@ -674,7 +684,7 @@ write.table(mus_tab, paste0(path_csv, "csv_obp.csv"),
 **IMPORTNÍ ROZHRANNÍ**: CSV PAR
 
 
-```{r MODIFY TABLE SBIRKY FOR PAR}
+```{r MODIFY TABLE SBIRKY FOR PAR, eval = F}
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
@@ -697,7 +707,7 @@ mus_tab <- modify_tab %>%
     '1typPredmetuKod' = '1typPredmetuKod', '2sbirkaCisloEvidInt'= '2sbirkaCisloEvidInt',
     '3podsbirkaCislo' = '3podsbirkaCislo', '4ciselnaRadaKod'= Rada_S,
     
-    '5SPCislo' = MINVC, '6SPPoradoveCislo'= PorC_S, '7SPPoradoveCisloSub' = MSUBOD,
+    '5SPCislo' = MINVC, '6SPPoradoveCislo'= PorC_S, '7SPPoradoveCisloSub' = MSUB,
     '8SPCisloDo'= MINVCDO, '9SPPoradoveCisloDo'= HPorC_S, '10SPPoradoveCisloSubDo' = MSUBDO,
     
     '11SPDatumZapisu' = DatZap_S, '12cisloCES' = MEMPTY,
@@ -775,7 +785,7 @@ write.table(mus_tab, paste0(path_csv, "csv_par.csv"),
 **IMPORTNÍ ROZHRANNÍ**: CSV VUM
 
 
-```{r MODIFY TABLE SBIRKY FOR VUM}
+```{r MODIFY TABLE SBIRKY FOR VUM, eval = F}
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
@@ -845,6 +855,7 @@ write.table(mus_tab, paste0(path_csv, "csv_vum.csv"),
 ```
 
 
+\newpage
 
 # 4. PROPOJENÍ
 
