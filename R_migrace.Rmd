@@ -37,25 +37,40 @@ require(stringr) # ::str_pad
 Narodni muzeum  
 Sbirka Muzea Delnickeho hnuti
 
-Maska inventarniho cisla:
+*Maska inventarniho cisla:*
 
-\{S\}_\{\#\#\#\#\#\#\}/\{x\}  
+\{S\}-\{\#\#\#\#\#\#\}/\{x\}  
+
 
 S = inventarni rada
 \# = cislice
 x = podlomeni
 
+*Inventarni rady [10]:*
+
+ H11E - Modely 
+ H11F - Fotografie a audiovizuální média
+ H11K - Knihy 
+*H11M - Militaria (M)
+ H11N - Numismatika a faleristika
+*H11P - Plakáty (P)
+ H11R - Prapory a vlajky
+ H11S - Společnost a spolková činnost
+*H11T - Filatelie a pohlednice (FP)
+*H11U - Výtvarné umění (VU)
+
+
 
 ```{r PROJECT SPECIFICATIONS AND PATHS, echo = T}
 
-# *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
+# project
 
 project <- "MDH"
 
 sbirka <- "HM"
 podsbirka <- "H11"
 
-# *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
+# paths
 
 path <- "C:/Users/krizova/Documents/R/"
 
@@ -69,7 +84,8 @@ path_csv <- paste0(path, "mus_csv/", project, "/")
 
 ## Referenční tabulka *Sbirky*
 
-Není určena k editaci, pouze k filtraci vazeb pro tvorbu slovníků.  
+- vytvoreni inventarniho cisla
+- k filtraci vazeb pro tvorbu slovníků  
 
 
 ```{r LOAD REFERENCE TABLE SBIRKY}
@@ -80,6 +96,26 @@ sbirky <- read_excel(paste0(path_data, "Sbirky.xlsx"))
 #   select(Fond_S, Skupina_S) %>% 
 #   distinct() %>% 
 #   na.omit()
+
+```
+
+```{r CREATE INVC}
+
+sbirky <- sbirky %>% 
+  
+  select(-MSUBOD, -MSUBDO, -MINVC, -MINVCDO) %>%    # get rid of .accdb columns
+  
+  mutate(MPORC = str_pad(PorC_S, 6, pad = "0")) %>% 
+  mutate(MPORCDO = str_pad(HPorC_S, 6, pad = "0"))  %>% 
+  mutate(MSUB = ifelse(Lomeni_S == "_", NA, Lomeni_S)) %>% 
+  mutate(MSUBDO = HLomeni_S) %>% 
+  mutate(MINVC = case_when(is.na(MSUB) ~ paste0(Rada_S, "-", MPORC),
+                             TRUE ~ paste0(Rada_S, "-", MPORC, "/", MSUB))) %>% 
+  mutate(MINVCDO = case_when(is.na(MSUBDO) ~ "",
+                             TRUE ~ paste0(Rada_S, "-", MPORCDO, "/", MSUBDO))) %>% 
+  # select(-MPORC, -MPORCDO) %>%
+  relocate(MINVC, .before = JineC_S) %>% 
+  relocate(MINVCDO, .after = MINVC) 
 
 ```
 
@@ -146,7 +182,7 @@ mus_tab <- modify_tab %>%
     '7poradi' = MEMPTY, '8oaiId'= MEMPTY,
     '9oaiDatumHarvestingu'= MEMPTY, '10oaiDatumModifikace' = MEMPTY)
 
-write.table(mus_tab, paste0(path_csv, "csv_fond.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_fond.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -202,7 +238,7 @@ mus_tab <- modify_tab %>%
     '9oaiId'= MEMPTY, '10oaiDatumHarvestingu'= MEMPTY, 
     '11oaiDatumModifikace' = MEMPTY)
 
-write.table(mus_tab, paste0(path_csv, "csv_skupiny.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_skupiny.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -267,7 +303,7 @@ mus_tab <- modify_tab %>%
          '53role1' = MEMPTY, '54role2' = MEMPTY, 
          '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY)
 
-write.table(mus_tab, paste0(path_csv, "csv_adresar.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_adresar.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -368,7 +404,7 @@ mus_tab <- modify_tab %>%
   mutate_all( ~ str_replace_all(., pattern = ";", replacement = " ")) %>% # removes semicolons
   mutate_all( ~ str_replace_all(., pattern = "[\r\n]", replacement = " ")) #removes paragraphs
 
-write.table(mus_tab, paste0(path_csv, "csv_oo.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_oo.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250") 
 
@@ -470,7 +506,7 @@ mus_tab <- modify_tab %>%
     '17fytochorion2'= MEMPTY, '18fytochorion3'= MEMPTY,
     '19fytochorion4'= MEMPTY)
 
-write.table(mus_tab, paste0(path_csv, "csv_lokalita.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_lokalita.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -487,7 +523,7 @@ oper_lokalita <- mus_tab
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Materiál
 
-```{r LOAD AND MODIFY TABLE MATERIALY}
+```{r LOAD AND MODIFY TABLE MATERIALY, warning = F}
 
 demus_tab <- read_excel(paste0(path_data, "Materialy.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
@@ -497,20 +533,32 @@ demus_tab[is.na(demus_tab)] <- ""
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
-  mutate('2podsbirkaCislo' = podsbirka)
+  mutate('2podsbirkaCislo' = podsbirka) %>% 
+  mutate(MMAT = Material_MA) %>% 
+  separate(MMAT,into=c("MMAT1", "MMAT2", "MMAT3", "MMAT4", "MMAT5") , sep=",|;") %>% 
+  pivot_longer(
+    cols = MMAT1:MMAT5, 
+    names_to = "MMAT_POR", # poradi materialu
+    values_to = "MMAT_AGG",
+    values_drop_na = TRUE) %>% 
+  mutate(MMATERIAL = str_trim(MMAT_AGG)) # remove white space
 
-# create CSV
+modify_tab <- modify_tab[!duplicated(modify_tab$MMATERIAL),]
+
+```
+
+```{r CREATE CSV MATERIAL}
 
 mus_tab <- modify_tab %>% 
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', '2podsbirkaCislo'= '2podsbirkaCislo',
     '3materialovaSkupinaKod' = MEMPTY, 
-    '4materialNazev'= Material_MA,  # !! povinne !!
+    '4materialNazev'= MMATERIAL,  # !! povinne !!
     '5materialPoznamka' = Pozn_MA, '6materialPublicNadNazev'= MEMPTY,
     '7materialPublicNazev' = MEMPTY, '8materialNazevAnglicky'= MEMPTY,
     '9materialNazevNemecky'= MEMPTY)
 
-write.table(mus_tab, paste0(path_csv, "csv_material.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_material.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -526,7 +574,7 @@ oper_material <- mus_tab
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Technika 
 
-```{r LOAD AND MODIFY TABLE TECHNIKY}
+```{r LOAD AND MODIFY TABLE TECHNIKY, warning = F}
 
 demus_tab <- read_excel(paste0(path_data, "Techniky.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
@@ -536,20 +584,35 @@ demus_tab[is.na(demus_tab)] <- ""
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
-  mutate('2podsbirkaCislo' = podsbirka)
+  mutate('2podsbirkaCislo' = podsbirka) %>% 
+  mutate(MTECH = Technika_TE) %>% 
+  separate(MTECH,into=c("MTECH1", "MTECH2", "MTECH3", "MTECH4", "MTECH5"),
+           sep=",(?! tuší)") %>% # separator is ',' BUT ONLY IF NOT FOLLOWED BY ' tuší' -> solves a single case of 'kresba tužkou, tuší a bělobou' which should remain as one entry
+  pivot_longer(
+    cols = MTECH1:MTECH5, 
+    names_to = "MTECH_POR", # poradi techniky
+    values_to = "MTECH_AGG",
+    values_drop_na = TRUE) %>% 
+  mutate(MTECHNIKA = str_trim(MTECH_AGG)) %>% # remove white space
+  select(-MTECH_AGG) %>% 
+  mutate(MTECH_POR = substr(MTECH_POR, 5, 5))
 
-# create CSV
+modify_tab <- modify_tab[!duplicated(modify_tab$MTECHNIKA),]
+
+```
+
+```{r CREATE CSV TECHNIKY}
 
 mus_tab <- modify_tab %>% 
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', '2podsbirkaCislo'= '2podsbirkaCislo', 
     '3materialovaSkupinaKod' = MEMPTY, 
-    '4technikaNazev'= Technika_TE,  # !! povinne !!
+    '4technikaNazev'= MTECHNIKA,  # !! povinne !!
     '5technikaPoznamka' = Pozn_TE, '6technikaPublicNadNazev'= MEMPTY,
     '7technikaPublicNazev' = MEMPTY, '8technikaNazevAnglicky'= MEMPTY,
     '9technikaNazevNemecky'= MEMPTY)
 
-write.table(mus_tab, paste0(path_csv, "csv_technika.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_technika.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -557,10 +620,160 @@ oper_technika <- mus_tab
 
 ```
 
+## Označení
+
+**DEMUS**: Nazvy 
+**MUSEION**: csv_oznaceni.csv
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Označení 
+
+```{r LOAD AND MODIFY TABLE NAZVY, warning = F}
+
+demus_tab <- read_excel(paste0(path_data, "Nazvy.xlsx"))
+demus_tab[is.na(demus_tab)] <- ""
+
+# n = ?
+
+modify_tab <- demus_tab %>% 
+  mutate(MEMPTY = "") %>% 
+  mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
+  mutate('2podsbirkaCislo' = podsbirka) 
+
+```
+
+```{r CREATE CSV OZNACENI}
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
+    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
+    '3materialovaSkupinaKod' = MEMPTY, 
+    '4oznaceniNazev'= Nazev_NZ,                   # !! povinne !!
+    '5oznaceniPoznamka' = Pozn_NZ)
+
+write.table(mus_tab, paste0(path_csv, project, "_csv_oznaceni.csv"), 
+            sep = ";", quote = F, row.names = F, 
+            na = "", fileEncoding="cp1250")
+
+oper_oznaceni <- mus_tab
+
+```
+
 
 \newpage
 
-# 3. PŘEDMĚTY
+# 3. DOPROVODNÉ TABULKY (opakovatelné)
+
+Pro doprovodne tabulky je treba mit jiz pripravene inventarni cislo v konecnem formatu  
+(viz sekce *Referencni tabulka Sbirky*)
+
+## Materál předmětu
+
+tabulka s poradim materialu ke konkretnimu predmetu
+invc1 - 1. material 1
+invc1 - 2. material 2
+invc2 - 1. material 1, atd
+
+**DEMUS**: Sbirky  
+**MUSEION**: csv_matpred.csv  
+  
+**IMPORTNÍ ROZHRANNÍ**: CSV Materiál předmětu  
+
+
+```{r DERIVE MATPRED FROM SBIRKY, warning = F}
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Material_S) %>% 
+  mutate(MEMPTY = "") %>% 
+  mutate('2sbirkaCisloEvidInt' = sbirka) %>% 
+  mutate('3podsbirkaCislo' = podsbirka) %>% 
+  mutate(MMAT = Material_S) %>% 
+  separate(MMAT,into=c("MMAT1", "MMAT2", "MMAT3", "MMAT4", "MMAT5") , sep=",|;") %>% 
+  pivot_longer(
+    cols = MMAT1:MMAT5, 
+    names_to = "MMAT_POR", # poradi materialu
+    values_to = "MMAT_AGG",
+    values_drop_na = TRUE) %>% 
+  mutate(MMATERIAL = str_trim(MMAT_AGG)) %>% # remove white space
+  select(-MMAT_AGG) %>% 
+  mutate(MMAT_POR = substr(MMAT_POR, 5, 5))
+```
+
+```{r CREATE CSV MATPRED}
+
+mus_tab <- dopr_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
+    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
+    '4poradi' = MMAT_POR,                              # !! povinne !!
+    '5materialNazev' = MMATERIAL,                      # !! povinne !!
+    '6materialovaSkupina' = MEMPTY, 
+    '7materialSpecifikaceNazev' = MEMPTY, '8materialPredmetuPoznam' = MEMPTY)
+
+write.table(mus_tab, paste0(path_csv, project, "_csv_matpred.csv"), 
+            sep = ";", quote = F, row.names = F, 
+            na = "", fileEncoding="cp1250")
+
+oper_matpred <- mus_tab
+
+```
+
+
+## Technika předmětu
+
+tabulka s poradim technik ke konkretnimu predmetu
+invc1 - 1. technika 1
+invc1 - 2. technika 2
+invc2 - 1. technika 1, atd
+
+**DEMUS**: Sbirky 
+**MUSEION**: csv_techpred.csv  
+  
+**IMPORTNÍ ROZHRANNÍ**: CSV Materiál předmětu  
+
+
+```{r DERIVE TECHPRED FROM SBIRKY, warning = F}
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Technika_S) %>% 
+  mutate(MEMPTY = "") %>% 
+  mutate('2sbirkaCisloEvidInt' = sbirka) %>% 
+  mutate('3podsbirkaCislo' = podsbirka) %>% 
+  mutate(MTECH = Technika_S) %>% 
+  separate(MTECH,into=c("MTECH1", "MTECH2", "MTECH3", "MTECH4", "MTECH5"),
+           sep=",(?! tuší)") %>% # separator is ',' BUT ONLY IF NOT FOLLOWED BY ' tuší' -> solves a single case of 'kresba tužkou, tuší a bělobou' which should remain as one entry
+  pivot_longer(
+    cols = MTECH1:MTECH5, 
+    names_to = "MTECH_POR", # poradi techniky
+    values_to = "MTECH_AGG",
+    values_drop_na = TRUE) %>% 
+  mutate(MTECHNIKA = str_trim(MTECH_AGG)) %>% # remove white space
+  select(-MTECH_AGG) %>% 
+  mutate(MTECH_POR = substr(MTECH_POR, 5, 5))
+```
+
+```{r CREATE CSV TECHPRED}
+
+mus_tab <- dopr_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
+    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
+    '4poradi' = MTECH_POR,                             # !! povinne !!
+    '5technikaNazev' = MTECHNIKA,                      # !! povinne !!
+    '6materialovaSkupina' = MEMPTY, 
+    '7technikaSpecifikaceNazev' = MEMPTY, '8technikaPredmetuPoznam' = MEMPTY)
+
+write.table(mus_tab, paste0(path_csv, "csv_techpred.csv"), 
+            sep = ";", quote = F, row.names = F, 
+            na = "", fileEncoding="cp1250")
+
+oper_techpred <- mus_tab
+
+```
+
+# 4. PŘEDMĚTY
 
 OBP = obecný předmět  
 PAR = archeologie  
@@ -569,31 +782,13 @@ FOT = fotografická karta
 BIO = přírodovědná  
 BR  = ?  
 
-```{r LOAD TABLE SBIRKY}
+```{r LOAD TABLE AKVIZICE JOIN WITH SBIRKY}
 
-demus_tab <- read_excel(paste0(path_data, "Sbirky.xlsx")) 
+akvizice <- read_excel(paste0(path_data, "Akvizice.xlsx")) 
+
+demus_tab <- merge(sbirky, akvizice, by.x = "IdC_S", by.y = "IdC_AQ", all.x = T) 
 
 # n = 1087
-
-```
-
-```{r CREATE INVENTORY NUMBER}
-
-demus_tab <- demus_tab %>% 
-  
-  select(-MSUBOD, -MSUBDO, -MINVC, -MINVCDO) %>%    # get rid of .accdb columns
-  
-  mutate(MPORC = str_pad(PorC_S, 6, pad = "0")) %>% 
-  mutate(MPORCDO = str_pad(HPorC_S, 6, pad = "0"))  %>% 
-  mutate(MSUB = ifelse(Lomeni_S == "_", NA, Lomeni_S)) %>% 
-  mutate(MSUBDO = HLomeni_S) %>% 
-  mutate(MINVC = case_when(is.na(MSUB) ~ paste0(Rada_S, "_", MPORC),
-                             TRUE ~ paste0(Rada_S, "_", MPORC, "/", MSUB))) %>% 
-  mutate(MINVCDO = case_when(is.na(MSUBDO) ~ "",
-                             TRUE ~ paste0(Rada_S, "_", MPORCDO, "/", MSUBDO))) %>% 
-  select(-MPORC, -MPORCDO) %>%
-  relocate(MINVC, .before = JineC_S) %>% 
-  relocate(MINVCDO, .after = MINVC) 
 
 ```
 
@@ -636,21 +831,23 @@ mus_tab <- modify_tab %>%
     '8SPCisloDo'= MINVCDO, '9SPPoradoveCisloDo'= HPorC_S, '10SPPoradoveCisloSubDo' = MSUBDO,
     
     '11SPDatumZapisu' = DatZap_S, '12cisloCES' = MEMPTY,
-    '13prirustekCislo' = Plus2T_S,'14ciselnaRadaPrirustkuKod' = MEMPTY,
-    '15nabytiPrirustkuDatum' =  MEMPTY,'16fondKod' = '16fondKod',
+    '13prirustekCislo' = PrirC_AQ,'14ciselnaRadaPrirustkuKod' = MEMPTY,
+    '15nabytiPrirustkuDatum' = MEMPTY, '16fondKod' = '16fondKod',
     '17skupinaKod' = Skupina_S,
     '18podskupina1Kod' = MEMPTY, '19podskupina2Kod' = MEMPTY,'20podskupina3Kod' = MEMPTY,
     '21SPPocetKusu' = Pocet_S,                    # !! povinne !!
-    '22jinaEvidence1Cislo' = MEMPTY,
-    '23jinaEvidence2Cislo' = MEMPTY,'24jinaEvidence3Cislo' = JineC_S,
+    '22jinaEvidence1Cislo' = JineC_S,
+    '23jinaEvidence2Cislo' = MEMPTY,'24jinaEvidence3Cislo' = MEMPTY,
     '25SPPapirovaKarta' = Karta_S,'26SPKartaJeOpsana' = Opsana_S, # LOGICKE SLOUPCE
     '27archivalie' = Archiv_S,
     '28SPUIns' = Zapsal_S, '29SPDIns' = DatZap_S, # ZALOZENI ZAZNAMU
-    '30SPUUpd' = MEMPTY, '31SPDUpd' = DatZm_S, # UPRAVA ZAZNAMU 
-    '32stalaLokaceKod' = StLokace_S, '33aktualniLokaceKod' = AktLokace_S, # LOKACE
+    '30SPUUpd' = MEMPTY, '31SPDUpd' = MEMPTY, # UPRAVA ZAZNAMU 
+    
+    '32stalaLokaceKod' = MEMPTY, '33aktualniLokaceKod' = MEMPTY, # LOKACE (migruje se zvlast)
+    
     '34predmetNazev' = Titul_S, '35oznaceni1Nazev' = Predmet_S, # PREDMET
     '36odborneUrceniPopis' = Popis_S, '37odborneUrceniPopis2' = MEMPTY, 
-    '38odborneUrceniPoznamka' = MEMPTY, '39kompletnostKod' = MEMPTY,
+    '38odborneUrceniPoznamka' = Pozn_S, '39kompletnostKod' = MEMPTY,
     '40signatura' = Sign_S, '41signatura2' = MEMPTY, '42markant' = Markant_S,
     '43jazykSlovy' = MEMPTY,'44urcilOsobaKod' = Urcil_S,
     '45dataceUrceniHodnota' = DatUrc_S, '46odborneUrceniSchvaleno' = MEMPTY,
@@ -659,16 +856,18 @@ mus_tab <- modify_tab %>%
     '51pojistnaCena' = MEMPTY, '52pojistnaCenaMena' = MEMPTY, # POJISTENI 
     '53pojistnaCenaDatum' = MEMPTY,'54ucetniCena' = MEMPTY, # CENA
     '55SPDatumPosledniManipulace' = MEMPTY,
-    '56text1' = MEMPTY, '57text2' = MEMPTY, '58text3' = MEMPTY,
-    '59text4' = MEMPTY,'60text5' = MEMPTY, '61text6' = MEMPTY,
+    '56text1' = MEMPTY, '57text2' = MEMPTY, '58text3' = Plus1T_S,
+    '59text4' = Plus2T_S,'60text5' = MEMPTY, '61text6' = MEMPTY,
     '62text7' = MEMPTY, '63text8' = MEMPTY,'64text9' = MEMPTY,
     '65text10' = MEMPTY,'66priznak1' = MEMPTY, '67priznak2' = MEMPTY,
     '68priznak3' = MEMPTY, '69priznak4' = MEMPTY,'70priznak5' = MEMPTY,
-    '71zpusobNabytiKod' = MEMPTY,'72nabytiPredmetuDatum' = MEMPTY, # NABYTI
-    '73nabytiPredmetuRokAkvizice' = MEMPTY,'74nabytiPredmetuDoklad' = MEMPTY,
+    
+    '71zpusobNabytiKod' = ZpAkv_AQ,'72nabytiPredmetuDatum' = DatAkv_AQ, # NABYTI
+    '73nabytiPredmetuRokAkvizice' = MEMPTY,'74nabytiPredmetuDoklad' = CDoklAkv_AQ,
     '75nabytiCena' = MEMPTY,'76nabytiMena' = MEMPTY,
-    '77predchoziMajitelSlovy' = MEMPTY,'78puvodniMajitelKod' = MEMPTY,
-    '79prispevatelKod' = MEMPTY,'80nabytiPoznamka' = MEMPTY,
+    '77predchoziMajitelSlovy' = PredMajSlovy_AQ,'78puvodniMajitelKod' = MEMPTY,
+    '79prispevatelKod' = MEMPTY,'80nabytiPoznamka' = Okolnosti_AQ,
+    
     '81lokalitaNalezuNazev' = Lokalita_S,'82lokalitaDoplneni' = MEMPTY,
     '83lokalitaOriginalni' = MEMPTY,'84nalezKatUzemiNazev' = MEMPTY,
     '85pozemekSlovy' = MEMPTY,'86nalezPoznamka' = MEMPTY,
@@ -689,7 +888,7 @@ mus_tab <- modify_tab %>%
     '115rokPrirust' = MEMPTY,'116mnozstviSlovy' = MEMPTY,
     '117pocetCasti' = MEMPTY,'118popisCasti' = MEMPTY) %>% 
   mutate_all( ~ str_replace_all(., pattern = ";", replacement = " ")) %>%  # removes semicolons
-  mutate_all( ~ str_replace_all(., pattern = "[\r\n]", replacement = " ")) #removes paragraphs
+  mutate_all( ~ str_replace_all(., pattern = "[\r\n]", replacement = " ")) # removes paragraphs
   
 # convert FALSE to 0, TRUE to 1
 
@@ -697,7 +896,15 @@ mus_tab$'25SPPapirovaKarta' <- as.integer(as.logical(mus_tab$'25SPPapirovaKarta'
 mus_tab$'26SPKartaJeOpsana' <- as.integer(as.logical(mus_tab$'26SPKartaJeOpsana'))
 mus_tab$'27archivalie' <- as.integer(as.logical(mus_tab$'27archivalie'))
 
-write.table(mus_tab, paste0(path_csv, "csv_obp.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_obp.csv"), 
+            sep = ";", quote = F, row.names = F, 
+            na = "", fileEncoding="cp1250")
+
+mus_tab_cvic <- mus_tab %>% 
+  slice(1:10)
+
+
+write.table(mus_tab_cvic, paste0(path_csv, project, "_csv_obp.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -745,9 +952,8 @@ mus_tab <- modify_tab %>%
     '18podskupina1Kod' = MEMPTY, '19podskupina2Kod' = MEMPTY,'20podskupina3Kod' = MEMPTY,
     '21SPPocetKusu' = Pocet_S,'22jinaEvidence1Cislo' = MEMPTY,
     '23jinaEvidence2Cislo' = MEMPTY,'24jinaEvidence3Cislo' = JineC_S,
-    
     '25SPPapirovaKarta' = Karta_S,'26SPKartaJeOpsana' = Opsana_S, # LOGICKA POLE
-    '27materialovaSkupinaKod' = ,
+    '27materialovaSkupinaKod' =  MEMPTY,
     '28SPUIns' = Zapsal_S, '29SPDIns' = DatZap_S, # ZALOZENI ZAZNAMU
     '30SPUUpd' = MEMPTY, '31SPDUpd' = DatZm_S, # UPRAVA ZAZNAMU 
     '32stalaLokaceKod' = StLokace_S, '33aktualniLokaceKod' = AktLokace_S, # LOKACE
@@ -807,7 +1013,7 @@ mus_tab <- modify_tab %>%
 mus_tab$'25SPPapirovaKarta' <- as.integer(as.logical(mus_tab$'25SPPapirovaKarta')) 
 mus_tab$'26SPKartaJeOpsana' <- as.integer(as.logical(mus_tab$'26SPKartaJeOpsana'))
 
-write.table(mus_tab, paste0(path_csv, "csv_par.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_par.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 ```
@@ -890,7 +1096,7 @@ mus_tab <- modify_tab %>%
 mus_tab$'27SPPapirovaKarta' <- as.integer(as.logical(mus_tab$'27SPPapirovaKarta')) 
 mus_tab$'28SPKartaJeOpsana' <- as.integer(as.logical(mus_tab$'28SPKartaJeOpsana'))
 
-write.table(mus_tab, paste0(path_csv, "csv_vum.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_vum.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -979,7 +1185,7 @@ mus_tab <- modify_tab %>%
 mus_tab$'22SPPapirovaKarta' <- as.integer(as.logical(mus_tab$'22SPPapirovaKarta')) 
 mus_tab$'23SPKartaJeOpsana' <- as.integer(as.logical(mus_tab$'23SPKartaJeOpsana')) 
 
-write.table(mus_tab, paste0(path_csv, "csv_fot.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_fot.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -1098,7 +1304,7 @@ mus_tab <- modify_tab %>%
 mus_tab$'72SPPapirovaKarta' <- as.integer(as.logical(mus_tab$'72SPPapirovaKarta')) 
 mus_tab$'73SPKartaJeOpsana' <- as.integer(as.logical(mus_tab$'73SPKartaJeOpsana'))
 
-write.table(mus_tab, paste0(path_csv, "csv_bio.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_bio.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
@@ -1163,12 +1369,12 @@ mus_tab$'36vystavitDoklad' <- as.integer(as.logical(mus_tab$'36vystavitDoklad'))
 mus_tab$'37souhlasGdpr' <- as.integer(as.logical(mus_tab$'37souhlasGdpr'))
 mus_tab$'38souhlasPubl' <- as.integer(as.logical(mus_tab$'38souhlasPubl'))
 
-write.table(mus_tab, paste0(path_csv, "csv_br.csv"), 
+write.table(mus_tab, paste0(path_csv, project, "_csv_br.csv"), 
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 ```
 
-# 4. PROPOJENÍ
+# 5. PROPOJENÍ
 
 
 
