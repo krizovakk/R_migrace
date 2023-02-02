@@ -1,0 +1,428 @@
+---
+title: "R hacks"
+author: "Katerina Krizova"
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+output: 
+  pdf_document: 
+    toc: yes
+    toc_depth: 3
+---
+
+* frequently used commands and hardly gained experience 
+* R, R Markdown
+
+# *WHAT NEEDS TO BE COVERED*
+
+## apply, lapply, vapply aso
+
+## read shapefiles: packages, quiet = T aso
+
+## slice()
+
+## grepl
+
+# *INITIAL STEPS*
+
+## PACKAGES
+
+* tidyverse : 
+
+```{r}
+# install.packages("tidyverse")
+require(tidyverse)
+```
+
+## DATA
+
+* **starwars**
+* **simple_table_4read.csv**
+* **simple_table_2write.txt**
+
+During this demonstration, We’ll use the *Starwars* characters dataset. 
+The data, part of the dplyr package, come from [SWAPI](https://swapi.dev/), the Star Wars API. Since the data are integrated into *dplyr*, we don’t need to load the data, but you may still want to find information about the dataset. The codebood for the Starwars dataset is integrated into the dplyr documentation. To view the Starwars codebook, first load the library(dplyr) package. Then, via the Help pane, search starwars. Alternatively, in the Console pane, type ?starwars.
+
+Note: dplyr is part of tidyverse which we load with the command: library(tidyverse)
+
+```{r}
+starwars
+```
+
+## SET PATHS
+
+```{r}
+path_in <- "D:/VURV/R_hacks/data/"
+path_out <- "D:/VURV/R_hacks/results/"
+```
+
+# *R HACKS*
+
+# READ AND WRITE
+
+* read.table
+* read.csv : sep is always ","
+
+* write.table : usually set sep as ";"
+* write.csv
+
+## READ
+
+header = T : 1st row is header
+
+sep = "," OR ";" OR " "
+
+fill = T : fills empty fields
+
+read.table and read.csv is both fine
+
+> absolute path
+
+```{r}
+df <- read.table("D:/VURV/R_hacks/data/simple_table_4read.csv", header = TRUE, sep = ";")
+df <- read.csv("D:/VURV/R_hacks/data/simple_table_4read.csv", header = TRUE, sep = ";")
+```
+
+> relative paths
+
+```{r}
+df <- read.table(paste0(path_in, "simple_table_4read.csv"), header = TRUE, sep = ";")
+df <- read.csv(paste0(path_in, "simple_table_4read.csv"), header = TRUE, sep = ";")
+```
+
+## WRITE
+
+quote = F : string will be not written in quotes
+
+row.names = F : no primary ID will be added
+
+col.names = F : header won't be written
+
+> absolute path
+
+```{r}
+write.table(df,"D:/VURV/R_hacks/results/simple_table_2write.txt", 
+            sep = ";", quote = F, row.names = F) 
+```
+
+> relative paths
+
+```{r}
+write.table(df, paste0(path_out, "simple_table_2write.txt"), 
+            sep = ";", quote = F, row.names = F) 
+```
+
+
+# FOLDERS, FILES AND LISTS
+
+## create folder in direcory
+
+```{r warning=F}
+dir.create ("D:/VURV/R_hacks/results/new_folder_abs") # absolute path
+dir.create (paste0(path_out, "new_folder_rel")) # relative path
+```
+
+## load all files from directory 
+
+multiple files can be loaded from directory based on specific rule
+mostly file type or name of the file
+
+## names of files without extension
+
+```{r}
+library(tools)
+file_path_sans_ext(list.files(pattern = "*.csv"))
+```
+
+
+## read files from direcory and combine them into 1 file
+
+```{r}
+acmnames <- list.files(paste0(path_out, crop, "/_outs/"), pattern= "\\.ACM$")  # Identify file names
+
+acm_comb = data.frame() # empty dataframe to write files in
+
+for(i in acmnames) { 
+  a <- read.table(paste0(path_out, crop, "/_outs/", i), header = FALSE, skip = 11)
+  a$source <- paste0(i)
+  a$source <- str_sub(a$source,1,nchar(a$source)-4)
+  df <- data.frame(a) 
+  acm_comb <- rbind(acm_comb, df)
+}
+```
+
+
+## split df based on a factor level
+
+```{r eval=F}
+sw_split <- split(starwars, starwars$homeworld) # creates list
+
+lapply(names(sw_split), function(df) write.csv(sw_split[[df]], file=paste0(path_out, "new_folder_abs/", df, ".csv"), row.names = F)) 
+```
+
+
+## remove df from environment
+
+remove single file or list of files with specific name pattern
+
+```{r eval=F}
+rm(df_round) # created later
+rm(list=ls(pattern="sw_")) # created later
+```
+
+
+## delete folder
+
+```{r}
+for(i in 1:length(epic_parall)) { 
+  unlink(paste0(path_epic, "EPIC_CS_", i, "/_outs/"), recursive = T) # If recursive = FALSE directories are not deleted, not even empty ones.
+}
+```
+
+
+# NUMERICS
+
+## round all
+
+rounds all numeric values in DF
+
+```{r}
+df_round <- df %>% 
+  mutate(across(where(is.numeric), ~ round(., digits = 1)))
+```
+
+## x digit numbers
+
+creates numbers with specified number of digits
+
+```{r}
+# df %>% 
+mutate(temp = sprintf("%04d", 1:1427))
+```
+
+
+# DATE
+
+## date format
+
+[Date Formats in R](https://www.r-bloggers.com/2013/08/date-formats-in-r/)
+
+```{r}
+df$sow_dat <- toString(df$sow_dat) # convert date into date format
+df$sow_dat <- as.Date(df$sow_dat, "%Y%m%d") # convert date into date format
+
+# doesn't work so far
+# df$month <- format(df$sow_dat, "%m") # get months as numeric     
+# df$year <- format(df$sow_dat,format="%y") # get years
+```
+
+## convert integer to date
+
+```{r}
+hvd_scen$IPLD <- as.Date(as.character(hvd_scen$IPLD), format = "%Y%m%d")
+```
+
+## date format with pipes
+
+```{r}
+df %>% 
+mutate('11SPDatumZapisu' = format(as.Date(DatZap_S),"%d.%m.%Y")) 
+```
+
+
+# STRINGS
+
+## starts with 
+
+```{r eval=F}
+sw_string <- starwars %>% 
+  filter(startsWith(homeworld, "Tat"))
+```
+
+## remove last X characters
+
+str_sub(species,**1**,nchar(species)**-2**))
+1 -> new string strats with 1st character
+-2 -> cut last 2 characters
+
+```{r}
+sw_rem <- starwars %>% 
+  mutate(spec_short = str_sub(species,1,nchar(species)-2))
+```
+
+
+# SALT & PEPPER
+
+```{r}
+summary(starwars$species[starwars$species == "Human"])
+summary(starwars$height[starwars$height > 100])
+summary(starwars$height) # to compare with selected part of the table
+```
+
+
+# DATA ANALYSIS
+
+## delete rows with NA values
+
+```{r eval=F}
+na.omit()
+```
+
+## case_when
+
+creates a new column based on info from other columns
+```{r}
+sw_casewhen <- starwars %>% 
+  mutate(power = case_when(sex == "female" ~ "female power", 
+                           sex %in% c("male","none") ~ "too bad")) 
+```
+
+## if else
+
+```{r}
+#quest <- "nam_hom" # names and homeworld
+quest <- "body" # name, heights, mass
+#quest <- "color" # name, hair_color, skin_color, eye_color 
+#quest <- "nope" # name, hair_color, skin_color, eye_color
+
+
+if(quest == "nam_hom"){
+     sw_quest <- starwars %>% 
+    select(name, homeworld)
+    print("Da wo ich herkomm")
+  } else if(quest == "body"){
+    sw_quest <- starwars %>% 
+    select(name, height, mass)
+    print("No one will jugdge you")
+  } else if(quest == "color"){
+    sw_quest <- starwars %>% 
+    select(name, hair_color, skin_color, eye_color)
+    print("You are all beautiful")
+  } else{
+    print("It's a trap!")
+  }
+```
+
+
+# GGPLOT
+
+## variables
+
+## lab names
+
+## lab scales
+
+## legend name
+
+labs(fill = "legend name")
+
+## legend position
+
+theme_void(legend.position = c(0.7, 0.2),legend.direction = "horizontal"))
+
+## facet
+
+### facet_grid
+
+### facet_wrap
+
+## ggsave
+
+```{r eval=FALSE}
+ggsave("D:/VURV/R_hacks/results/plot.png", device = "png", width = 10, height = 6, dpi = 300)
+ggsave(paste0(path_out, "plot.png"), device = "png", width = 10, height = 6, dpi = 300)
+ggsave(paste0(path_out, "plot.png"), device = "png", width = 10, height = 6, dpi = 300) # add variable to the name
+```
+
+# GIS 
+
+## links to explore
+
+http://oswaldosantos.github.io/ggsn/
+
+## the best spatial analysis R packages
+
+[source](https://towardsdatascience.com/the-best-spatial-analysis-packages-to-use-in-r-35855069f8b2)
+
+* [*maps*](https://cran.r-project.org/web/packages/maps/maps.pdf)
+    + basic package for producing simple maps very quickly and with little code
+* [*spatstat*](https://cran.r-project.org/web/packages/spatstat/spatstat.pdf)
+    + very good package to use on two dimensional spatial datasets
+    + complete spatial statistics package that can be used for point pattern analysis
+    + analyze spatial point pattern movement and distributions
+    + Spatstat also allows you to conduct kernel density estimates (KDE)
+* [*spdep*](https://cran.r-project.org/web/packages/spdep/spdep.pdf)
+    + Spdep allows you to build spatial weights for a dataset and conduct autocorrelation on your dataset as well
+* [*maptools*](https://cran.r-project.org/web/packages/maptools/maptools.pdf)
+    + allows you to read in and manipulate spatial data
+    + used for reading, writing, and exporting spatial data
+    + From KML, SHP, and ASCII, if your data have coordinates you can use maptools to explore the information in it
+* [*GISTools*](https://cran.r-project.org/web/packages/GISTools/GISTools.pdf)
+    + Probably one of the most versatile and necessary GIS packages in R for spatial data
+    + allows you to not only make maps but also to analyze data
+
+##
+
+### st_ functions
+
+st_buffer(point, dist = 100)
+
+## spatial ggplot
+
+ggplot() +
+  geom_path(aes(long, lat, group=group), data=worldUk, color="black", fill=NA) +
+  coord_equal() +
+  ggsn::scalebar(worldUk, dist = 100, st.size=3, height=0.01, dd2km = TRUE, model = 'WGS84')
+
+
+# MARKDOWN
+
+## handy links
+
+* [Pimp my RMD](https://holtzy.github.io/Pimp-my-rmd/)
+
+## document header
+
+title: "Habits"
+author: John Doe
+date: March 22, 2005
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_width: 7
+    fig_height: 6
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+
+## r chunk options
+
+* \`\`\` \{r\} \`\`\`
+* r include = F : prevents from including the chunk in knitted file
+* r echo = F : code not in file, results yes
+* r eval = F : code is in the file, but the chunk does not run
+* r message = F : does not show the message (e.i. "shp uploaded")
+* r warning = F : does not show the warning (e.i. "folder already exists")
+
+## headers
+
+\# Title 1
+
+\#\# Title 2
+
+\#\#\# Title 3
+
+\*text\*  *italics*
+
+\*\*text\*\* **bold**
+
+\~\~text\~\~ ~~struckthrough~~
+
+## formatting
+
+\\newpage braks the page
+
+# FINAL INFO
+
+[GIT](https://github.com/krizovakk/__R_hacks.git)
