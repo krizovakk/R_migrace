@@ -513,9 +513,9 @@ mus_tab <- modify_tab %>%
     '17fytochorion2'= MEMPTY, '18fytochorion3'= MEMPTY,
     '19fytochorion4'= MEMPTY)
 
-write.table(mus_tab, paste0(path_csv, project, "_csv_lokalita.csv"), 
-            sep = ";", quote = F, row.names = F, 
-            na = "", fileEncoding="cp1250")
+# write.table(mus_tab, paste0(path_csv, project, "_csv_lokalita.csv"), 
+#             sep = ";", quote = F, row.names = F, 
+#             na = "", fileEncoding="cp1250")
 
 oper_lokalita <- mus_tab
 
@@ -666,6 +666,39 @@ oper_oznaceni <- mus_tab
 
 ```
 
+## Datace
+
+**DEMUS**: Sbirky 
+**MUSEION**: csv_dataceNazvem.csv
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Datace názvem
+
+```{r EXTRACT DATATION FROM TABLE SBIRKY, warning = F}
+
+modify_tab <- sbirky
+
+```
+
+```{r CREATE CSV DATACE NAZVEM}
+
+# mus_tab <- modify_tab %>% 
+#   select(
+#     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
+#     '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
+#     '3materialovaSkupinaKod' = MEMPTY, 
+#     '4oznaceniNazev'= Nazev_NZ,                   # !! povinne !!
+#     '5oznaceniPoznamka' = Pozn_NZ)
+# 
+# write.table(mus_tab, paste0(path_csv, project, "_csv_dataceNazvem.csv"), 
+#             sep = ";", quote = F, row.names = F, 
+#             na = "", fileEncoding="cp1250")
+# 
+# oper_datace <- mus_tab
+
+```
+
+SELECT "" As 1sbirkaCisloEvidInt, "" As 2podsbirkaCislo, "" As 3dataceNazvemNazev, "" As 4dataceHodnota, "" As 5dataceSnad, "" As 6kvalifikatorDataceNazev, "" As 7dataceSnad2, "" As 8kvalifikatorDatace2Nazev, "" As 9dataceNazvemPoznamka, "" As 10dataceNazvemPublicNadNazev, "" As 11dataceNazvemPublicNaz FROM TABULKA;
+
 
 \newpage
 
@@ -780,6 +813,134 @@ oper_techpred <- mus_tab
 
 ```
 
+## Vznik Předmětů
+
+tabulka s trojici ke konkretnimu predmetu
+invc1 - 1. autor
+invc1 - 1. datace
+invc1 - 1. misto vzniku
+invc1 - 2. autor 2
+invc2 - 2. datace 2, atd  
+  
+### role
+
+- zkontrolovat ve slovníku role a případně ručně dozaložit chybějící  
+- MUSEION -> Slovníky -> Osoby a instituce -> Role subjektů
+
+```{r CHECK ROLES AND LOCS DICTIONARIES}
+
+unique(sbirky$Role_S)
+
+```  
+  
+### mista vzniku
+
+- zkontrolovat Místa vzniku a chybějící doplnit do Lokalit
+
+```{r CHECK ROLES AND LOCS DICTIONARIES}
+# roles
+unique(sbirky$Role_S)
+
+# locations
+unique(oper_lokalita$'1lokalitaNazev')
+unique(sbirky$MistoVz_S)
+
+vec <- setdiff(sbirky$MistoVz_S, oper_lokalita$'1lokalitaNazev')
+
+mvzn_tab <- as.data.frame(vec) %>%  # '1lokalitaNazev'
+  add_column('2okresNazev'= "") %>% 
+  add_column('3statKod'= "") %>% 
+  add_column('4oblastNazev'= "") %>% 
+  add_column('5lokalitaZeme'= "") %>% 
+  add_column('6lokalitaCtverec'= "") %>% 
+  add_column('7lokalitaMapa'= "") %>% 
+  add_column('8lokalitaZemepisnaSirka'= "") %>% 
+  add_column('9lokalitaZemepisnaDelka'= "") %>% 
+  add_column('10lokalitaNadmorskaVyska'= "") %>% 
+  add_column('11lokalitaPoznamka'= "") %>% 
+  add_column('12lokalitaSbirka'= "") %>% 
+  add_column('13lokalitaPodsbirka'= "") %>%  
+  add_column('14fytochorion1'= "") %>%  
+  add_column('15lokalitaPublicNadNazev'= "") %>%  
+  add_column('16lokalitaPublicNazev'= "") %>%  
+  add_column('17fytochorion2'= "") %>%  
+  add_column('18fytochorion3'= "") %>%  
+  add_column('19fytochorion4'= "")
+  
+colnames(mvzn_tab)[1] <- '1lokalitaNazev'
+
+write.table(mvzn_tab, paste0(path_csv, project, "_csv_lokalita_MVZN.csv"),
+            sep = ";", quote = F, row.names = F,
+            na = "", fileEncoding="cp1250")
+
+
+```
+
+### vznik ptu  
+
+
+**DEMUS**: Sbirky 
+**MUSEION**: csv_vznikPtu.csv  
+  
+**IMPORTNÍ ROZHRANNÍ**: CSV Vznik předmětů  
+
+
+```{r DERIVE VZNIKPTU FROM SBIRKY, warning = F}
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Autor_S, Role_S, Datace_S, MistoVz_S) %>% 
+  mutate(MEMPTY = "") %>% 
+  mutate(MDATACE = Datace_S) %>% 
+  mutate(MDAT_Y = ifelse(str_detect(MDATACE, "_00_00"), MDATACE, "")) %>% 
+  mutate(MDAT_Y = str_replace_all(MDAT_Y, "_00|-00", ""))
+
+ym <- dopr_tab %>% 
+  # mutate(MDAT_YM = ifelse(str_detect(MDATACE, "/^[^_]*_[^_]*_*00$/"), MDATACE, "")) 
+  # mutate(MDAT_YM = ifelse(str_detect(MDATACE, "\\w*_*[^0]*[^0]*_*\\w"), MDATACE, "")) 
+  mutate(MDAT_YM = ifelse(str_detect(MDATACE, "\\.(00_00)$"), "", MDATACE)) 
+
+
+  mutate(MDATACE = str_replace_all(dopr_tab$MDATACE, "-00", "")) %>% 
+  mutate(MDAT_LATER = ifelse(str_detect(dopr_tab$MDATACE, "XX"), dopr_tab$MDATACE, "")) %>% 
+  mutate('2poradi' = "") %>% 
+  mutate('15dataceSnad' = ifelse(str_detect(dopr_tab$MDATACE, "\\?"), 1, 0))
+
+
+  
+```
+
+```{r CREATE CSV VZNIKPTU}
+
+mus_tab <- dopr_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                          # !! povinne !!
+    '2poradi' = '2poradi',                       # !! povinne !!
+    '3autorSubjektKod' = Autor_S,             
+    '4autorSnad' = MEMPTY      ,                 # priznak 0 1                        
+    '5autorRoleNazev' = Role_S,       
+    '6autorPoznamka' = MEMPTY, 
+    '7mistoLokalitaNazev' = MistoVz_S, 
+    '8mistoSnad' = MEMPTY,                       # priznak 0 1 
+    '9specifikaceMistaNazev' = MEMPTY, 
+    '10mistoDoplneni' = MEMPTY, 
+    '11dataceHodnota' = Datace_S, 
+    '12datacePoznamka' = MEMPTY, 
+    '13poznamka' = MEMPTY, 
+    '14kvalifikatorDatace' = MEMPTY, 
+    '15dataceSnad' = MEMPTY,                     # priznak 0 1 
+    '16kvalifikatorDatace2' = MEMPTY,  
+    '17dataceSnad' = MEMPTY)                     # priznak 0 1  
+
+write.table(mus_tab, paste0(path_csv, project, "_csv_vznikPtu.csv"), 
+            sep = ";", quote = F, row.names = F, 
+            na = "", fileEncoding="cp1250")
+
+oper_vznikPtu <- mus_tab
+
+```
+
+
+
 # 4. PŘEDMĚTY
 
 OBP = obecný předmět  
@@ -818,7 +979,7 @@ modify_tab <- demus_tab %>%
   mutate('1typPredmetuKod' = "P")   %>%         # povinný - "P", "NU", "MI", "HM", "DI", "F1"
   mutate('2sbirkaCisloEvidInt' = sbirka) %>% 
   mutate('3podsbirkaCislo' = podsbirka) %>% 
-  mutate('13prirustekCislo' = paste0(MPRIR_rada, "-" ,MPRIR_cislo, "/", MPRIR_rok)) %>% 
+  mutate('13prirustekCislo' = ifelse(is.na(MPRIR_rada), "", paste0(MPRIR_rada, "-", MPRIR_cislo, "/", MPRIR_rok))) %>% 
   mutate('16fondKod' = case_when(
     Fond_S == "Filatelie a pohlednice" ~ "FP",
     Fond_S == "Military" ~ "M",
@@ -871,7 +1032,7 @@ mus_tab <- modify_tab %>%
     '25SPPapirovaKarta' = '25SPPapirovaKarta',    # LOGICKE SLOUPCE
     '26SPKartaJeOpsana' = '26SPKartaJeOpsana', 
     '27archivalie' = '27archivalie',
-    '28SPUIns' = Zapsal_S,                        # ZALOZENI ZAZNAMU
+    '28SPUIns' = Zapsal_S,  # text, nemusi byt slovnik    # ZALOZENI ZAZNAMU
     '29SPDIns' = '29SPDIns',                      
     '30SPUUpd' = MEMPTY,                          # UPRAVA ZAZNAMU 
     '31SPDUpd' = MEMPTY, 
@@ -953,16 +1114,18 @@ write.table(mus_tab, paste0(path_csv, project, "_csv_obp.csv"),
             sep = ";", quote = F, row.names = F, 
             na = "", fileEncoding="cp1250")
 
-# museion trial top 10
+oper_obp <- mus_tab
+
+```
+
+```{r TOP 10 ENTRIES TRIAL}
 
 mus_tab_cvic <- mus_tab %>% 
   slice(1:10)
 
-
 write.table(mus_tab_cvic, paste0(path_csv, project, "_csv_obp_cv.csv"),
             sep = ";", quote = F, row.names = F,
             na = "", fileEncoding="cp1250")
-
 ```
 
 
