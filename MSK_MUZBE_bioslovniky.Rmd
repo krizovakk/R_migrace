@@ -1,0 +1,174 @@
+---
+title: "MIGRACE DAT - DEMUS / MUSEION"
+subtitle: "Moravskoslezsky kraj - Muzeum Beskyd"
+author: "Katerina Krizova"
+date: "2023-02-08"
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+\newpage 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+require(tidyverse)
+require(readxl)
+require(stringr) # ::str_split_fixed
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+
+```
+
+\newpage 
+
+# PROJEKT A CESTY
+
+```{r PROJECT SPECIFICATIONS AND PATHS}
+
+# *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
+
+project <- "MSK_MUZBE"
+
+# sbirka <- 
+# podsbirka <- 
+
+# *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
+
+path <-  "C:/Users/krizova/Documents/R_migrace/"
+
+path_data <-  paste0(path, "data/")
+path_csv <-  paste0(path, "mus_csv/", project, "/")
+
+path_mdb <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/01 muzBE analyza/"
+
+```
+
+
+# PRIPOJENI DATABAZE
+
+```{r SET DATABASE CONNECTION}
+
+dbname <- paste0(path_mdb, "PVO/Databaze_PVO_2021-11-03.accdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the connection
+
+# RODBC::sqlTables(con)                                            # list tables in database
+
+```
+
+\newpage
+
+
+# SYSTEMATIKA
+
+## ANIMALIA
+
+ "ID"        "druh_CZ"   "druh_LAT"  "autor"     "celed_CZ"  "celed_LAT" "rad_CZ"    "rad_LAT"  
+"trida_CZ"  "trida_LAT" "kmen_LAT"  "kmen_CZ"   "ochrana"   "syn"      
+
+```{r READ AND MODIFY DB TABLE ANIMALIA, warning = F}
+
+db_tab <- RODBC::sqlFetch(con, "Pz_System_ZOOpredmety")            # read specific table
+
+animalia <- db_tab %>% 
+   separate(celed,into=c("celed_CZ", "celed_LAT") , sep=" ") %>% 
+   separate(rad,into=c("rad_CZ", "rad_LAT") , sep=" ") %>% 
+   separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ") %>% 
+   separate(kmen,into=c("kmen_LAT", "kmen_CZ") , sep=" - ") %>% 
+   mutate(celed_LAT = gsub("[()]", "", celed_LAT),
+          rad_LAT = gsub("[()]", "", rad_LAT), 
+          trida_LAT = gsub("[()]", "", trida_LAT)) %>% 
+  rename(druh_LAT = druh_L) %>% 
+  rename(druh_CZ = druh_cz) 
+
+colnames(animalia)
+
+```
+
+## ENTOMO
+
+"ID_system"     "Zapsáno v CES" "FM"            "Inv"           "/E"            "druh_LAT"     
+ "autor"         "syn"           "druh_CZ"       "celed_LAT"     "rad_LAT"       "trida_CZ"     
+"trida_LAT"     "ochrana"       "poznámka"      "podrobnosti"  
+
+```{r READ AND MODIFY DB TABLE ENTOMO, warning = F}
+
+db_tab <- RODBC::sqlFetch(con, "Pe_System_Entomologie")            # read specific table
+
+entomo <- db_tab %>% 
+   separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ") %>% 
+   mutate(trida_LAT = gsub("[()]", "", trida_LAT)) %>% 
+   rename(druh_LAT = druh_L) %>% 
+   rename(celed_LAT = celed) %>% 
+   rename(rad_LAT = rad) 
+
+colnames(entomo)
+
+```
+
+## FUNGHI
+
+"Priloha"       "ID"            "Zapsáno v CES" "InvFM"         "Inv STARE"     "InvH"         
+"druh_LAT"        "autor"         "syn"           "druh_CZ"       "celed_CZ"      "celed_LAT"    
+"rad_CZ"        "rad_LAT"       "trida_CZ"      "trida_LAT"     "rise_CZ"       "rise_LAT"     
+"ochrana"       "Poznámka"      "Inventarizace"
+
+```{r READ AND MODIFY DB TABLE FUNGHI, warning = F}
+
+db_tab <- RODBC::sqlFetch(con, "Ph_System_Mykologie")            # read specific table
+
+funghi <- db_tab %>% 
+   separate(celed,into=c("celed_CZ", "celed_LAT") , sep=" ") %>% 
+   separate(rad,into=c("rad_CZ", "rad_LAT") , sep=" ") %>% 
+   separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ") %>% 
+   separate(rise,into=c("rise_CZ", "rise_LAT") , sep=" ") %>% 
+   mutate(celed_LAT = gsub("[()]", "", celed_LAT),
+          rad_LAT = gsub("[()]", "", rad_LAT), 
+          trida_LAT = gsub("[()]", "", trida_LAT),
+          rise_LAT = gsub("[()]", "", rise_LAT)) %>% 
+  rename(druh_LAT = druh_L) 
+
+colnames(funghi)
+
+```
+
+
+## PLANTAE
+
+jina databaze
+
+```{r}
+
+dbname <- paste0(path_mdb, "muzBE.mdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
+```
+
+```{r READ AND MODIFY DB TABLE PLANT, warning = F}
+
+db_tab <- RODBC::sqlFetch(con, "botanika aktuální")            # read specific table
+
+plant <- db_tab %>% 
+  select(celed, druh, syn, var) %>% 
+   separate(celed,into=c("celed_LAT", "celed_CZ") , sep=" ") %>% 
+   separate(druh,into=c("rod_LAT", "druh_LAT", "autor") , sep=" ") %>% 
+   mutate(celed_CZ = gsub("[()]", "", celed_CZ))
+
+colnames(plant)
+
+```
