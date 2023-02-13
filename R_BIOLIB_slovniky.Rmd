@@ -55,7 +55,16 @@ path <-  "C:/Users/krizova/Documents/R/"
 path_data <-  paste0(path, "data/")
 path_csv <-  paste0(path, "mus_csv/", project, "/")
 
-path_mdb <-  "M:/02 dokumenty/03 migrace/"
+path_mdb <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/"
+
+```
+
+
+# NACTENI BIOLIB SLOVNIKU (KK sum)
+
+```{r BIOLIB DICT}
+
+biolib <- read.table(paste0(path, "BioLib_KKsummary.csv"), sep = ";", header = T)
 
 ```
 
@@ -64,15 +73,14 @@ path_mdb <-  "M:/02 dokumenty/03 migrace/"
 
 ```{r SET DATABASE CONNECTION}
 
-dbname <- paste0(path_mdb, "BIO_slovniky.accdb") # path to database
-con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
+dbname <- paste0(path_mdb, "01 muzBE analyza/PVO/Databaze_PVO_2021-11-03.accdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the connection
 
 RODBC::sqlTables(con)                                            # list tables in database
 
 ```
 
 \newpage
-
 
 # LOAD DB TABLES
 
@@ -82,13 +90,7 @@ RODBC::sqlTables(con)                                            # list tables i
 
 # read all taxons
 
-kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen")
-trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Animalia_Trida")  
-rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Animalia_Rad")  
-celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Animalia_Celed")  
-rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Animalia_Rod")  
-druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Animalia_Druh")  
-poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Animalia_Poddruh") 
+zoo <- RODBC::sqlFetch(con, "Pz_System_ZOOpredmety")
 
 ```
 
@@ -171,6 +173,9 @@ join3 <- full_join(join2, celed, by = c("rad_Nomen" = "celed_NadNomen"), keep = 
 join4 <- full_join(join3, rod, by = c("celed_Nomen" = "rod_NadNomen"), keep = T, multiple = "any") # 23 970
 join5 <- full_join(join4, druh,by = c("rod_Nomen" = "druh_NadNomen"), keep = T, multiple = "any") # 108 313
 join6 <- full_join(join5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"), keep = T, multiple = "any") # 128 848
+
+
+write.table(join6, paste0(path, "BioLib_KKsummary.csv"), sep = ";", row.names = F)
 
 
 #   p  i  s  k  o  v  i  s  t  e  -  ZACATEK
