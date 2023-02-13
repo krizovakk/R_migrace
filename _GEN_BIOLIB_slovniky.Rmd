@@ -43,28 +43,15 @@ require(odbc) # ::read_mdb
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
-project <- "MSK_MUZBE"
-
-# sbirka <- 
-# podsbirka <- 
+# slovnik <- "animalia"
+slovnik <- "fungi"
+# slovnik <- "plantae"
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
 path <-  "C:/Users/krizova/Documents/R/"
 
-path_data <-  paste0(path, "data/")
-path_csv <-  paste0(path, "mus_csv/", project, "/")
-
-path_mdb <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/"
-
-```
-
-
-# NACTENI BIOLIB SLOVNIKU (KK sum)
-
-```{r BIOLIB DICT}
-
-biolib <- read.table(paste0(path, "BioLib_KKsummary.csv"), sep = ";", header = T)
+path_mdb <-  "M:/02 dokumenty/03 migrace/BIO/"
 
 ```
 
@@ -73,10 +60,10 @@ biolib <- read.table(paste0(path, "BioLib_KKsummary.csv"), sep = ";", header = T
 
 ```{r SET DATABASE CONNECTION}
 
-dbname <- paste0(path_mdb, "01 muzBE analyza/PVO/Databaze_PVO_2021-11-03.accdb") # path to database
-con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the connection
+dbname <- paste0(path_mdb, "bio_slovniky.accdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
 
-RODBC::sqlTables(con)                                            # list tables in database
+# RODBC::sqlTables(con)                           # list tables in database
 
 ```
 
@@ -84,45 +71,37 @@ RODBC::sqlTables(con)                                            # list tables i
 
 # LOAD DB TABLES
 
-## ANIMALIA
+```{r READ AND MODIFY DB TABLES, warning = F}
 
-```{r READ AND MODIFY DB TABLES FOR ANIMALIA, warning = F}
-
-# read all taxons
-
-zoo <- RODBC::sqlFetch(con, "Pz_System_ZOOpredmety")
-
-```
-
-
-## FUNGI
-
-```{r READ AND MODIFY DB TABLE FUNGHI, warning = F}
-
-kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Fungi_Kmen")  
-trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Fungi_Trida")  
-rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Fungi_Rad")  
-celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Fungi_Celed")  
-rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Fungi_Rod")  
-druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Fungi_Druh")  
-poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Fungi_Poddruh")      
-
-```
-
-
-## PLANTAE
-
-```{r}
-
-kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Plantae_Kmen")  
-trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Plantae_Trida")  
-rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Plantae_Rad")  
-celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Plantae_Celed")  
-rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Plantae_Rod")  
-druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Plantae_Druh")  
-poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Plantae_Poddruh") 
+if(slovnik == "animalia"){
+  kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen")  
+  trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Animalia_Trida")  
+  rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Animalia_Rad")  
+  celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Animalia_Celed")  
+  rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Animalia_Rod")  
+  druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Animalia_Druh")  
+  poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Animalia_Poddruh") 
+} else if(slovnik == "fungi"){
+  kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Fungi_Kmen")  
+  trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Fungi_Trida")  
+  rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Fungi_Rad")  
+  celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Fungi_Celed")  
+  rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Fungi_Rod")  
+  druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Fungi_Druh")  
+  poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Fungi_Poddruh")
+} else if(slovnik == "plantae"){
+  kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Plantae_Kmen")  
+  trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Plantae_Trida")  
+  rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Plantae_Rad")  
+  celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Plantae_Celed")  
+  rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Plantae_Rod")  
+  druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Plantae_Druh")  
+  poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Plantae_Poddruh")
+} else print("I have a bad feeling about this!")
 
 ```
+
+
 
 # CREATE SUMMARY TABLE
 
@@ -137,6 +116,32 @@ colnames(celed) <- paste0("celed_", colnames(celed))
 colnames(rod) <- paste0("rod_", colnames(rod))
 colnames(druh) <- paste0("druh_", colnames(druh))
 colnames(poddruh) <- paste0("poddruh_", colnames(poddruh))
+
+
+# full_join - this setup gives a full table WITH ALL and ORDERED COLUMNS
+
+join1 <- full_join(kmen, trida, by = c("kmen_Nomen" = "trida_NadNomen"), 
+                   keep = T, multiple = "any") # 111
+join2 <- full_join(join1, rad, by = c("trida_Nomen" = "rad_NadNomen"), 
+                   keep = T, multiple = "any") # 605
+join3 <- full_join(join2, celed, by = c("rad_Nomen" = "celed_NadNomen"), 
+                   keep = T, multiple = "any") # 6 569
+join4 <- full_join(join3, rod, by = c("celed_Nomen" = "rod_NadNomen"), 
+                   keep = T, multiple = "any") # 23 970
+join5 <- full_join(join4, druh,by = c("rod_Nomen" = "druh_NadNomen"), 
+                   keep = T, multiple = "any") # 108 313
+join6 <- full_join(join5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"), 
+                   keep = T, multiple = "any") # 128 848
+
+
+write.table(join6, paste0(path, "BioLib_KKsummary_", slovnik, ".csv"), sep = ";", row.names = F)
+
+
+```
+
+# p i s k o v i s t e
+
+```{r sandbox, eval = F}
 
 # merge taxon tables one by one
 
@@ -165,20 +170,6 @@ colnames(poddruh) <- paste0("poddruh_", colnames(poddruh))
 # ani55 <- right_join(ani4, druh,by = c("rod_Nomen" = "druh_NadNomen"), keep = T) # 92 791
 # ani66 <- left_join(ani5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"), keep = T) # 25 972 
 
-# full_join - this setup gives full table WITH ALL and ORDERED COLUMNS
-
-join1 <- full_join(kmen, trida, by = c("kmen_Nomen" = "trida_NadNomen"), keep = T, multiple = "any") # 111
-join2 <- full_join(join1, rad, by = c("trida_Nomen" = "rad_NadNomen"), keep = T, multiple = "any") # 605
-join3 <- full_join(join2, celed, by = c("rad_Nomen" = "celed_NadNomen"), keep = T, multiple = "any") # 6 569
-join4 <- full_join(join3, rod, by = c("celed_Nomen" = "rod_NadNomen"), keep = T, multiple = "any") # 23 970
-join5 <- full_join(join4, druh,by = c("rod_Nomen" = "druh_NadNomen"), keep = T, multiple = "any") # 108 313
-join6 <- full_join(join5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"), keep = T, multiple = "any") # 128 848
-
-
-write.table(join6, paste0(path, "BioLib_KKsummary.csv"), sep = ";", row.names = F)
-
-
-#   p  i  s  k  o  v  i  s  t  e  -  ZACATEK
 
 check_kt <- join6 %>% 
   select(kmen_Nomen, trida_NadNomen, trida_Nomen) %>% 
@@ -226,16 +217,7 @@ check_trida <- check_tab %>%
 check_chordata <- join6 %>% 
   filter(rad_NadNomen %in% c("Chordata"))
 
-#   p  i  s  k  o  v  i  s  t  e  -  KONEC
 
-
-# remove prelim dfs
-
-rm(ani1)
-rm(ani2)
-rm(ani3)
-rm(ani4)
-rm(ani5)
 
 ```
 
