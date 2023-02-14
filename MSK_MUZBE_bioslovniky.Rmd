@@ -373,8 +373,6 @@ plant <- db_tab %>%
           druh_LAT = gsub("x$", "", druh_LAT))
 
 
-colnames(plant)
-
 sel_plant <- plant %>% 
    unite(sys_tree_PLANT, c(
      # "rise_LAT", "trida_LAT", "rad_LAT", 
@@ -386,7 +384,7 @@ sel_plant <- plant %>%
 
 ```
 
-druh = puvodni pole  
+druh = puvodni pole  ---> prejmenovano na 'druh_data'
 druh_LAT = ocisteny nazev druhu (rodove + druhove)  
 rest = cokoliv za 'druh_LAT' (agg., subsp., atd... + autori)  
 autor = retezce za 'druh_LAT', co splnuje parametry jmena autora (zacina na velke pismeno nebo zavorku)

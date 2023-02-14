@@ -1,0 +1,188 @@
+---
+title: "AXIELL R HACKS"
+subtitle: "Uzitecne prikazy a funkce pro migrace dat"
+author: "Kateřina Křížová"
+date: "2023-01-26"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+\newpage 
+
+# STRINGS
+
+## Leading zeros
+
+```{r LEADING ZEROS}
+
+# package
+require(stringr) # ::str_pad
+
+# command
+mutate(MPORC = str_pad(PorC_S, 6, pad = "0"))
+
+```
+
+mutate = create a new column  
+MPORC = name of a new column
+str_pad = [function] (https://www.rdocumentation.org/packages/stringr/versions/1.5.0/topics/str_pad)
+PorC_S = name of a source column (contains value '6' which we want add lead.zeros to)
+6 = we want a final value to have exactly 6 places  
+pad = "0" = empty places fill with "0"  
+
+## Split string
+
+```{r SPLIT STRING}
+
+# # Split name column into firstname and last name
+# df[c('First Name', 'Last Name')] <- str_split_fixed(df$Name, ' ', 2)
+#  
+# # Rearrange columns and remove original name column
+# df <- df[c('First Name', 'Last Name', 'State')]
+
+separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ")
+
+```
+
+## Remove parentheses
+
+```{r}
+
+mutate(celed_LAT = gsub("[()]", "", celed_LAT))
+       
+```
+
+
+## Remove whitespace
+
+```{r RMV WHITE SPACE}
+
+# package
+require(stringr) # ::str_pad
+
+# command
+mutate(MMATERIAL = str_trim(MMAT_AGG)) 
+```
+
+str_trim = [function](https://stringr.tidyverse.org/reference/str_trim.html)
+
+## Create a string of multiple column values with NAs
+
+```{r}
+
+unite(sys_tree_BIOL, c("kmen", "trida", "rad", "celed", "rod", "druh_Nomen"),
+      sep = "/", na.rm = T, remove = FALSE) 
+```
+
+unite = [function](https://www.rdocumentation.org/packages/tidyr/versions/0.8.2/topics/unite)  
+sys_tree_BIOL = name of a new column  
+c(***) = list of columns  
+sep = sign for separation  
+na.rm = skip columns containing NA  
+remove = keep or delete source columns  
+
+
+\newpage
+
+# TABLE MANIPULATIONS
+
+## Add taxon prefix to column names
+
+```{r}
+colnames(kmen) <- paste0("kmen_", colnames(kmen))
+```
+
+## Merge two collums with not complete information
+
+column 1 has some NAs  
+column 2 has also some NAs but in different rows
+TASK: create one column with merged info
+
+```{r}
+#package
+require(dplyr) # part of tidyverse
+
+# command
+mutate(kmen = coalesce(kmen_Nomen, trida_NadNomen))
+       
+```
+
+coalesce = [function](https://www.rdocumentation.org/packages/dplyr/versions/1.0.10/topics/coalesce)
+
+## Rename and rearrange columns
+
+
+\newpage
+
+# REGULAR EXPRESSIONS
+
+\newpage
+
+# DATABASES
+
+```{r}
+# package 
+require(RODBC)
+
+# commands
+dbname <- paste0(path_mdb, "bio_slovniky.accdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
+
+RODBC::sqlTables(con)                          # list tables in database
+
+kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen") # read specified table
+
+```
+
+
+*.mdb = old MS ACCESS  
+*.accdb = new MS ACCESS 
+
+
+# JOINS
+
+merge, innerjoin, leftjoin, fulljoin atp
+
+\newpage
+
+# NEED TO COVER
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Technika_S) %>% 
+  mutate(MEMPTY = "") %>% 
+  mutate('2sbirkaCisloEvidInt' = sbirka) %>% 
+  mutate('3podsbirkaCislo' = podsbirka) %>% 
+  mutate(MTECH = Technika_S) %>% 
+  separate(MTECH,into=c("MTECH1", "MTECH2", "MTECH3", "MTECH4", "MTECH5"),
+           sep=",(?! tuší)") %>% # separator is ',' BUT ONLY IF NOT FOLLOWED BY ' tuší' -> solves a single case of 'kresba tužkou, tuší a bělobou' which should remain as one entry
+  pivot_longer(
+    cols = MTECH1:MTECH5, 
+    names_to = "MTECH_POR", # poradi techniky
+    values_to = "MTECH_AGG",
+    values_drop_na = TRUE) %>% 
+  mutate(MTECHNIKA = str_trim(MTECH_AGG)) %>% # remove white space
+  select(-MTECH_AGG) %>% 
+  mutate(MTECH_POR = substr(MTECH_POR, 6, 6))
+  
+//
+  
+  
+plant <- db_tab %>% 
+  
+   separate(celed,into=c("celed_LAT", "celed_CZ") , sep=" ") %>% 
+   separate(druh,into=c("rod_LAT", "druh_LAT", "rest"), sep = "\\s(?!x )", 
+            extra = "merge", remove = FALSE) %>% 
+   mutate(druh_LAT = paste(rod_LAT, druh_LAT),
+          celed_CZ = gsub("[()]", "", celed_CZ),
+          autor = ifelse(str_detect(rest, "^[[:upper:]]") | str_detect(rest, "^\\W"), rest,""),
+          druh_LAT = gsub("x$", "", druh_LAT))
+
+  
+  
