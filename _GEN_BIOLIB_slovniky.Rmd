@@ -44,8 +44,8 @@ require(odbc) # ::read_mdb
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
 # slovnik <- "animalia"
-slovnik <- "fungi"
-# slovnik <- "plantae"
+# slovnik <- "fungi"
+slovnik <- "plantae"
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
@@ -134,7 +134,7 @@ join6 <- full_join(join5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"),
                    keep = T, multiple = "any") # 128 848
 
 
-write.table(join6, paste0(path, "BioLib_KKsummary_", slovnik, ".csv"), sep = ";", row.names = F)
+write.table(join6, paste0(path, "bioslov/BioLib_KKsummary_", slovnik, ".csv"), sep = ";", row.names = F)
 
 
 ```

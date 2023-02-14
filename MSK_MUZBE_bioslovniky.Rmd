@@ -34,7 +34,7 @@ require(stringr) # ::str_split_fixed
 require(mdbr) # ::read_mdb
 require(RODBC) # ::read_mdb
 require(odbc) # ::read_mdb
-require(xlsx) # write excel sheets
+require(xlsx) # write excel in sheets
 
 ```
 
@@ -50,8 +50,10 @@ project <- "MSK_MUZBE"
 
 
 # slovnik <- "animalia"
-slovnik <- "fungi"
-# slovnik <- "plantae"
+# slovnik <- "ento"
+# slovnik <- "fungi"
+slovnik <- "plantae"
+
 
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
@@ -61,7 +63,7 @@ path <-  "C:/Users/krizova/Documents/R/"
 path_data <-  paste0(path, "data/")
 path_csv <-  paste0(path, "mus_csv/", project, "/")
 
-path_mdb <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/01 muzBE analyza/PVO/"
+path_mdb <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/01 muzBE analyza/"
 
 ```
 
@@ -77,44 +79,36 @@ Poddruh
 
 ```{r LOAD BIOLIB SUMMARY KK}
 
-biolib <- read.table(paste0(path, "bioslov/BioLib_KKsummary_", slovnik, ".csv"), 
-                     sep = ";", header = T)
+biolib <- if(slovnik %in% c("animalia", "fungi", "plantae")){
+  read.table(paste0(path, "bioslov/BioLib_KKsummary_", slovnik, ".csv"), sep = ";", header = T)
+} else if (slovnik == "ento"){ # ento uses animalia dictionary
+  read.table(paste0(path, "bioslov/BioLib_KKsummary_animalia.csv"), sep = ";", header = T)
+} else{print("Try harder")}
 
-# biolib[is.na(biolib)] <- ""  # replace NA
 
-# check Nomen and NadNomen categories
-# ? are they the same or do they differ?
-# ? which column to keep?
-
-biolib$diff = ifelse(biolib$kmen_Nomen == biolib$trida_NadNomen, 'stejne', 'lisi se') # keep 'kmen'
-biolib$diff = ifelse(biolib$trida_Nomen == biolib$rad_NadNomen, 'stejne', 'lisi se') # keep 'rad_NadNomen'
-biolib$diff = ifelse(biolib$rad_Nomen == biolib$celed_NadNomen, 'stejne', 'lisi se') # keep 'celed_NadNomen'
-biolib$diff = ifelse(biolib$celed_Nomen == biolib$rod_NadNomen, 'stejne', 'lisi se') # keep 'rod_nadNomen'
-biolib$diff = ifelse(biolib$rod_Nomen == biolib$druh_NadNomen, 'stejne', 'lisi se') # keep 'rod_Nomen'
-biolib$diff = ifelse(biolib$druh_Nomen == biolib$poddruh_NadNomen, 'stejne', 'lisi se') # keep 'druh_Nomen'
-
-unique(biolib$diff)
-
-# select columns based on above
-
+# function 'coalesce' merges two columns in one :
+#                     when a) Agricales b) Agricales -> Agicales
+#                     when a) NA b) Agricales -> Agicales
 
 sel_biol <- biolib %>% 
-  select(kmen_Nomen, kmen_Autor,             # kmen
-         rad_NadNomen, trida_Autor,          # trida
-         celed_NadNomen, rad_Autor,          # rad
-         rod_NadNomen, celed_Autor,          # celed    
-         rod_Nomen, rod_Autor,               # rod
-         druh_Nomen, druh_Autor              # druh
-         # , poddruh_Nomen, poddruh_Autor    # poddruh (only if present in data)
-         )  %>% 
- unite(sys_tree_BIOL, c("kmen_Nomen", "rad_NadNomen", "celed_NadNomen", 
-                   "rod_NadNomen", "rod_Nomen", "druh_Nomen"
-                   # , "poddruh_Nomen"       # poddruh (only if present in data)
-                   ), 
-       sep = "/", na.rm = T, remove = FALSE) %>% 
-  select(sys_tree_BIOL, druh_Nomen, druh_Autor) %>% 
+  mutate(kmen = coalesce(kmen_Nomen, trida_NadNomen),
+         trida = coalesce(trida_Nomen, rad_NadNomen),
+         rad = coalesce(rad_Nomen, celed_NadNomen),
+         celed = coalesce(celed_Nomen, rod_NadNomen),
+         rod = coalesce(rod_Nomen, druh_NadNomen),
+         druh = coalesce(druh_Nomen, poddruh_NadNomen),
+         poddruh = poddruh_Nomen) %>% 
+  unite(sys_tree_BIOL, c(
+    # "kmen",  # ? does data have 'kmen' ?
+    # "trida", "rad", 
+    "celed", "rod", "druh_Nomen"
+    # ,"poddruh"
+    )
+    ,sep = "/", na.rm = T, remove = FALSE) %>% 
+  select(sys_tree_BIOL, druh, druh_Autor 
+         # ,poddruh, poddruh_Autor # ? does data have 'poddruh' ?
+         ) %>% 
   distinct()
-
 
 ```
 
@@ -123,7 +117,7 @@ sel_biol <- biolib %>%
 
 ```{r SET DATABASE CONNECTION}
 
-dbname <- paste0(path_mdb, "Databaze_PVO_2021-11-03.accdb") # path to database
+dbname <- paste0(path_mdb, "PVO/Databaze_PVO_2021-11-03.accdb") # path to database
 con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the connection
 
 # RODBC::sqlTables(con)                                            # list tables in database
@@ -137,6 +131,7 @@ con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the conne
 
 ## ANIMALIA
     
+Dulezite zkontrolovat: MAJI DATA PODDRUH? 
 
 ```{r READ AND MODIFY DB TABLE ANIMALIA, warning = F}
 
@@ -159,7 +154,8 @@ colnames(animalia)
 
 sel_anim <- animalia %>% 
   select(kmen_LAT, trida_LAT, rad_LAT, celed_LAT, rod_LAT, druh_LAT, autor) %>% 
-   unite(sys_tree_ANIM, c("kmen_LAT", "trida_LAT", "rad_LAT", 
+   unite(sys_tree_ANIM, c(
+     # "kmen_LAT", "trida_LAT", "rad_LAT", 
                    "celed_LAT", "rod_LAT", "druh_LAT"
                    # , "poddruh_LAT"       # poddruh (only if present in data)
                    ), 
@@ -169,7 +165,7 @@ sel_anim <- animalia %>%
 
 ```
 
-### porovnani
+### porovnani anim
 
 ```{r COMPARE ANIMALIA W BIOLIB}
 
@@ -212,51 +208,145 @@ write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_zoo_ROZDILY
 
 ## ENTOMO
 
-"ID_system"     "Zapsáno v CES" "FM"            "Inv"           "/E"            "druh_LAT"     
- "autor"         "syn"           "druh_CZ"       "celed_LAT"     "rad_LAT"       "trida_CZ"     
-"trida_LAT"     "ochrana"       "poznámka"      "podrobnosti"  
-
 ```{r READ AND MODIFY DB TABLE ENTOMO, warning = F}
 
 db_tab <- RODBC::sqlFetch(con, "Pe_System_Entomologie")            # read specific table
 
-entomo <- db_tab %>% 
+ento <- db_tab %>% 
    separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ") %>% 
    mutate(trida_LAT = gsub("[()]", "", trida_LAT)) %>% 
-   rename(druh_LAT = druh_L) %>% 
-   rename(celed_LAT = celed) %>% 
-   rename(rad_LAT = rad) 
+   rename(rad_LAT = rad,
+          celed_LAT = celed,
+          druh_LAT = druh_L) %>% 
+   mutate(rod_LAT = gsub(" .*$", "", druh_LAT))
 
-colnames(entomo)
+colnames(ento)
+
+sel_ento <- ento %>% 
+   unite(sys_tree_ENTO, c(
+     # "rise_LAT", 
+     "trida_LAT", "rad_LAT", "celed_LAT", "rod_LAT", "druh_LAT"),    
+      sep = "/", na.rm = T, remove = FALSE) %>% 
+  select(sys_tree_ENTO, druh_LAT, autor) %>% 
+  distinct()
+
+```
+
+### porovnani ento
+
+```{r COMPARE ENTO W BIOLIB}
+
+comp <- left_join(sel_ento, sel_biol, by = c("druh_LAT" = "druh"), keep = T, multiple = "any") %>% 
+  filter(sys_tree_ENTO != sys_tree_BIOL)
+
+# systematic tree diffs
+
+diff_tree <- comp
+diff_tree$diff = ifelse(diff_tree$sys_tree_ENTO == diff_tree$sys_tree_BIOL, 'stejne', 'lisi se')
+
+diff_tree <- diff_tree %>% 
+  rename("STROM_data" = sys_tree_ENTO, "STROM_biolib" = sys_tree_BIOL,
+         "AUTOR_data" = autor, "AUTOR_biolib" = druh_Autor)
+
+# author diffs
+
+diff_author <- comp %>% 
+  mutate(autor = str_replace_all(autor, " ", "")) %>%  # remove whitespace
+  mutate(druh_Autor = str_replace_all(druh_Autor, " ", "")) # remove whitespace
+
+diff_author$diff = ifelse(diff_author$autor == diff_author$druh_Autor, 'stejne', 'lisi se')
+
+diff_author <- diff_author %>%  
+ filter(diff == "lisi se") %>% 
+  rename("STROM_data" = sys_tree_ENTO, "STROM_biolib" = sys_tree_BIOL,
+         "AUTOR_data" = autor, "AUTOR_biolib" = druh_Autor)
+
+# write excel with differences
+
+library(xlsx)
+write.xlsx(diff_tree, file=paste0(path_mdb, project, "_bioslovniky_ento_ROZDILY.xlsx"), 
+           sheetName="systematika", row.names=FALSE)
+write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_ento_ROZDILY.xlsx"), 
+           sheetName="autori", row.names=FALSE, append=TRUE)
 
 ```
 
 ## FUNGHI
 
-"Priloha"       "ID"            "Zapsáno v CES" "InvFM"         "Inv STARE"     "InvH"         
-"druh_LAT"        "autor"         "syn"           "druh_CZ"       "celed_CZ"      "celed_LAT"    
-"rad_CZ"        "rad_LAT"       "trida_CZ"      "trida_LAT"     "rise_CZ"       "rise_LAT"     
-"ochrana"       "Poznámka"      "Inventarizace"
 
 ```{r READ AND MODIFY DB TABLE FUNGHI, warning = F}
 
 db_tab <- RODBC::sqlFetch(con, "Ph_System_Mykologie")            # read specific table
 
-funghi <- db_tab %>% 
-   separate(celed,into=c("celed_CZ", "celed_LAT") , sep=" ") %>% 
-   separate(rad,into=c("rad_CZ", "rad_LAT") , sep=" ") %>% 
-   separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ") %>% 
-   separate(rise,into=c("rise_CZ", "rise_LAT") , sep=" ") %>% 
-   mutate(celed_LAT = gsub("[()]", "", celed_LAT),
-          rad_LAT = gsub("[()]", "", rad_LAT), 
-          trida_LAT = gsub("[()]", "", trida_LAT),
-          rise_LAT = gsub("[()]", "", rise_LAT)) %>% 
+fungi <- db_tab %>% 
+   
+  separate(rise,into=c("rise_CZ", "rise_LAT"), sep=" ") %>%    # separate CZ and LAT
+  separate(trida,into=c("trida_CZ", "trida_LAT"),sep=" ") %>% 
+  separate(rad,into=c("rad_CZ", "rad_LAT") , sep=" ") %>% 
+  separate(celed,into=c("celed_CZ", "celed_LAT") , sep=" ") %>%  
+  
+  mutate(rise_LAT = gsub("[()]", "", rise_LAT),    # erase () from LAT name
+         trida_LAT = gsub("[()]", "", trida_LAT),
+         rad_LAT = gsub("[()]", "", rad_LAT),
+         celed_LAT = gsub("[()]", "", celed_LAT),  
+         rod_LAT = gsub(" .*$", "", druh_L)) %>%  
+  
+  mutate(celed_LAT = ifelse(is.na(celed_LAT), celed_CZ, celed_LAT), # sometimes celed_CZ is missing
+         rad_LAT = ifelse(is.na(rad_LAT), rad_CZ, rad_LAT), 
+         trida_LAT = ifelse(is.na(trida_LAT), trida_CZ, trida_LAT)) %>% 
+  
   rename(druh_LAT = druh_L) 
 
-colnames(funghi)
+
+
+sel_fungi <- fungi %>% 
+   unite(sys_tree_FUNGI, c(
+     # "rise_LAT", 
+     "trida_LAT", "rad_LAT", "celed_LAT", "rod_LAT", "druh_LAT"),    
+      sep = "/", na.rm = T, remove = FALSE) %>% 
+  select(sys_tree_FUNGI, druh_LAT, autor) %>% 
+  distinct()
 
 ```
 
+### porovnani fungi
+
+```{r COMPARE FUNGI W BIOLIB}
+
+comp <- left_join(sel_fungi, sel_biol, by = c("druh_LAT" = "druh"), keep = T, multiple = "any") %>% 
+  filter(sys_tree_FUNGI != sys_tree_BIOL)
+
+# systematic tree diffs
+
+diff_tree <- comp
+diff_tree$diff = ifelse(diff_tree$sys_tree_FUNGI == diff_tree$sys_tree_BIOL, 'stejne', 'lisi se')
+
+diff_tree <- diff_tree %>% 
+  rename("STROM_data" = sys_tree_FUNGI, "STROM_biolib" = sys_tree_BIOL,
+         "AUTOR_data" = autor, "AUTOR_biolib" = druh_Autor)
+
+# author diffs
+
+diff_author <- comp %>% 
+  mutate(autor = str_replace_all(autor, " ", "")) %>%  # remove whitespace
+  mutate(druh_Autor = str_replace_all(druh_Autor, " ", "")) # remove whitespace
+
+diff_author$diff = ifelse(diff_author$autor == diff_author$druh_Autor, 'stejne', 'lisi se')
+
+diff_author <- diff_author %>%  
+ filter(diff == "lisi se") %>% 
+  rename("STROM_data" = sys_tree_FUNGI, "STROM_biolib" = sys_tree_BIOL,
+         "AUTOR_data" = autor, "AUTOR_biolib" = druh_Autor)
+
+# write excel with differences
+
+library(xlsx)
+write.xlsx(diff_tree, file=paste0(path_mdb, project, "_bioslovniky_fungi_ROZDILY.xlsx"), 
+           sheetName="systematika", row.names=FALSE)
+write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_fungi_ROZDILY.xlsx"), 
+           sheetName="autori", row.names=FALSE, append=TRUE)
+
+```
 
 ## PLANTAE
 
@@ -273,11 +363,70 @@ con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
 db_tab <- RODBC::sqlFetch(con, "botanika aktuální")            # read specific table
 
 plant <- db_tab %>% 
-  select(celed, druh, syn, var) %>% 
+  
    separate(celed,into=c("celed_LAT", "celed_CZ") , sep=" ") %>% 
-   separate(druh,into=c("rod_LAT", "druh_LAT", "autor") , sep=" ") %>% 
-   mutate(celed_CZ = gsub("[()]", "", celed_CZ))
+   separate(druh,into=c("rod_LAT", "druh_LAT", "rest"), sep = "\\s(?!x )", 
+            extra = "merge", remove = FALSE) %>% 
+   mutate(druh_LAT = paste(rod_LAT, druh_LAT),
+          celed_CZ = gsub("[()]", "", celed_CZ),
+          autor = ifelse(str_detect(rest, "^[[:upper:]]") | str_detect(rest, "^\\W"), rest,""),
+          druh_LAT = gsub("x$", "", druh_LAT))
+
 
 colnames(plant)
+
+sel_plant <- plant %>% 
+   unite(sys_tree_PLANT, c(
+     # "rise_LAT", "trida_LAT", "rad_LAT", 
+     "celed_LAT", "rod_LAT", "druh_LAT"),    
+      sep = "/", na.rm = T, remove = FALSE) %>% 
+  select(sys_tree_PLANT, druh, druh_LAT, rest, autor) %>% 
+  rename(druh_data = druh) %>% 
+  distinct()
+
+```
+
+druh = puvodni pole  
+druh_LAT = ocisteny nazev druhu (rodove + druhove)  
+rest = cokoliv za 'druh_LAT' (agg., subsp., atd... + autori)  
+autor = retezce za 'druh_LAT', co splnuje parametry jmena autora (zacina na velke pismeno nebo zavorku)
+
+
+### porovnani plant
+
+```{r COMPARE FUNGI W BIOLIB}
+
+comp <- left_join(sel_plant, sel_biol, by = c("druh_LAT" = "druh"), keep = T, multiple = "any") %>% 
+  filter(sys_tree_PLANT != sys_tree_BIOL)
+
+# systematic tree diffs
+
+diff_tree <- comp
+diff_tree$diff = ifelse(diff_tree$sys_tree_PLANT == diff_tree$sys_tree_BIOL, 'stejne', 'lisi se')
+
+diff_tree <- diff_tree %>% 
+  rename("STROM_data" = sys_tree_PLANT, "STROM_biolib" = sys_tree_BIOL,
+         "AUTOR_data" = autor, "AUTOR_biolib" = druh_Autor)
+
+# author diffs
+
+diff_author <- comp %>% 
+  mutate(autor = str_replace_all(autor, " ", "")) %>%  # remove whitespace
+  mutate(druh_Autor = str_replace_all(druh_Autor, " ", "")) # remove whitespace
+
+diff_author$diff = ifelse(diff_author$autor == diff_author$druh_Autor, 'stejne', 'lisi se')
+
+diff_author <- diff_author %>%  
+ filter(diff == "lisi se") %>% 
+  rename("STROM_data" = sys_tree_PLANT, "STROM_biolib" = sys_tree_BIOL,
+         "AUTOR_data" = autor, "AUTOR_biolib" = druh_Autor)
+
+# write excel with differences
+
+library(xlsx)
+write.xlsx(diff_tree, file=paste0(path_mdb, project, "_bioslovniky_plant_ROZDILY.xlsx"), 
+           sheetName="systematika", row.names=FALSE)
+write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_plant_ROZDILY.xlsx"), 
+           sheetName="autori", row.names=FALSE, append=TRUE)
 
 ```
