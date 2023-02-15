@@ -184,5 +184,8 @@ plant <- db_tab %>%
           autor = ifelse(str_detect(rest, "^[[:upper:]]") | str_detect(rest, "^\\W"), rest,""),
           druh_LAT = gsub("x$", "", druh_LAT))
 
-  
+//
+
+ mutate_all( ~ str_replace_all(., pattern = ";", replacement = " ")) %>% # removes semicolons
+  mutate_all( ~ str_replace_all(., pattern = "[\r\n]", replacement = " ")) #removes paragraphs
   
