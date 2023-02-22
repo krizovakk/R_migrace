@@ -101,6 +101,24 @@ remove = keep or delete source columns
 colnames(kmen) <- paste0("kmen_", colnames(kmen))
 ```
 
+### Deal with duplicates
+
+```{r}
+
+#  https://community.rstudio.com/t/filter-out-all-rows-with-duplicate-values/41043/4
+
+# Return names which have only a single row of data
+data %>% 
+  group_by(name) %>% 
+  filter(n()==1)
+
+# Return names which have more than one row of data
+data %>% 
+  group_by(name) %>% 
+  filter(n() != 1)
+```
+
+
 ### Merge two collums with not complete information
 
 column 1 has some NAs  
