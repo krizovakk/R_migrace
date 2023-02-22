@@ -16,9 +16,11 @@ output:
 
 \newpage 
 
-# STRINGS
+# *GENERAL*
 
-## Leading zeros
+## S T R I N G S
+
+### Leading zeros
 
 ```{r LEADING ZEROS}
 
@@ -37,7 +39,7 @@ PorC_S = name of a source column (contains value '6' which we want add lead.zero
 6 = we want a final value to have exactly 6 places  
 pad = "0" = empty places fill with "0"  
 
-## Split string
+### Split string
 
 ```{r SPLIT STRING}
 
@@ -51,7 +53,7 @@ separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ")
 
 ```
 
-## Remove parentheses
+### Remove parentheses
 
 ```{r}
 
@@ -60,7 +62,7 @@ mutate(celed_LAT = gsub("[()]", "", celed_LAT))
 ```
 
 
-## Remove whitespace
+### Remove whitespace
 
 ```{r RMV WHITE SPACE}
 
@@ -73,7 +75,7 @@ mutate(MMATERIAL = str_trim(MMAT_AGG))
 
 str_trim = [function](https://stringr.tidyverse.org/reference/str_trim.html)
 
-## Create a string of multiple column values with NAs
+### Create a string of multiple column values with NAs
 
 ```{r}
 
@@ -91,18 +93,18 @@ remove = keep or delete source columns
 
 \newpage
 
-# TABLE MANIPULATIONS
+## T A B L E S
 
-## Add taxon prefix to column names
+### Add taxon prefix to column names
 
 ```{r}
 colnames(kmen) <- paste0("kmen_", colnames(kmen))
 ```
 
-## Merge two collums with not complete information
+### Merge two collums with not complete information
 
 column 1 has some NAs  
-column 2 has also some NAs but in different rows
+column 2 has also some NAs but in different rows than column 1
 TASK: create one column with merged info
 
 ```{r}
@@ -116,16 +118,16 @@ mutate(kmen = coalesce(kmen_Nomen, trida_NadNomen))
 
 coalesce = [function](https://www.rdocumentation.org/packages/dplyr/versions/1.0.10/topics/coalesce)
 
-## Rename and rearrange columns
+### Rename and rearrange columns
 
 
 \newpage
 
-# REGULAR EXPRESSIONS
+## R E G E X S
 
 \newpage
 
-# DATABASES
+## D A T A B A S E S
 
 ```{r}
 # package 
@@ -146,13 +148,70 @@ kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen") # read specified ta
 *.accdb = new MS ACCESS 
 
 
-# JOINS
+## J O I N S
 
 merge, innerjoin, leftjoin, fulljoin atp
 
 \newpage
 
-# NEED TO COVER
+# *REAL TASKS*
+
+## D A T A C E / upravit
+
+```{r DERIVE VZNIKPTU FROM SBIRKY, warning = F, eval = F}
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Autor_S, Role_S, Datace_S, MistoVz_S) %>% 
+  mutate(MEMPTY = "") %>% 
+  mutate(MDATACE = Datace_S) %>% 
+  # yyyy
+  mutate(MDAT_Y = ifelse(str_detect(MDATACE, "_00_00"), 
+                         str_replace_all(MDATACE, "_00|-00", ""), NA)) %>% 
+  # mm.yyyy
+  # mutate(MDAT_YM = ifelse(str_detect(MDATACE,
+  #                                    "^([0-9]{4})[_]([0-9]{1})([1-9]{1})[_]00$"),
+  #                                   # format(anydate(substring(MDATACE, 1, 7), "%m.%Y")), ""))
+  #                                   # substring(format(anydate(MDATACE), "%m.%Y"), 1, 7), ""))
+  #                                   format(anydate(MDATACE), "%m.%Y"), ""))
+  # mutate(MDAT_YM = format(anydate(MDATACE), "%m.%Y")) %>%
+  mutate(MDAT_YM = substring(ifelse(str_detect(MDATACE,
+                                             "^([0-9]{4})[_]([0-9]{1})([1-9]{1})[_]00$"),
+                                  MDATACE, ""), 1, 7)) %>%
+  mutate(MDAT_YM = format(anydate(MDAT_YM), "%m.%Y")) %>%
+  # dd.mm.yyyy
+  mutate(MDAT_YMD = ifelse(str_detect(MDATACE,
+                          "^([0-9]{4})[_]([0-9]{2})[_]([0-9]{2})$"), 
+                           format(anydate(MDATACE), "%d.%m.%Y"), NA)) %>% 
+  # yy leta ss stoleti
+  mutate(MDAT_LETA = ifelse(str_detect(MDATACE, "^([0-9]{4})[_]XX[_]([0-9]{2})$"),
+                                    paste0(substring(dopr_tab$MDATACE, 9, 9), "0. léta ",
+                                           substring(dopr_tab$MDATACE, 3, 4), ". století"), NA)) %>% 
+  # poloviny
+  mutate(MDAT_2 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d2[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". polovina ",
+                                           substring(dopr_tab$MDATACE, 3, 4), ". století"), NA)) %>%
+  # tretiny - NEVYSKYTUJE SE
+  mutate(MDAT_3 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". třetina ",
+                                           substring(dopr_tab$MDATACE, 3, 4), ". století"), NA)) %>%
+  # poloviny - NEVYSKYTUJE SE
+  mutate(MDAT_4 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". čtvrtina ",
+                                           substring(dopr_tab$MDATACE, 3, 4), ". století"), NA)) %>% 
+  # tretina roku
+  mutate(MDAT_3r = ifelse(str_detect(MDATACE, "^\\d([1-9]{2})\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". třetina roku ",
+                                           substring(dopr_tab$MDATACE, 1, 4)), NA)) %>% 
+  # DATACE FINAL
+  mutate(MDATACE_FIN = coalesce(MDAT_Y, MDAT_YM, MDAT_YMD, MDAT_LETA, MDAT_2, MDAT_3r)) %>% 
+  mutate(MDATACE_FIN = coalesce(MDATACE_FIN, MDATACE))
+  
+
+```
+
+\newpage
+
+# *NEED TO COVER*
 
 dopr_tab <- sbirky %>% 
   select(MINVC, Technika_S) %>% 

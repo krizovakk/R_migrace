@@ -82,12 +82,14 @@ path <- "C:/Users/krizova/Documents/R/"
 path_data <- paste0(path, "data/", project, "/")
 path_csv <- paste0(path, "mus_csv/", spravce, "/", project, "/")
 
+# ~
+
 ```
 
 
-# PREPROCESSING A UŽITEČNÉ PŘÍKAZY
+# PREPROCESSING
 
-## Referenční tabulka *Sbirky*
+## Referenční tabulka *Sbirky*, vytvorteni MINVC
 
 - vytvoreni inventarniho cisla
 - k filtraci vazeb pro tvorbu slovníků  
@@ -95,20 +97,7 @@ path_csv <- paste0(path, "mus_csv/", spravce, "/", project, "/")
 
 ```{r LOAD REFERENCE TABLE SBIRKY}
 
-sbirky <- read_excel(paste0(path_data, "/Sbirky.xlsx"))
-
-# sbirky <- sbirky %>% 
-#   select(Fond_S, Skupina_S) %>% 
-#   distinct() %>% 
-#   na.omit()
-
-```
-
-### Vytvoreni inventarniho cisla INVC
-
-```{r CREATE INVC}
-
-sbirky <- sbirky %>% 
+sbirky <- read_excel(paste0(path_data, "/Sbirky.xlsx")) %>% 
   
   select(-MSUBOD, -MSUBDO, -MINVC, -MINVCDO) %>%    # get rid of .accdb columns
   
@@ -124,12 +113,23 @@ sbirky <- sbirky %>%
   relocate(MINVC, .before = JineC_S) %>% 
   relocate(MINVCDO, .after = MINVC) 
 
+# sbirky <- sbirky %>% 
+#   select(Fond_S, Skupina_S) %>% 
+#   distinct() %>% 
+#   na.omit()
+
+
+sb <- sbirky %>% 
+  select(IdC_S, MINVC) # tabulka pro sledovani puvodniho a noveho inventarniho cisla
+
 ```
 
 
 \newpage
 
 # 1. PŘÍRŮSTKOVÁ KNIHA
+
+Prirustkova kniha nebyla vyplnena. Prirustkova cisla byla zadana do Museionu rucne.  
 
 \newpage
 
@@ -143,21 +143,31 @@ sbirky <- sbirky %>%
 **IMPORTNÍ ROZHRANNÍ**: CSV Fond  
  
 
-```{r LOAD AND MODIFY TABLE FONDY}
+```{r TABLE FONDY}
+
+# L O A D
 
 demus_tab <- read_excel(paste0(path_data, "Fondy.xlsx"))
-demus_tab[is.na(demus_tab)] <- ""
 
-# n = 4
+# M O D I F Y
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
   mutate('2podsbirkaCislo' = podsbirka)
 
-# n = 17
+modif_save <- paste0(path_csv, spravce, "_modif_fond.csv")
 
-# create CSV
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select(
@@ -168,10 +178,9 @@ mus_tab <- modify_tab %>%
     '5poznamka' = Pozn_FN, '6popisPubl'= MEMPTY,
     '7poradi' = MEMPTY, '8oaiId'= MEMPTY,
     '9oaiDatumHarvestingu'= MEMPTY, '10oaiDatumModifikace' = MEMPTY)
-
 oper_fondy <- mus_tab
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_fond.csv")
 
@@ -181,7 +190,7 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
@@ -203,12 +212,13 @@ fond_skup <- merge(oper_fondy, sbirky, by.x = "4nazev", by.y = "Fond_S") %>%
 ```
 
 
-```{r LOAD AND MODIFY TABLE SKUPINY}
+```{r TABLE SKUPINY}
+
+# L O A D
 
 demus_tab <- read_excel(paste0(path_data, "Skupiny.xlsx"))
-demus_tab[is.na(demus_tab)] <- ""
 
-# n = 10
+# M O D I F Y
 
 modify_tab <- merge(fond_skup, demus_tab, 
                     by.x = "Skupina_S", by.y = "Skup_SK", all.x = T) %>% 
@@ -220,7 +230,18 @@ modify_tab <- merge(fond_skup, demus_tab,
   distinct() %>% 
   na.omit()
 
-# create CSV
+modif_save <- paste0(path_csv, spravce, "_modif_skupiny.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select(
@@ -236,7 +257,7 @@ mus_tab <- modify_tab %>%
 
 oper_skupiny <- mus_tab
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_skupiny.csv")
 
@@ -246,7 +267,7 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
@@ -259,12 +280,14 @@ if(file.exists(save)){
 **IMPORTNÍ ROZHRANNÍ**: CSV Adresář osob
 
 
-```{r LOAD AND MODIFY TABLE ADRESAR}
+```{r TABLE ADRESAR}
+
+# L O A D
 
 demus_tab <- read_excel(paste0(path_data, "/Adresar.xlsx"))
 demus_tab[is.na(demus_tab)] <- ""
 
-# n = 5
+# M O D I F Y
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
@@ -273,7 +296,18 @@ modify_tab <- demus_tab %>%
   mutate('10osobaPohlavi' = "neznámé") %>%  # povinne: "muž", "žena", "neznámé"
   mutate('18subjektStatKod' = "CZ")
 
-# create CSV
+modif_save <- paste0(path_csv, spravce, "_modif_adresar.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
@@ -309,12 +343,10 @@ mus_tab <- modify_tab %>%
          '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY,
          rel_ZkrJm = ZkrJm_A)
 
-
 oper_adresar <- mus_tab %>% 
   select(rel_ZkrJm, '1typSubjektuKod', '2subjektKod', '4osobaJmenoPrvni', '6osobaPrijmeni')
-  
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_adresar.csv")
 
@@ -324,7 +356,7 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
@@ -333,29 +365,14 @@ if(file.exists(save)){
 
 ```{r LOAD TABLE OSOBNOSTI}
 
+# L O A D
+
 demus_tab <- read_excel(paste0(path_data, "/Osobnosti.xlsx"))
-demus_tab[is.na(demus_tab)] <- ""
-
-# n = 266
+# demus_tab[is.na(demus_tab)] <- ""
 
 ```
  
- 
-```{r CVICNE ZPRACOVANI JMEN}
 
-osoby <- demus_tab %>% 
-  select(-MTYPOSOSBY, -MPRIJM, -MKODOS, -MDRJMENO, -MJMENO, -MTITULPRED) %>% 
-  mutate(MPRIJM = "") %>% 
-  mutate(MJMENO = "") %>% 
-  mutate(MDRJMENO = "") 
-# %>% 
-#   filter(str_detect(Jmeno_OS, ','))
-
-osoby[c("MPRIJM", "MJMENO", "MDRJMENO")] <- str_split_fixed(osoby$Jmeno_OS, ',', 3)
-
-```
- 
- 
 ### OO
 
 **DEMUS**: Osobnosti  
@@ -363,9 +380,9 @@ osoby[c("MPRIJM", "MJMENO", "MDRJMENO")] <- str_split_fixed(osoby$Jmeno_OS, ',',
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Adresář osob
 
-```{r OSOBNOSTI OO}
+```{r TABLE OO}
 
-# filter 
+# M O D I F Y 
 
 modify_tab <- demus_tab %>% 
   filter(MTYPOSOSBY == "OO") %>% 
@@ -379,9 +396,18 @@ modify_tab <- demus_tab %>%
 modify_tab <- modify_tab[!(modify_tab$Jmeno_OS == "1910_00_00"),]
 modify_tab
 
-# n = 249
+modif_save <- paste0(path_csv, spravce, "_modif_oo.csv")
 
-# create CSV
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select('1typSubjektuKod' = MTYPOSOSBY,        # !! povinne !!
@@ -424,7 +450,7 @@ mus_tab <- modify_tab %>%
 oper_oo <- mus_tab %>% 
   select(rel_puvKOD, '1typSubjektuKod', '2subjektKod', '4osobaJmenoPrvni', '6osobaPrijmeni')
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_oo.csv")
 
@@ -434,7 +460,7 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
@@ -448,9 +474,9 @@ if(file.exists(save)){
 **IMPORTNÍ ROZHRANNÍ**: CSV Adresář právnických osob
 
 
-```{r OSOBNOSTI PO}
+```{r TABLE PO}
 
-# filter 
+# M O D I F Y
 
 zkr <- c("SVOBODA PRAHA", "Agfa", "Blesk Praha I", "ČVT 08 HB", "GZ Bernasek Prazena", "HP", "KSČ Praha XII", "Litera", "LITEVNA", "Nakl. V. Kátkoruký", "ORBIS", "ORBIS 02", "Orbis n.p.", "PPSP SSSR v ČSR", "B.Just Smíchov", "Unionbild", "V. Kovařík Bohušovice")
 
@@ -463,9 +489,18 @@ modify_tab <- demus_tab %>%
 
 rm(zkr)
 
-# n = 17
+modif_save <- paste0(path_csv, spravce, "_modif_po.csv")
 
-# create CSV
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+}
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select(
@@ -495,7 +530,7 @@ mus_tab <- modify_tab %>%
 oper_po <- modify_tab %>% 
   select(rel_puvKOD = Jmeno_OS, MTYPOSOSBY, '1subjektKod', nazev = Jmeno_OS)
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_po.csv")
 
@@ -505,13 +540,14 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
+
 ## AD + OO + PO (interni slovnik)
 
-```{r JOIN AD+OO+PO IN ONE DICT}
+```{r JOIN AD OO PO IN ONE DICT}
 
 ad <- oper_adresar %>% 
   mutate(typos = "AD",
@@ -539,17 +575,17 @@ po <- oper_po %>%
 
 interni_adresar <- bind_rows(ad, oo, po)
 
-# SAVE FILE
+# S A V E   F I L E
 
 save <- paste0(path_csv, "_", spravce, "_INTERNI_ADRESAR.csv")
 
 if(file.exists(save)){
   print("You've been here before!")
 } else {
-  write.table(mus_tab, file = save, 
+  write.table(interni_adresar, file = save, 
             sep = ";", quote = T, row.names = F, 
-            na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+            na = NA, fileEncoding="cp1250")
+  print("Import written, baby!")
   }
 
 
@@ -564,17 +600,29 @@ if(file.exists(save)){
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Lokalita
 
-```{r LOAD AND MODIFY TABLE LOKALITY}
+```{r TABLE LOKALITY}
+
+# L O A D
 
 demus_tab <- read_excel(paste0(path_data, "Lokality.xlsx"))
-demus_tab[is.na(demus_tab)] <- ""
 
-# n = 12
+# M O D I F Y
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "")
 
-# create CSV
+modif_save <- paste0(path_csv, spravce, "_modif_lokalita.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select(
@@ -592,8 +640,7 @@ mus_tab <- modify_tab %>%
 
 oper_lokalita <- mus_tab
 
-
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_lokalita.csv")
 
@@ -603,7 +650,7 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
@@ -617,12 +664,14 @@ if(file.exists(save)){
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Materiál
 
-```{r LOAD AND MODIFY TABLE MATERIALY, warning = F}
+```{r TABLE MATERIALY, warning = F}
+
+# L O A D
 
 demus_tab <- read_excel(paste0(path_data, "Materialy.xlsx"))
-demus_tab[is.na(demus_tab)] <- ""
-
-# n = 67
+# demus_tab[is.na(demus_tab)] <- ""
+ 
+# M O D I F Y
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
@@ -639,9 +688,18 @@ modify_tab <- demus_tab %>%
 
 modify_tab <- modify_tab[!duplicated(modify_tab$MMATERIAL),]
 
-```
+modif_save <- paste0(path_csv, spravce, "_modif_material.csv")
 
-```{r CREATE CSV MATERIAL}
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select(
@@ -654,7 +712,7 @@ mus_tab <- modify_tab %>%
 
 oper_material <- mus_tab
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_material.csv")
 
@@ -664,7 +722,7 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
@@ -677,12 +735,14 @@ if(file.exists(save)){
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Technika 
 
-```{r LOAD AND MODIFY TABLE TECHNIKY, warning = F}
+```{r TABLE TECHNIKY, warning = F}
+
+# L O A D
 
 demus_tab <- read_excel(paste0(path_data, "Techniky.xlsx"))
-demus_tab[is.na(demus_tab)] <- ""
+# demus_tab[is.na(demus_tab)] <- ""
 
-# n = ?
+# M O D I F Y
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
@@ -702,9 +762,18 @@ modify_tab <- demus_tab %>%
 
 modify_tab <- modify_tab[!duplicated(modify_tab$MTECHNIKA),]
 
-```
+modif_save <- paste0(path_csv, spravce, "_modif_technika.csv")
 
-```{r CREATE CSV TECHNIKY}
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select(
@@ -717,7 +786,7 @@ mus_tab <- modify_tab %>%
 
 oper_technika <- mus_tab
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_technika.csv")
 
@@ -727,10 +796,20 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
+
+## Rozměry
+
+Zde nebylo treba resit rozmery slovnikem.  
+Byly zkontrolovany jiz zadane hodnoty ve slovnku Museionu.  
+
+```{r}
+# roz <- read_excel(paste0(path_data, "Rozmery.xlsx"))
+```
+
 
 ## Označení
 
@@ -739,21 +818,32 @@ if(file.exists(save)){
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Označení 
 
-```{r LOAD AND MODIFY TABLE NAZVY, warning = F}
+```{r TABLE NAZVY, warning = F}
+
+# L O A D
 
 demus_tab <- read_excel(paste0(path_data, "Nazvy.xlsx"))
-demus_tab[is.na(demus_tab)] <- ""
+# demus_tab[is.na(demus_tab)] <- ""
 
-# n = ?
+# M O D I F Y
 
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1sbirkaCisloEvidInt' = sbirka) %>% 
   mutate('2podsbirkaCislo' = podsbirka) 
 
-```
+modif_save <- paste0(path_csv, spravce, "_modif_oznaceni.csv")
 
-```{r CREATE CSV OZNACENI}
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select(
@@ -765,7 +855,7 @@ mus_tab <- modify_tab %>%
 
 oper_oznaceni <- mus_tab
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_oznaceni.csv")
 
@@ -775,234 +865,17 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
 
 \newpage
 
-# 3. DOPROVODNÉ TABULKY (opakovatelné)
 
-Pro doprovodne tabulky je treba mit jiz pripravene inventarni cislo v konecnem formatu  
-(viz sekce *Referencni tabulka Sbirky*)
+\newpage 
 
-## Materál předmětu
-
-tabulka s poradim materialu ke konkretnimu predmetu
-invc1 - 1. material 1
-invc1 - 2. material 2
-invc2 - 1. material 1, atd
-
-**DEMUS**: Sbirky  
-**MUSEION**: import_matpred.csv  
-  
-**IMPORTNÍ ROZHRANNÍ**: CSV Materiál předmětu  
-
-
-```{r DERIVE MATPRED FROM SBIRKY, warning = F}
-
-dopr_tab <- sbirky %>% 
-  select(MINVC, Material_S) %>% 
-  mutate(MEMPTY = "") %>% 
-  mutate('2sbirkaCisloEvidInt' = sbirka) %>% 
-  mutate('3podsbirkaCislo' = podsbirka) %>% 
-  mutate(MMAT = Material_S) %>% 
-  separate(MMAT,into=c("MMAT1", "MMAT2", "MMAT3", "MMAT4", "MMAT5") , sep=",|;") %>% 
-  pivot_longer(
-    cols = MMAT1:MMAT5, 
-    names_to = "MMAT_POR", # poradi materialu
-    values_to = "MMAT_AGG",
-    values_drop_na = TRUE) %>% 
-  mutate(MMATERIAL = str_trim(MMAT_AGG)) %>% # remove white space
-  select(-MMAT_AGG) %>% 
-  mutate(MMAT_POR = substr(MMAT_POR, 5, 5))
-```
-
-```{r CREATE CSV MATPRED}
-
-mus_tab <- dopr_tab %>% 
-  select(
-    '1SPCislo' = MINVC,                                # !! povinne !!
-    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
-    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
-    '4poradi' = MMAT_POR,                              # !! povinne !!
-    '5materialNazev' = MMATERIAL,                      # !! povinne !!
-    '6materialovaSkupina' = MEMPTY, 
-    '7materialSpecifikaceNazev' = MEMPTY, '8materialPredmetuPoznam' = MEMPTY)
-
-oper_matpred <- mus_tab
-
-# SAVE IMPORT FILE
-
-save <- paste0(path_csv, spravce, "_import_matpred.csv")
-
-if(file.exists(save)){
-  print("You've been here before!")
-} else {
-  write.table(mus_tab, file = save, 
-            sep = ";", quote = T, row.names = F, 
-            na = "", fileEncoding="cp1250")
-  print("Written, baby!")
-  }
-
-```
-
-
-## Technika předmětu
-
-tabulka s poradim technik ke konkretnimu predmetu
-invc1 - 1. technika 1
-invc1 - 2. technika 2
-invc2 - 1. technika 1, atd
-
-**DEMUS**: Sbirky 
-**MUSEION**: import_techpred.csv  
-  
-**IMPORTNÍ ROZHRANNÍ**: CSV Materiál předmětu  
-
-
-```{r DERIVE TECHPRED FROM SBIRKY, warning = F}
-
-dopr_tab <- sbirky %>% 
-  select(MINVC, Technika_S) %>% 
-  mutate(MEMPTY = "") %>% 
-  mutate('2sbirkaCisloEvidInt' = sbirka) %>% 
-  mutate('3podsbirkaCislo' = podsbirka) %>% 
-  mutate(MTECH = Technika_S) %>% 
-  separate(MTECH,into=c("MTECH1", "MTECH2", "MTECH3", "MTECH4", "MTECH5"),
-           sep=",(?! tuší)") %>% # separator is ',' BUT ONLY IF NOT FOLLOWED BY ' tuší' -> solves a single case of 'kresba tužkou, tuší a bělobou' which should remain as one entry
-  pivot_longer(
-    cols = MTECH1:MTECH5, 
-    names_to = "MTECH_POR", # poradi techniky
-    values_to = "MTECH_AGG",
-    values_drop_na = TRUE) %>% 
-  mutate(MTECHNIKA = str_trim(MTECH_AGG)) %>% # remove white space
-  select(-MTECH_AGG) %>% 
-  mutate(MTECH_POR = substr(MTECH_POR, 6, 6))
-```
-
-```{r CREATE CSV TECHPRED}
-
-mus_tab <- dopr_tab %>% 
-  select(
-    '1SPCislo' = MINVC,                                # !! povinne !!
-    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
-    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
-    '4poradi' = MTECH_POR,                             # !! povinne !!
-    '5technikaNazev' = MTECHNIKA,                      # !! povinne !!
-    '6materialovaSkupina' = MEMPTY, 
-    '7technikaSpecifikaceNazev' = MEMPTY, '8technikaPredmetuPoznam' = MEMPTY)
-
-oper_techpred <- mus_tab
-
-# SAVE IMPORT FILE
-
-save <- paste0(path_csv, spravce, "_import_techpred.csv")
-
-if(file.exists(save)){
-  print("You've been here before!")
-} else {
-  write.table(mus_tab, file = save, 
-            sep = ";", quote = T, row.names = F, 
-            na = "", fileEncoding="cp1250")
-  print("Written, baby!")
-  }
-
-```
-
-## Vznik Předmětů
-
-tabulka s trojici ke konkretnimu predmetu
-invc1 - 1. autor
-invc1 - 2. datace
-invc1 - 3. misto vzniku
-invc1 - 4. autor 2
-invc2 - 1. datace, atd  
-  
-### kontrola rolí a lokalit
-
-- zkontrolovat ve slovníku role a případně ručně dozaložit chybějící  
-- MUSEION -> Slovníky -> Osoby a instituce -> Role subjektů
-
-```{r CHECK ROLES AND LOCS DICTIONARY}
-
-unique(sbirky$Role_S)
-
-unique(oper_lokalita$'1lokalitaNazev')
-unique(sbirky$MistoVz_S)
-
-```  
-
-### vznik ptu  
-
-
-**DEMUS**: Sbirky 
-**MUSEION**: import_vznikPtu.csv  
-  
-**IMPORTNÍ ROZHRANNÍ**: CSV Vznik předmětů  
-
-
-```{r DERIVE VZNIKPTU FROM SBIRKY, warning = F, eval = F}
-
-dopr_tab <- sbirky %>% 
-  select(MINVC, Autor_S, Role_S, Datace_S, MistoVz_S) %>% 
-  mutate(MEMPTY = "") %>% 
-  mutate(MDATACE = Datace_S) %>% 
-  
-  mutate(MDAT_Y = ifelse(str_detect(MDATACE, "_00_00"), MDATACE, "")) %>% 
-  mutate(MDAT_Y = str_replace_all(MDAT_Y, "_00|-00", "")) %>% 
-  
-  mutate(MDAT_YM = substring(ifelse(str_detect(MDATACE, "^([0-9]{4})[_]([0-9]{1})([1-9]{1})[_]00$"),
-                                    MDATACE, ""), 1, 7)) %>% 
-  mutate(MDAT_YM = format(anydate(MDAT_YM), "%m.%Y")) 
-
-
-```
-
-```{r CREATE CSV VZNIKPTU, eval = F}
-
-mus_tab <- dopr_tab %>% 
-  select(
-    '1SPCislo' = MINVC,                          # !! povinne !!
-    '2poradi' = '2poradi',                       # !! povinne !!
-    '3autorSubjektKod' = Autor_S,             
-    '4autorSnad' = MEMPTY      ,                 # priznak 0 1                        
-    '5autorRoleNazev' = Role_S,       
-    '6autorPoznamka' = MEMPTY, 
-    '7mistoLokalitaNazev' = MistoVz_S, 
-    '8mistoSnad' = MEMPTY,                       # priznak 0 1 
-    '9specifikaceMistaNazev' = MEMPTY, 
-    '10mistoDoplneni' = MEMPTY, 
-    '11dataceHodnota' = Datace_S, 
-    '12datacePoznamka' = MEMPTY, 
-    '13poznamka' = MEMPTY, 
-    '14kvalifikatorDatace' = MEMPTY, 
-    '15dataceSnad' = MEMPTY,                     # priznak 0 1 
-    '16kvalifikatorDatace2' = MEMPTY,  
-    '17dataceSnad' = MEMPTY)                     # priznak 0 1  
-
-oper_vznikPtu <- mus_tab
-
-
-# SAVE IMPORT FILE
-
-save <- paste0(path_csv, spravce, "_import_vznikPtu.csv")
-
-if(file.exists(save)){
-  print("You've been here before!")
-} else {
-  write.table(mus_tab, file = save, 
-            sep = ";", quote = T, row.names = F, 
-            na = "", fileEncoding="cp1250")
-  print("Written, baby!")
-  }
-
-```
-
-
-
-# 4. PŘEDMĚTY
+# 3. PŘEDMĚTY
 
 OBP = obecný předmět  
 PAR = archeologie  
@@ -1035,6 +908,8 @@ demus_tab <- merge(sbirky, akvizice, by.x = "IdC_S", by.y = "IdC_AQ", all.x = T)
 
 ```{r MODIFY TABLE SBIRKY FOR OBP}
 
+# M O D I F Y
+
 modify_tab <- demus_tab %>% 
   mutate(MEMPTY = "") %>% 
   mutate('1typPredmetuKod' = "P")   %>%         # povinný - "P", "NU", "MI", "HM", "DI", "F1"
@@ -1056,11 +931,18 @@ modify_tab <- demus_tab %>%
   mutate('26SPKartaJeOpsana' = as.integer(as.logical(Opsana_S))) %>% 
   mutate('27archivalie' = as.integer(as.logical(Archiv_S)))
 
-# n = 1087
+modif_save <- paste0(path_csv, spravce, "_modif_obp.csv")
 
-```
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
 
-```{r CREATE CSV OBP}
+# C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
   select(
@@ -1167,10 +1049,9 @@ mus_tab <- modify_tab %>%
     '115rokPrirust' = MEMPTY,'116mnozstviSlovy' = MEMPTY,
     '117pocetCasti' = MEMPTY,'118popisCasti' = MEMPTY)
 
-
 oper_obp <- mus_tab
 
-# SAVE IMPORT FILE
+# S A V E   I M P O R T   C S V
 
 save <- paste0(path_csv, spravce, "_import_obp.csv")
 
@@ -1180,31 +1061,33 @@ if(file.exists(save)){
   write.table(mus_tab, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
 }
 
 ```
+
+Import prvnich 10 zaznamu. Zkouska, zda sedi pocet a format sloupcu apod.    
 
 ```{r TOP 10 ENTRIES TRIAL}
 
 mus_tab_cvic <- mus_tab %>% 
   slice(1:10)
 
+# S A V E   I M P O R T   C S V
 
-# SAVE IMPORT FILE
+save_cv <- paste0(path_csv, spravce, "_import_obp_CVICNE.csv")
 
-save <- paste0(path_csv, spravce, "_import_obp_CVICNE.csv")
-
-if(file.exists(save)){
+if(file.exists(save_cv)){
   print("You've been here before!")
 } else {
-  write.table(mus_tab, file = save, 
+  write.table(mus_tab, file = save_cv, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 ```
 
+! ! ! ! ! PAR, VUM, FOT, BIO, BR = n e a k t u a l i z o v a n e ! ! ! ! ! 
 
 ## PAR
 
@@ -1670,11 +1553,635 @@ write.table(mus_tab, paste0(path_csv, project, "_import_br.csv"),
             na = "", fileEncoding="cp1250")
 ```
 
-# 5. PROPOJENÍ
+
+# 4. DOPROVODNÉ TABULKY (opakovatelné)
+
+Pro doprovodne tabulky je treba mit jiz pripravene inventarni cislo v konecnem formatu  
+(viz sekce *Referencni tabulka Sbirky*)
+
+## Materál předmětu
+
+tabulka s poradim materialu ke konkretnimu predmetu
+invc1 - 1. material 1
+invc1 - 2. material 2
+invc2 - 1. material 1, atd
+
+**DEMUS**: Sbirky  
+**MUSEION**: import_matpred.csv  
+  
+**IMPORTNÍ ROZHRANNÍ**: CSV Materiál předmětu  
 
 
+```{r DERIVE MATPRED FROM SBIRKY, warning = F}
+
+# M O D I F Y
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Material_S) %>% 
+  mutate(MEMPTY = "") %>% 
+  mutate('2sbirkaCisloEvidInt' = sbirka) %>% 
+  mutate('3podsbirkaCislo' = podsbirka) %>% 
+  mutate(MMAT = Material_S) %>% 
+  separate(MMAT,into=c("MMAT1", "MMAT2", "MMAT3", "MMAT4", "MMAT5") , sep=",|;") %>% 
+  pivot_longer(
+    cols = MMAT1:MMAT5, 
+    names_to = "MMAT_POR", # poradi materialu
+    values_to = "MMAT_AGG",
+    values_drop_na = TRUE) %>% 
+  mutate(MMATERIAL = str_trim(MMAT_AGG)) %>% # remove white space
+  select(-MMAT_AGG) %>% 
+  mutate(MMAT_POR = substr(MMAT_POR, 5, 5))
+
+# C R E A T E    C S V
+
+mus_tab <- dopr_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
+    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
+    '4poradi' = MMAT_POR,                              # !! povinne !!
+    '5materialNazev' = MMATERIAL,                      # !! povinne !!
+    '6materialovaSkupina' = MEMPTY, 
+    '7materialSpecifikaceNazev' = MEMPTY, '8materialPredmetuPoznam' = MEMPTY)
+
+oper_matpred <- mus_tab
+
+# SAVE IMPORT FILE
+
+save <- paste0(path_csv, spravce, "_import_matpred.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import written, baby!")
+  }
+
+```
 
 
+## Technika předmětu
+
+tabulka s poradim technik ke konkretnimu predmetu
+invc1 - 1. technika 1
+invc1 - 2. technika 2
+invc2 - 1. technika 1, atd
+
+**DEMUS**: Sbirky 
+**MUSEION**: import_techpred.csv  
+  
+**IMPORTNÍ ROZHRANNÍ**: CSV Technika předmětu  
+
+
+```{r DERIVE TECHPRED FROM SBIRKY, warning = F}
+
+# M O D I F Y
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Technika_S) %>% 
+  mutate(MEMPTY = "") %>% 
+  mutate('2sbirkaCisloEvidInt' = sbirka) %>% 
+  mutate('3podsbirkaCislo' = podsbirka) %>% 
+  mutate(MTECH = Technika_S) %>% 
+  separate(MTECH,into=c("MTECH1", "MTECH2", "MTECH3", "MTECH4", "MTECH5"),
+           sep=",(?! tuší)") %>% # separator is ',' BUT ONLY IF NOT FOLLOWED BY ' tuší' -> solves a single case of 'kresba tužkou, tuší a bělobou' which should remain as one entry
+  pivot_longer(
+    cols = MTECH1:MTECH5, 
+    names_to = "MTECH_POR", # poradi techniky
+    values_to = "MTECH_AGG",
+    values_drop_na = TRUE) %>% 
+  mutate(MTECHNIKA = str_trim(MTECH_AGG)) %>% # remove white space
+  select(-MTECH_AGG) %>% 
+  mutate(MTECH_POR = substr(MTECH_POR, 6, 6))
+
+modif_save <- paste0(path_csv, spravce, "_modif_techpred.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- dopr_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
+    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
+    '4poradi' = MTECH_POR,                             # !! povinne !!
+    '5technikaNazev' = MTECHNIKA,                      # !! povinne !!
+    '6materialovaSkupina' = MEMPTY, 
+    '7technikaSpecifikaceNazev' = MEMPTY, '8technikaPredmetuPoznam' = MEMPTY)
+
+oper_techpred <- mus_tab
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "_import_techpred.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import written, baby!")
+  }
+
+```
+
+## Miry a Rozmery Předmětů
+
+**DEMUS**: Miry ; Rozmery 
+**MUSEION**: import_rozmPtu.csv  
+  
+**IMPORTNÍ ROZHRANNÍ**: CSV Rozměry předmětu 
+
+Miry = data -> CSV Rozmery Predmetu   
+Rozmery = slovnik -> rucne nebo CSV Rozmer  
+
+
+```{r DERIVE MIRY, warning = F}
+
+# L O A D
+
+mir <- read_excel(paste0(path_data, "Miry.xlsx")) %>% 
+  mutate(Moper_poradi = seq_along(IdC_MR)) # jen check zachovani originalniho razeni
+# roz <- read_excel(paste0(path_data, "Rozmery.xlsx"))
+sb <- sbirky %>% 
+  select(IdC_S, MINVC)
+
+# M O D I F Y
+
+dopr_tab <- merge(sb, mir, by.x = "IdC_S", by.y = "IdC_MR", 
+                   all.y = T, keep = T) %>% 
+   mutate(MEMPTY = "",
+          MROZMER = case_when(is.na(Rozmer_MR) ~ "x",
+                              Rozmer_MR == "s" ~ "š-cm",
+                              Rozmer_MR == "v" ~ "v-cm",
+                              Rozmer_MR == "h" ~ "h-cm"),
+          '2sbirkaCisloEvidInt' = sbirka,  
+          '3podsbirkaCislo' = podsbirka, 
+          '5rozmerPredmetuHodnota' = round(Mira_MR, 2)) %>% # pokud chybi specifikace rozmeru, importujeme pod 'x'
+  group_by(MINVC) %>% 
+  mutate(MPORADI = seq_along(Moper_poradi)) %>% 
+  ungroup()
+
+modif_save <- paste0(path_csv, spravce, "_modif_rozmPtu.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- dopr_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                   # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     
+    '3podsbirkaCislo' = '3podsbirkaCislo',                # 
+    '4rozmerNazev' = MROZMER,                             # !! povinne !!
+    '5rozmerPredmetuHodnota' = '5rozmerPredmetuHodnota',  # !! povinne !!
+    '6rozmerPredmetuPoznamka' = Pozn_MR, 
+    '7$poradi' = MPORADI)                                 # !! povinne !!
+
+oper_rozmPtu <- mus_tab
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "_import_rozmPtu.csv.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",",              # desetinny oddelovac musi byt carka
+            na = "", fileEncoding="cp1250")
+  print("Import written, baby!")
+  }
+
+```
+
+## Vznik Předmětů
+
+tabulka s trojici ke konkretnimu predmetu
+invc1 - 1. autor
+invc1 - 2. datace
+invc1 - 3. misto vzniku
+invc1 - 4. autor 2
+invc2 - 1. datace, atd  
+  
+### kontrola rolí a lokalit
+
+- zkontrolovat ve slovníku role a případně ručně dozaložit chybějící   
+- MUSEION -> Slovníky -> Osoby a instituce -> Role subjektů  
+
+```{r CHECK ROLES AND LOCS DICTIONARY, eval = F}
+
+unique(sbirky$Role_S)
+
+unique(oper_lokalita$'1lokalitaNazev')
+unique(sbirky$MistoVz_S)
+
+```  
+
+### vznik ptu  
+
+
+**DEMUS**: Sbirky 
+**MUSEION**: import_vznikPtu.csv  
+  
+**IMPORTNÍ ROZHRANNÍ**: CSV Vznik předmětů  
+
+
+```{r DERIVE VZNIKPTU FROM SBIRKY, warning = F, eval = F}
+
+# L O A D
+
+# pokud neni jiz nacten v Environmentu
+
+interni_adresar <- read.table(paste0(path_csv, "_NM-HM_INTERNI_ADRESAR.csv"),
+                        header = T, sep = ";", fileEncoding="cp1250")
+
+# M O D I F Y
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Autor_S, Role_S, Datace_S, MistoVz_S) %>% 
+  mutate(MDATACE = Datace_S) %>% 
+  # ?
+  mutate(MDAT_QM = ifelse(MDATACE == "?", MDATACE, NA)) %>% 
+  # priznak snad   
+  mutate(MSNAD = ifelse(str_detect(MDATACE, "^\\?"), "0", 
+                        ifelse(str_detect(MDATACE, "\\?$"), "1", "0"))) %>% 
+  mutate(MDATACE = ifelse(str_detect(MDATACE, "\\?$"),
+                          str_replace(MDATACE, "\\?", ""), MDATACE)) %>% 
+  # yyyy
+  mutate(MDAT_Y = ifelse(str_detect(MDATACE, "_00_00"),
+                         str_replace_all(MDATACE, "_00|-00", ""), NA)) %>% 
+  # mm.yyyy
+  # mutate(MDAT_YM = ifelse(str_detect(MDATACE,
+  #                                    "^([0-9]{4})[_]([0-9]{1})([1-9]{1})[_]00$"),
+  #                                   # format(anydate(substring(MDATACE, 1, 7), "%m.%Y")), ""))
+  #                                   # substring(format(anydate(MDATACE), "%m.%Y"), 1, 7), ""))
+  #                                   format(anydate(MDATACE), "%m.%Y"), ""))
+  # mutate(MDAT_YM = format(anydate(MDATACE), "%m.%Y")) %>%
+  mutate(MDAT_YM = substring(ifelse(str_detect(MDATACE,
+                                             "^([0-9]{4})[_]([0-9]{1})([1-9]{1})[_]00$"),
+                                  MDATACE, ""), 1, 7)) %>%
+  mutate(MDAT_YM = format(anydate(MDAT_YM), "%m.%Y")) %>%
+  
+  # dd.mm.yyyy
+  mutate(MDAT_YMD = ifelse(str_detect(MDATACE,
+                          "^([0-9]{4})[_]([0-9]{2})[_]([0-9]{2})$"), 
+                           format(anydate(MDATACE), "%d.%m.%Y"), NA)) %>% 
+  
+  # yy leta ss stoleti
+  mutate(MDAT_LETA = ifelse(str_detect(MDATACE, "^([0-9]{4})[_]XX[_]([0-9]{2})$"),
+                                    paste0(substring(MDATACE, 9, 9), "0. léta ",
+                                           substring(MDATACE, 3, 4), ". století"), NA)) %>% 
+  # poloviny
+  mutate(MDAT_2 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d2[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". polovina ",
+                                           substring(MDATACE, 3, 4), ". století"), NA)) %>%
+  # tretiny - NEVYSKYTUJE SE
+  mutate(MDAT_3 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". třetina ",
+                                           substring(MDATACE, 3, 4), ". století"), NA)) %>%
+  # poloviny - NEVYSKYTUJE SE
+  mutate(MDAT_4 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". čtvrtina ",
+                                           substring(MDATACE, 3, 4), ". století"), NA)) %>% 
+  # tretina roku
+  mutate(MDAT_3r = ifelse(str_detect(MDATACE, "^\\d([1-9]{2})\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". třetina roku ",
+                                           substring(MDATACE, 1, 4)), NA)) %>% 
+  
+  # DATACE FINAL
+  mutate(MDATACE_MERG = coalesce(MDAT_QM, MDAT_Y, MDAT_YM, MDAT_YMD, MDAT_LETA, MDAT_2, MDAT_3r)) %>% 
+  mutate(MDATACE_FIN = coalesce(MDATACE_MERG, MDATACE)) %>% 
+  select(-c(MDAT_QM, MDAT_Y, MDAT_YM, MDAT_YMD, MDAT_LETA, MDAT_2, MDAT_3, MDAT_4, MDAT_3r,
+            Datace_S, MDATACE, MDATACE_MERG)) 
+  
+
+# join interni adresar to deal with new name codes
+dopr_tab2 <- merge(dopr_tab, interni_adresar, by.x = "Autor_S", by.y = "puvkod", 
+                   all.x = T, keep = T) %>% 
+  mutate('3$autorSubjektKod' = ifelse(Autor_S == "neznámý", "neznámý", novykod))
+
+
+modify_tab <- dopr_tab2 %>% 
+  pivot_longer(
+    cols = c('3$autorSubjektKod', MDATACE_FIN, MistoVz_S),
+    names_to = "MCAT", # poradi materialu
+    values_to = "MVAL",
+    values_drop_na = TRUE) %>%
+  group_by(MINVC) %>%
+  mutate(MPORADI = row_number()) %>%
+  ungroup() %>%
+  pivot_wider(
+    names_from = MCAT, values_from = MVAL) %>%
+  mutate(MEMPTY = "", 
+         '5autorRoleNazev' = ifelse(MPORADI == "1", Role_S, NA))
+
+modif_save <- paste0(path_csv, spravce, "_modif_vznikPtu.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                          # !! povinne !!
+    '2poradi' = MPORADI,                         # !! povinne !!
+    '3$autorSubjektKod' = '3$autorSubjektKod',             
+    '4autorSnad' = MEMPTY,                       # priznak 0 1                        
+    '5autorRoleNazev' = '5autorRoleNazev',          
+    '6autorPoznamka' = MEMPTY, 
+    '7mistoLokalitaNazev' = MistoVz_S, 
+    '8mistoSnad' = MEMPTY,                       # priznak 0 1 
+    '9specifikaceMistaNazev' = MEMPTY, 
+    '10mistoDoplneni' = MEMPTY, 
+    '11dataceHodnota' = MDATACE_FIN, 
+    '12datacePoznamka' = MEMPTY, 
+    '13poznamka' = MEMPTY, 
+    '14kvalifikatorDatace' = MEMPTY, 
+    '15dataceSnad' = MSNAD,                      # priznak 0 1 
+    '16kvalifikatorDatace2' = MEMPTY,  
+    '17dataceSnad' = MEMPTY)                     # priznak 0 1  
+
+oper_vznikPtu <- mus_tab
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "_import_vznikPtu.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import written, baby!")
+  }
+
+```
+
+
+```{r VZNIK PTU 2.0}
+
+# L O A D
+
+# pokud neni jiz nacten v Environmentu
+
+interni_adresar <- read.table(paste0(path_csv, "_NM-HM_INTERNI_ADRESAR.csv"),
+                        header = T, sep = ";", fileEncoding="cp1250")
+
+# M O D I F Y
+
+dopr_tab <- sbirky %>% 
+  select(MINVC, Autor_S, Role_S, Datace_S, MistoVz_S) %>% 
+  mutate(MDATACE = Datace_S) %>% 
+  # ?
+  mutate(MDAT_QM = ifelse(MDATACE == "?", MDATACE, NA)) %>% 
+  # priznak snad   
+  mutate(MSNAD = ifelse(str_detect(MDATACE, "^\\?"), "0", 
+                        ifelse(str_detect(MDATACE, "\\?$"), "1", "0"))) %>% 
+  mutate(MDATACE = ifelse(str_detect(MDATACE, "\\?$"),
+                          str_replace(MDATACE, "\\?", ""), MDATACE)) %>% 
+  # yyyy
+  mutate(MDAT_Y = ifelse(str_detect(MDATACE, "_00_00"),
+                         str_replace_all(MDATACE, "_00|-00", ""), NA)) %>% 
+  # mm.yyyy
+  # mutate(MDAT_YM = ifelse(str_detect(MDATACE,
+  #                                    "^([0-9]{4})[_]([0-9]{1})([1-9]{1})[_]00$"),
+  #                                   # format(anydate(substring(MDATACE, 1, 7), "%m.%Y")), ""))
+  #                                   # substring(format(anydate(MDATACE), "%m.%Y"), 1, 7), ""))
+  #                                   format(anydate(MDATACE), "%m.%Y"), ""))
+  # mutate(MDAT_YM = format(anydate(MDATACE), "%m.%Y")) %>%
+  mutate(MDAT_YM = substring(ifelse(str_detect(MDATACE,
+                                             "^([0-9]{4})[_]([0-9]{1})([1-9]{1})[_]00$"),
+                                  MDATACE, ""), 1, 7)) %>%
+  mutate(MDAT_YM = format(anydate(MDAT_YM), "%m.%Y")) %>%
+  
+  # dd.mm.yyyy
+  mutate(MDAT_YMD = ifelse(str_detect(MDATACE,
+                          "^([0-9]{4})[_]([0-9]{2})[_]([0-9]{2})$"), 
+                           format(anydate(MDATACE), "%d.%m.%Y"), NA)) %>% 
+  
+  # yy leta ss stoleti
+  mutate(MDAT_LETA = ifelse(str_detect(MDATACE, "^([0-9]{4})[_]XX[_]([0-9]{2})$"),
+                                    paste0(substring(MDATACE, 9, 9), "0. léta ",
+                                           substring(MDATACE, 3, 4), ". století"), NA)) %>% 
+  # poloviny
+  mutate(MDAT_2 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d2[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". polovina ",
+                                           substring(MDATACE, 3, 4), ". století"), NA)) %>%
+  # tretiny - NEVYSKYTUJE SE
+  mutate(MDAT_3 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". třetina ",
+                                           substring(MDATACE, 3, 4), ". století"), NA)) %>%
+  # poloviny - NEVYSKYTUJE SE
+  mutate(MDAT_4 = ifelse(str_detect(MDATACE, "^00\\d\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". čtvrtina ",
+                                           substring(MDATACE, 3, 4), ". století"), NA)) %>% 
+  # tretina roku
+  mutate(MDAT_3r = ifelse(str_detect(MDATACE, "^\\d([1-9]{2})\\d[_]\\d3[_]XX"),
+                                    paste0(substring(MDATACE, 6, 6), ". třetina roku ",
+                                           substring(MDATACE, 1, 4)), NA)) %>%  
+  
+  # DATACE FINAL
+  mutate(MDATACE_MERG = coalesce(MDAT_QM, MDAT_Y, MDAT_YM, MDAT_YMD, MDAT_LETA, MDAT_2, MDAT_3r)) %>% 
+  mutate(MDATACE_FIN = coalesce(MDATACE_MERG, MDATACE)) %>% 
+  select(-c(MDAT_QM, MDAT_Y, MDAT_YM, MDAT_YMD, MDAT_LETA, MDAT_2, MDAT_3, MDAT_4, MDAT_3r,
+            Datace_S, MDATACE, MDATACE_MERG)) 
+  
+
+# join interni adresar to deal with new name codes
+
+dopr_tab2 <- merge(dopr_tab, interni_adresar, by.x = "Autor_S", by.y = "puvkod", 
+                   all.x = T, keep = T) %>% 
+  mutate('3$autorSubjektKod' = ifelse(Autor_S == "neznámý", "neznámý", novykod))
+
+# join all three sections with the order numbering
+
+autori <- dopr_tab2 %>% 
+  filter(! is.na(Autor_S)) %>% 
+  # select(MINVC, Role_S, '3$autorSubjektKod') %>% 
+  mutate(MPORADI = "1", 
+         MDATACE_FIN = NA,
+         MistoVz_S = NA, 
+         MSNAD = NA)
+
+datace <- dopr_tab2 %>% 
+  filter(! is.na(MDATACE_FIN)) %>% 
+  # select(MINVC, MSNAD, MDATACE_FIN) %>% 
+  mutate(MPORADI = "2",
+         '3$autorSubjektKod' = NA,
+         MistoVz_S = NA, 
+         Role_S = NA)
+
+misto <- dopr_tab2 %>% 
+  filter(! is.na(MistoVz_S)) %>% 
+  # select(MINVC, MistoVz_S) %>% 
+  mutate(MPORADI = "3",
+         '3$autorSubjektKod' = NA,
+         MDATACE_FIN = NA, 
+         Role_S = NA, 
+         MSNAD = NA)
+
+modify_tab <- autori %>% 
+  rbind(datace) %>% 
+  rbind(misto) %>% 
+  mutate(MEMPTY = "")
+
+modif_save <- paste0(path_csv, spravce, "_modif_vznikPtu.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                          # !! povinne !!
+    '2poradi' = MPORADI,                         # !! povinne !!
+    '3$autorSubjektKod' = '3$autorSubjektKod',             
+    '4autorSnad' = MEMPTY,                       # priznak 0 1                        
+    '5autorRoleNazev' = Role_S,          
+    '6autorPoznamka' = MEMPTY, 
+    '7mistoLokalitaNazev' = MistoVz_S, 
+    '8mistoSnad' = MEMPTY,                       # priznak 0 1 
+    '9specifikaceMistaNazev' = MEMPTY, 
+    '10mistoDoplneni' = MEMPTY, 
+    '11dataceHodnota' = MDATACE_FIN, 
+    '12datacePoznamka' = MEMPTY, 
+    '13poznamka' = MEMPTY, 
+    '14kvalifikatorDatace' = MEMPTY, 
+    '15dataceSnad' = MSNAD,                      # priznak 0 1 
+    '16kvalifikatorDatace2' = MEMPTY,  
+    '17dataceSnad' = MEMPTY)                     # priznak 0 1  
+
+oper_vznikPtu <- mus_tab
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "_import_vznikPtu.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import written, baby!")
+  }
+
+```
+
+
+## Manipulace
+
+**DEMUS**: Manipulace  
+**MUSEION**: import_manipulace.csv
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Položka dokladu inventarizace
+
+
+- nejsou k dispozici zadne doklady o manipulaci  
+- je treba je rucne zalozit v Museionu  
+
+
+```{r TABLE MANIPULACE}
+
+# L O A D
+
+demus_tab <- read_excel(paste0(path_data, "Manipulace.xlsx")) %>% 
+  filter(!is.na(Stav_MN)) # odtraneni duplicitnich radku se stejnym datem, bez uvedeneho stavu -> prazdny radek, omyl
+
+# M O D I F Y
+
+modify_tab <- merge(sb, demus_tab, by.x = "IdC_S", by.y = "IdC_MN", 
+                   all.y = T, keep = T) %>% 
+   mutate(MEMPTY = "",
+          '1cislo' = case_when(str_detect(DatMan_MN, "2017") ~ "99/2017",
+                              str_detect(DatMan_MN, "2018") ~ "99/2018",
+                              str_detect(DatMan_MN, "2019") ~ "99/2019"),
+          '2sbirkaCisloEvidInt' = sbirka,  
+          '3podsbirkaCislo' = podsbirka, 
+          '10zapsal' = "import")
+
+modif_save <- paste0(path_csv, spravce, "_modif_manipulace.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D,  my dear!")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1cislo' = '1cislo',                               # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
+    '3podsbirkaCislo' = '3podsbirkaCislo',           # !! povinne !!          
+    '4SPCislo' = MINVC,                                # !! povinne !!            
+    '5prirustekCislo' = MEMPTY,          
+    '6prirustekPoradi' = MEMPTY, 
+    '7stavNazev' = Stav_MN,                            # !! povinne !!
+    '8popisStavu' = PopisSt_MN,                       
+    '9datum' = DatMan_MN,                              # !! povinne !!
+    '10zapsal' = '10zapsal',                           # !! povinne !!
+    '11nalezen' = MEMPTY, 
+    '12zasahKR' = MEMPTY, 
+    '13upravaKarty' = MEMPTY, 
+    '14poznamka' = MEMPTY 
+    )                    
+
+oper_vznikPtu <- mus_tab
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "_import_manipulace.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import written, baby!")
+  }
+
+```
 
 
 # p i s k o v i s t e
@@ -1683,7 +2190,7 @@ write.table(mus_tab, paste0(path_csv, project, "_import_br.csv"),
 
 - zkontrolovat Místa vzniku a chybějící doplnit do Lokalit
 
-```{r CHECK LOCS DICTIONARY}
+```{r CHECK LOCS DICTIONARY, eval = F}
 
 unique(oper_lokalita$'1lokalitaNazev')
 unique(sbirky$MistoVz_S)
@@ -1722,7 +2229,7 @@ if(file.exists(save)){
   write.table(mvzn, file = save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
-  print("Written, baby!")
+  print("Import written, baby!")
   }
 
 ```
