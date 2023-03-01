@@ -116,8 +116,8 @@ sbirky <- read_excel(paste0(path_data, "/Sbirky.xlsx")) %>%
 #   na.omit()
 
 
-sb <- sbirky %>% 
-  select(IdC_S, MINVC) # tabulka pro sledovani puvodniho a noveho inventarniho cisla
+sb_invc <- sbirky %>% 
+  select(IdC_S, MINVC, Rada_S, PorC_S, Lomeni_S) # tabulka pro sledovani puvodniho a noveho inventarniho cisla
 
 ```
 
@@ -1931,7 +1931,7 @@ interni_adresar <- read.table(paste0(path_csv, "_", spravce, "_INTERNI_ADRESAR.c
 dopr_tab <- sbirky %>% 
   select(MINVC, Autor_S, Role_S, Datace_S, MistoVz_S) %>% 
   mutate(MDATACE = Datace_S) %>% 
-  # ?
+  # '?'
   mutate(MDAT_QM = ifelse(MDATACE == "?", MDATACE, NA)) %>% 
   # priznak snad   
   mutate(MSNAD = ifelse(str_detect(MDATACE, "^\\?"), "0", 
@@ -2170,6 +2170,304 @@ if(file.exists(save)){
 
 ```
 
+
+## Uložení předmětu
+
+**DEMUS**: Sbirky
+**MUSEION**: import_ulozeniPtu.csv
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Uložení předmětu
+
+-   Stala Lokace a Aktualni Lokace -> porovnat
+-   Pokud je to stejne, Aktualni lokace se nemigruje
+-   Pokud nejsou stejne, Stala = Stalam, Aktualni = Docasna
+
+```{r TABLE ULOZENI PTU FROM TAB SBIRKY}
+
+# L O A D
+
+dopr_tab <- sbirky %>% 
+  select(StLokace_S, AktLokace_S, MINVC)
+dopr_tab[is.na(dopr_tab)] <- ""
+
+lok_check <- dopr_tab %>% 
+  filter(StLokace_S != AktLokace_S) # 63x St = NA, Akt != NA; 1x St != Akt
+
+# M O D I F Y
+
+modify_tab <- dopr_tab %>% 
+  mutate(MEMPTY = "",
+         MDEPOZITAR = "H11",
+         MSTALA = ifelse(StLokace_S == "", NA, paste0(MDEPOZITAR, "-", StLokace_S)), 
+         MAKTUAL = ifelse(StLokace_S == AktLokace_S, "", paste0(MDEPOZITAR, "-", AktLokace_S)),
+         '1typKarty' = "K")
+
+modif_save <- paste0(path_csv, spravce, "_modif_ulozeniPtu.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select('1typKarty' = '1typKarty', # max. 1 znak, povinný, povolené hodnoty "K" a "P" (katalog / prirustek)
+         '2evidencniCislo' = MINVC,
+         '3poradiPredmetuPrirustku' = MEMPTY,
+         '4poradiPredmetuPrirustkuPomocne' = MEMPTY,
+         '5konvInventarniCislo' = MEMPTY, 
+         '6konvPrirustkoveCislo' = MEMPTY, 
+         '7staleUlozeniKod' = MSTALA,
+         '8docUlozeniDlouhodobeKod' = MEMPTY,
+         '9docUlozeniKratkodobeKod' = MEMPTY,
+         '10poznamka' = MEMPTY,
+         '11text1' = MAKTUAL,
+         '12text2' = MEMPTY,
+         '13text3' = MEMPTY,
+         '14text4' = MEMPTY, 
+         '15text5' = MEMPTY)
+
+
+oper_ulozeniPtu <- mus_tab
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "_import_ulozeniPtu.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+```
+
+### slovnik ulozeni predmetu
+
+**DEMUS**: Sbirky
+**MUSEION**: import_ulozeni.csv
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Uložení
+
+```{r TABLE ULOZENI}
+
+
+# M O D I F Y
+
+modify_tab <- oper_ulozeniPtu %>% 
+  select('7staleUlozeniKod') %>% 
+  mutate(MEMPTY = "", 
+         MDEPOZITAR = "H11") %>% 
+  distinct() %>% 
+  drop_na('7staleUlozeniKod')
+
+modif_save <- paste0(path_csv, spravce, "_modif_ulozeni.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1depozitarKod' = MDEPOZITAR,  # !! povinne !!
+    '2ulozeniKod'= '7staleUlozeniKod',           # !! povinne !!
+    '3lokaceKod' = MEMPTY
+    )
+
+oper_ulozeni <- mus_tab
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "_import_ulozeni.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+```
+
+# 5. OBRÁZKY
+
+
+**DEMUS**: (slozka s obrazky)
+**MUSEION**: import_obrazky.csv (muze byt vice slozek)
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Import souborových příloh 
+
+- udelat vypis souboru v cmd  
+- seznam cest k souborum  
+- naparovat s MINVC
+
+```{r OBRAZKY}
+
+# L O A D
+
+vypis <- read.table(paste0(path, "data/MDH/KD/vypis.csv"), 
+                    sep = ";", header = T, fileEncoding="cp1250") # split path in Excel
+
+# S B I R K Y
+
+invc <- sb_invc %>% 
+  mutate(MVYPINVC = ifelse(Lomeni_S == "_", paste0(Rada_S, "_", PorC_S), paste0(Rada_S, "_", PorC_S, "_", Lomeni_S)),
+         PorC_S = as.character(PorC_S))
+
+# R E L A T E 
+
+# H11T a H11U se lisi formatem nazvu souboru, proto se budou resit zvlast
+
+## H 11 T
+
+h11t <- vypis %>% 
+  filter(!str_detect(file, "^pohledy.*")) %>% 
+  filter(str_detect(file, "^H11T.*")) %>% 
+  separate(file,into=c("rada", "porcis"), sep = "-", 
+            extra = "merge", remove = FALSE) %>% 
+  separate(porcis,into=c("por", "podl"), sep = "_", 
+            extra = "merge", remove = FALSE) %>%
+  mutate(por = ifelse(str_detect(por, ".*a|b$"), str_sub(por,1,nchar(por)-1), por),
+         por = str_trim(por))
+  
+
+## H 11 U
+
+h11u <- vypis %>% 
+  filter(!str_detect(file, "^pohledy.*")) %>% 
+  filter(str_detect(file, "^H11U.*")) %>% 
+  separate(file,into=c("rada", "porcis"), sep = "_", 
+            extra = "merge", remove = FALSE) %>% 
+  separate(porcis,into=c("por", "poradi"), sep = "_", 
+            extra = "merge", remove = FALSE) %>% 
+  mutate(podl = ifelse(str_detect(por, ".*a|b$"), 
+                       # separate(por,into=c("por", "poradi"), sep = "_", extra = "merge", remove = FALSE) %>% 
+                       str_sub(por,-1, -1), "-"))
+
+
+# M O D I F Y
+
+# modify_tab <- left_join(h11t, invc, by = c("rada" = "Rada_S", "por" = "PorC_S"), keep = T) %>%      # H 11 T     # s w i t c h
+modify_tab <- left_join(h11u, invc, by = c("rada" = "Rada_S", "por" = "PorC_S"), keep = T) %>%    # H 11 U     # s w i t c h
+  select(MINVC, Rada_S, rada, PorC_S, por, file, ext) %>% 
+  group_by(rada, por) %>% 
+  mutate(MPORADI = seq_along(file)) %>% 
+  ungroup() %>%
+  mutate(MEMPTY = "",
+         '1uloha' = "PREDMET_PRIVATE",
+         '6url' = paste0(file, ".", ext),
+         '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
+         # '7nahled' = case_when('3poradi' == 1 ~ "1", 
+         #                       TRUE ~ "0"),       # priznak {0;1}                       
+         '8vodoznak' = 0,      # priznak {0;1}                  
+         '9tisk1' = 0,          # priznak {0;1}                     
+         '10tisk2' = 0)  %>%        # priznak {0;1}     ) %>% 
+  filter(!is.na(MINVC)) # odfiltrovat nesparovane   # H 11 U : 452a ; 452b
+
+
+
+
+# modif_save <- paste0(path_csv, spravce, "_modif_obrazky_h11t.csv")       # s w i t c h
+modif_save <- paste0(path_csv, spravce, "_modif_obrazky_h11u.csv")     # s w i t c h
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>%  
+  select(
+    '1uloha' = '1uloha',   # !! povinne !!                            
+    '2cislo' = MINVC,   # !! povinne !!     
+    '3poradi' = MPORADI,   # !! povinne !!          
+    '4nazev' = MEMPTY,                                   
+    '5typDokumentuNazev' = MEMPTY,          
+    '6url' = '6url',    # !! povinne !!
+    '7nahled' = '7nahled',       # priznak {0;1}                       
+    '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
+    '9tisk1' = '9tisk1',          # priznak {0;1}                     
+    '10tisk2' = '10tisk2',         # priznak {0;1}                   
+    '11poznamka' = MEMPTY, 
+    '12neDigitalni' = MEMPTY, 
+    '13umisteni' = MEMPTY, 
+    '14publikace' = MEMPTY, 
+    '15literaturaNazev' = MEMPTY, 
+    '16literaturaSlovy' = MEMPTY, 
+    '17APlicenceCC' = MEMPTY, 
+    '18APvariantaCCOznaceni' = MEMPTY, 
+    '19APautorSubjektKod' = MEMPTY, 
+    '20APdrzitelSubjektKod' = MEMPTY, 
+    '21APtypLicence' = MEMPTY, 
+    '22APcasovaLicence' = MEMPTY, 
+    '23APuzemniLicence' = MEMPTY, 
+    '24APmnozstevniLicence' = MEMPTY, 
+    '25APdatumVyprseni' = MEMPTY, 
+    '26APpoznamka' = MEMPTY
+    )                    
+
+# oper_obrazky_h11t <- mus_tab   # s w i t c h 
+oper_obrazky_h11u <- mus_tab   # s w i t c h
+
+# S A V E   I M P O R T   C S V
+
+# save <- paste0(path_csv, spravce, "_import_obrazky_h11t.csv")      # s w i t c h 
+save <- paste0(path_csv, spravce, "_import_obrazky_h11u.csv")    # s w i t c h
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+# N E S P A R O V A N E
+
+vypis
+oper_obrazky_h11t
+oper_obrazky_h11u
+
+nesparovane <- vypis %>% 
+  filter(!str_detect(file, "^H11U.*|^H11T.*")) %>% 
+  select(path) %>% 
+  write.table(file = paste0(path, "data/MDH/KD/vypis_nesparovane.csv"), 
+            sep = ";", quote = T, row.names = F, col.names = F, 
+            na = "", fileEncoding="cp1250")
+
+# vypis n = 2532
+# nesparovane n = 1976
+# h11t n = 288
+# h11u n = 268
+268+288+1976
+# TOTAL = 2532    OK OK OK
+
+```
+
+
 # p i s k o v i s t e
 
 ### mista vzniku
@@ -2207,7 +2505,7 @@ colnames(mvzn_tab)[1] <- '1lokalitaNazev'
 
 # SAVE IMPORT FILE
 
-save <- paste0(path_csv, spravce, "_import_lokalita_mistvzn.csv")
+save <- paste0(path_csv, spravce, "_import_lokalita_mistVzn.csv")
 
 if(file.exists(save)){
   print("You've been here before!")
@@ -2219,3 +2517,12 @@ if(file.exists(save)){
   }
 
 ```
+
+
+# nacteni importu
+
+```{r}
+imp <- read.table("C:/Users/krizova/Documents/R/mus_csv/NM-HM/MDH/NM-HM_import_obp.csv", 
+                  header = T, sep = ";", fill = T, fileEncoding="cp1250", dec = ",")
+```
+

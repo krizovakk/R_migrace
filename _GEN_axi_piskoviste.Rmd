@@ -1,0 +1,91 @@
+---
+title: "AXIELL piskoviste"
+subtitle: "Prostredi pro zkouseni novych postupu"
+author: "Kateřina Křížová"
+date: "2023-01-26"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+```{r}
+require(tidyverse)
+```
+
+
+\newpage 
+
+# *GENERAL*
+
+## X M L
+
+### import
+
+PACKAGES: "XML", "xml2"  
+ARTICLES: https://appsilon.com/r-xml/  ;  https://www.w3schools.com/xml/schema_howto.asp
+
+```{r XML IMPORT}
+
+install.packages("XML")
+require(XML)
+
+install.packages("xml2")
+require(xml2)
+
+install.packages("methods")
+require(methods)
+
+install.packages("tibble")
+require(tibble)
+
+# funkcni prikazy
+xml <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/grafika.xml", as_html = F) 
+xsd <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/grafika_xsd.xsd")
+
+xml2::xml_validate(xml, xsd) # TRUE - what does this mean?
+structure <- xml2::xml_structure(xml) # ?
+namesp <- xml2::xml_set_namespace(xml, uri = "http://www.w3.org/XML/1998/namespace") # 
+
+
+xml <- xml2::xmlParse(xml)
+
+dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/cvdata.xml") # ok
+dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/grafikaupr.xml") # jiny format, nenacita spravne
+dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/PRM_BioLib_090_Fungi_Trida.xml") # ok
+print(dataframe)
+
+
+
+# lokalni piskoviste
+
+data <- XML::xmlParse(xml)
+rootnode <- XML::xmlRoot(data)
+nodes <- XML::xmlSize(rootnode)
+second_node <-rootnode[2]
+attri <- rootnode[[3]][[4]]
+
+cat('number of nodes: ', nodes)
+print ('details of 2 record: ')
+print (second_node)
+print ('3rd attribute of 4th record: ', attr) 
+
+# nefunkcni
+
+xml_structure(xml) # doesnt work
+xml_find_all(xml, ".//position") # doesnt work
+
+dept <- XML::xml_text(xml_find_all(xml, ".//department"))
+salary <- XML::xml_text(xml_find_all(xml, ".//salary"))
+
+xmltib <- tibble(department = dept, salary = salary)
+
+
+df_employees <- XML::xmlToDataFrame(nodes = XML::getNodeSet(xml, "//employee"))
+```
+
