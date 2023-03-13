@@ -51,6 +51,8 @@ pad = "0" = empty places fill with "0"
 
 separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ")
 
+separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge") # at first whitespace
+
 ```
 
 ### Remove parentheses

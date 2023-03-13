@@ -1,0 +1,1017 @@
+---
+title: "IMPORTNI ROZHRANI"
+subtitle: "Tvorba csv pro migraci dat do MUSEIONu"
+author: "Katerina Krizova"
+date: "2023-02-08"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+```{r include = F}
+knitr::opts_chunk$set(echo = F, eval = F)
+```
+
+\newpage 
+
+# DULEZITE INFORMACE  
+  
+## Postup tvorby csv   
+  
+1) Prirustkova kniha  
+2) Tabulky nastaveni (Fondy, Skupiny, atd.)
+3) Slovniky  
+4) Predmety (volba karty)  
+5) Opakovatelne tabulky  
+  
+## Dataframes v prubehu tvorby csv   
+
+1) Nacteni dat do df *'data_tab'*  
+2) Uprava dat a tvorba upravene tabulky df *'modif_tab'*  
+        -> ulozeni   
+3) Tvorba finalniho importniho csv jako *'mus_tab'*  
+        -> ulozeni   
+        -> pro dalsi praci zapsani i do operativniho df *'oper_'* + nazev  
+        
+# Archivace tabulek
+
+Uklada se vzdy:  
+    1)  upravena tabulka pro informaci, z ceho byl vytvoren csv soubor  
+    2)  finalni importni csv    
+      
+Chraneno proti prepsani. Pokud bude zadouci vystupy prepsat, je treba nejprve smazat puvodni soubor a ulozit novy.  
+
+```{r UKLADANI TABULEK}
+
+# finalni csv
+
+save <- paste0(path_csv, projekt, "_import_fond.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+# upravena tabulka
+
+modif_save <- paste0(path_csv, projekt, "_modif_fond.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",",              # desetinny oddelovac musi byt carka
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+```
+
+\newpage   
+
+# N A S T A V E N I
+
+## Fondy
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Fond
+**MUSEION**: import_fond.csv
+
+```{r FONDY}
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt',  # !! povinne !!
+    '2podsbirkaCislo'= '2podsbirkaCislo',           # !! povinne !!
+    '3fondKod' = MFOND,                             # !! povinne !!
+    '4nazev'= Fond_FN,                              # !! povinne !!
+    '5poznamka' = Pozn_FN, '6popisPubl'= MEMPTY,
+    '7poradi' = MEMPTY, '8oaiId'= MEMPTY,
+    '9oaiDatumHarvestingu'= MEMPTY, '10oaiDatumModifikace' = MEMPTY)
+
+oper_fondy <- mus_tab
+imp <- "fond"
+```
+
+## Skupiny
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Skupiny
+**MUSEION**: import_skupiny.csv
+
+```{r SKUPINY}
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
+    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
+    '3fondKod' ='3fondKod',                        # !! povinne !!
+    '4skupinaKod'= Skupina_S,                      # !! povinne !!
+    '5nazev' = '5nazev',                           # !! povinne !!
+    '6poznamka'= MEMPTY,
+    '7popisPubli' = MEMPTY, '8poradi'= MEMPTY,
+    '9oaiId'= MEMPTY, '10oaiDatumHarvestingu'= MEMPTY, 
+    '11oaiDatumModifikace' = MEMPTY)
+
+oper_skupiny <- mus_tab
+imp <- "skupiny"
+```
+
+\newpage   
+
+# S L O V N I K Y  
+
+## Adresář  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Adresář osob  
+*MUSEION*: import_adresar.csv  
+
+```{r ADRESAR}
+
+mus_tab <- modif_tab %>% 
+  select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
+         '2subjektKod' = '2subjektKod',         # !! povinne !!
+         '3subjektAlterKod' = MEMPTY, '4osobaJmenoPrvni'= Jmeno_A, 
+         '5osobaJmenoDruhe' = MEMPTY, 
+         '6osobaPrijmeni' = Prijmeni_A,         # !! povinne !!
+         '7osobaTitulPredJmenem' = TitPred_A, '8osobaTitulZaJmenem' = TitZa_A, 
+         '9osobaRodnePrijmeni' = MEMPTY, 
+         '10osobaPohlavi' = '10osobaPohlavi',   # !! povinne !! "muž", "žena", "neznámé"
+         '11osobaDatumNarozeni' = MEMPTY, '12osobaMistoNarozeni' = MEMPTY,
+         '13okresNarozeniNazev' = MEMPTY, '14obecNarozeniNazev' = MEMPTY,
+         '15statNarozeniKod' = MEMPTY, '16osobaDatumUmrti' = MEMPTY,
+         '17osobaMistoUmrti' = MEMPTY, '18subjektStatKod' = '18subjektStatKod',
+         '19kontaktEmail' = MEMPTY, '20kontaktMobil' = MEMPTY,
+         '21kontaktMobil2' = MEMPTY, '22kontaktTelefon' = MEMPTY,
+         '23kontaktInternet' = MEMPTY, '24kontaktInternetoveVolani' = MEMPTY,
+         '25adresaText' = MEMPTY, '26kontaktniAdresaText' = MEMPTY,
+         '27fyzickaOsobaRodneCislo' = MEMPTY, '28subjektPoznamka' = MEMPTY,
+         '29AdresaTextoveOkres' = MEMPTY, '30AdresaTextoveObec' = MEMPTY,
+         '31AdresaTextoveCastObce' = MEMPTY, '32AdresaTextoveMestskaCast' = MEMPTY,
+         '33AdresaTextoveUlice' = MEMPTY, '34AdresaTextoveCisloOrientacni' = MEMPTY,
+         '35AdresaTextoveCislo' = MEMPTY, '36AdresaTextovePSC' = MEMPTY,
+         '37zamestnanecCislo' = MEMPTY, '38oddeleniKod' = MEMPTY,
+         '39osobnostMedailon' = MEMPTY, '40osobnostPseudonym' = MEMPTY,
+         '41okruhSubjektuNazev' = MEMPTY, '42subjektSbirka' =  MEMPTY,           
+         '43subjektPodsbirka' =  MEMPTY, '44osobaStudia' = MEMPTY,
+         '45osobaSpolky' = MEMPTY, '46osobaOsobnost' = MEMPTY,
+         '47subjektDatumOd' = MEMPTY, '48subjektDatumDo' = MEMPTY,
+         '49kontaktEmail2' = MEMPTY, 
+         '50text1' = MEMPTY, '51text2' = MEMPTY, '52text3' = MEMPTY, 
+         '53role1' = MEMPTY, '54role2' = MEMPTY, 
+         '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY,
+         rel_ZkrJm = ZkrJm_A)
+
+oper_adresar <- mus_tab %>% 
+  select(rel_ZkrJm, '1typSubjektuKod', '2subjektKod', '4osobaJmenoPrvni', '6osobaPrijmeni') # pro tvorbu interniho adresare
+imp <- "adresar"
+```
+
+## Adresar PO  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Adresář právnických osob  
+*MUSEION*: import_po.csv  
+
+```{r ADRESAR PO}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1subjektKod' = '1subjektKod',          # !! povinne !!
+    '2subjektAlterKod'= MEMPTY,
+    '3pravnickaOsobaNazev' = Jmeno_OS,      # !! povinne !!
+    '4pravnickaOsobaIC'= MEMPTY,
+    '5pravnickaOsobaDIC' = MEMPTY, '6pravnickaOsobaZapsan'= MEMPTY,
+    '7pravnickaOsobaFOP' = MEMPTY, '8subjektStatKod'= MEMPTY,
+    '9kontaktEmail' = MEMPTY, '10kontaktMobil'= MEMPTY,
+    '11kontaktMobil2' = MEMPTY, '12kontaktTelefon'= MEMPTY,
+    '13kontaktInternet' = MEMPTY, '14kontaktInternetoveVolani'= MEMPTY,
+    '15adresaText' = MEMPTY, '16kontaktniAdresaText'= MEMPTY,
+    '17subjektPoznamka' = MEMPTY, '18AdresaTextoveOkres'= MEMPTY,
+    '19AdresaTextoveObec' = MEMPTY, '20AdresaTextoveCastObce'= MEMPTY,
+    '21AdresaTextoveMestskaCast' = MEMPTY, '22AdresaTextoveUlice'= MEMPTY,
+    '23AdresaTextoveCisloOrientacni' = MEMPTY, '24AdresaTextoveCislo'= MEMPTY,
+    '25AdresaTextovePSC' = MEMPTY,  '26subjektSbirka'= '26subjektSbirka',           
+    '27subjektPodsbirka' = '27subjektPodsbirka', '28subjektDatumOd'= MEMPTY,
+    '29subjektDatumDo' = MEMPTY, '30subjektMedailon'= Medailon_OS,
+    '31okruhSubjektuNazev' = MEMPTY, '32kontaktEmail2'= MEMPTY,
+    '33text1' = MEMPTY, '34text2'= MEMPTY,'35text3' = MEMPTY, 
+    '36role1'= MEMPTY, '37role2' = MEMPTY, '38role3'= MEMPTY,
+    '39role4' = MEMPTY, '40role5'= MEMPTY,
+     rel_KODOS = Jmeno_OS)
+
+oper_po <- modif_tab %>% 
+  select(rel_puvKOD = Jmeno_OS, MTYPOSOSBY, '1subjektKod', nazev = Jmeno_OS)
+imp <- "po"
+```
+
+## CSV CRDefSlovnik  
+## CSV Členění Chronostratigrafií  
+## CSV Členění Litostratigrafií  
+## CSV Datace názvem  
+## CSV Formátů  
+## CSV Chronostratigrafie  
+## CSV Katastr Vyzkumu  
+## CSV Kategorie Taxonu  
+## CSV Klíč  
+## CSV Literatura  
+## CSV Litostratigrafie  
+
+## Lokality  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Lokalita  
+*MUSEION*: import_lokalita.csv  
+
+```{r LOKALITA} 
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1lokalitaNazev' = Lokalita_L,  # !! povinne !!
+    '2okresNazev'= MEMPTY,
+    '3statKod' = MEMPTY, '4oblastNazev'= MEMPTY,
+    '5lokalitaZeme' = MEMPTY, '6lokalitaCtverec'= MEMPTY,
+    '7lokalitaMapa' = MEMPTY, '8lokalitaZemepisnaSirka'= MEMPTY,
+    '9lokalitaZemepisnaDelka'= MEMPTY, '10lokalitaNadmorskaVyska'= MEMPTY,
+    '11lokalitaPoznamka'= MEMPTY, '12lokalitaSbirka'= MEMPTY,
+    '13lokalitaPodsbirka'= MEMPTY, '14fytochorion1'= MEMPTY,
+    '15lokalitaPublicNadNazev'= MEMPTY, '16lokalitaPublicNazev'= MEMPTY,
+    '17fytochorion2'= MEMPTY, '18fytochorion3'= MEMPTY,
+    '19fytochorion4'= MEMPTY)
+
+oper_lokalita <- mus_tab
+imp <- "lokalita"
+```
+
+## Materiály  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Materiál  
+*MUSEION*: import_material.csv  
+
+```{r MATERIAL}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', '2podsbirkaCislo'= '2podsbirkaCislo',
+    '3materialovaSkupinaKod' = MEMPTY, 
+    '4materialNazev'= MMATERIAL,  # !! povinne !!
+    '5materialPoznamka' = Pozn_MA, '6materialPublicNadNazev'= MEMPTY,
+    '7materialPublicNazev' = MEMPTY, '8materialNazevAnglicky'= MEMPTY,
+    '9materialNazevNemecky'= MEMPTY)
+
+oper_material <- mus_tab
+imp <- "material"
+```
+
+## CSV Námět  
+
+## Označení  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Označení  
+*MUSEION*: import_oznaceni.csv  
+
+```{r OZNACENI}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
+    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
+    '3materialovaSkupinaKod' = MEMPTY, 
+    '4oznaceniNazev'= Nazev_NZ,                   # !! povinne !!
+    '5oznaceniPoznamka' = Pozn_NZ)
+
+oper_oznaceni <- mus_tab
+imp <- "oznaceni"
+```
+
+## CSV Rozměr  
+## CSV Specifikace Technik  
+## CSV Specifikací Materiálů  
+## CSV Taxonu  
+
+## Technika  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Technika  
+*MUSEION*: import_technika.csv  
+
+```{r TECHNIKA}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', '2podsbirkaCislo'= '2podsbirkaCislo', 
+    '3materialovaSkupinaKod' = MEMPTY, 
+    '4technikaNazev'= MTECHNIKA,  # !! povinne !!
+    '5technikaPoznamka' = Pozn_TE, '6technikaPublicNadNazev'= MEMPTY,
+    '7technikaPublicNazev' = MEMPTY, '8technikaNazevAnglicky'= MEMPTY,
+    '9technikaNazevNemecky'= MEMPTY)
+
+oper_technika <- mus_tab
+imp <- "technika"
+```
+
+## CSV Materiál Public  
+## CSV Technika Public  
+## CSV Typ Sbírky Public  
+## CSV Datace Názvem Public  
+## CSV Lokalita Public  
+## CSV Role Public   
+## CSV Subjekt Public   
+
+\newpage
+
+# K A R T Y   
+
+## OBP  
+
+*IMPORTNÍ ROZHRANÍ*: CSV OBP  
+*MUSEION*: import_obp.csv  
+  
+Obecna karta.    
+
+```{r OBP}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1typPredmetuKod' = '1typPredmetuKod',        # !! povinne !!
+    '2sbirkaCisloEvidInt'= '2sbirkaCisloEvidInt', # !! povinne !! ze slovniku
+    '3podsbirkaCislo' = '3podsbirkaCislo',        # !! povinne !! ze slovniku
+    '4ciselnaRadaKod'= Rada_S,                    # !! povinne !! ze slovniku
+    
+    '5SPCislo' = MINVC,                           # !! povinne !!
+    '6SPPoradoveCislo'= PorC_S, 
+    '7SPPoradoveCisloSub' = MSUB,
+    '8SPCisloDo'= MINVCDO, 
+    '9SPPoradoveCisloDo'= HPorC_S, 
+    '10SPPoradoveCisloSubDo' = MSUBDO,
+    
+    '11SPDatumZapisu' = '11SPDatumZapisu', 
+    '12cisloCES' = MEMPTY, 
+    '13prirustekCislo' = '13prirustekCislo', 
+    '14ciselnaRadaPrirustkuKod' = MEMPTY, 
+    '15nabytiPrirustkuDatum' = MEMPTY, 
+    '16fondKod' = '16fondKod',
+    '17skupinaKod' = Skupina_S, 
+    '18podskupina1Kod' = MEMPTY, 
+    '19podskupina2Kod' = MEMPTY,
+    '20podskupina3Kod' = MEMPTY,
+    '21SPPocetKusu' = Pocet_S,                    # !! povinne !!
+    '22jinaEvidence1Cislo' = JineC_S,
+    '23jinaEvidence2Cislo' = MEMPTY,
+    '24jinaEvidence3Cislo' = MEMPTY,
+    '25SPPapirovaKarta' = '25SPPapirovaKarta',    # LOGICKE SLOUPCE
+    '26SPKartaJeOpsana' = '26SPKartaJeOpsana', 
+    '27archivalie' = '27archivalie',
+    '28SPUIns' = Zapsal_S,  # text, nemusi byt slovnik    # ZALOZENI ZAZNAMU
+    '29SPDIns' = '29SPDIns',                      
+    '30SPUUpd' = MEMPTY,                          # UPRAVA ZAZNAMU 
+    '31SPDUpd' = MEMPTY, 
+    '32stalaLokaceKod' = MEMPTY,                  # LOKACE (migruje se zvlast)
+    '33aktualniLokaceKod' = MEMPTY, 
+    '34predmetNazev' = Titul_S,                   # PREDMET
+    '35oznaceni1Nazev' = Predmet_S, 
+    '36odborneUrceniPopis' = Popis_S, 
+    '37odborneUrceniPopis2' = MEMPTY, 
+    '38odborneUrceniPoznamka' = Pozn_S, 
+    '39kompletnostKod' = MEMPTY,
+    '40signatura' = Sign_S, '41signatura2' = MEMPTY, '42markant' = Markant_S,
+    '43jazykSlovy' = MEMPTY,
+    '44urcilOsobaKod' = '44urcilOsobaKod',
+    '45dataceUrceniHodnota' = '45dataceUrceniHodnota', 
+    '46odborneUrceniSchvaleno' = MEMPTY,
+    '47schvalilOsobaKod' = MEMPTY,
+    '48datumSchvaleni' = MEMPTY,
+    '49SPPoznamka' = MEMPTY, 
+    '50SPKlicovaSlova' = MEMPTY,
+    '51pojistnaCena' = MEMPTY, '52pojistnaCenaMena' = MEMPTY, # POJISTENI 
+    '53pojistnaCenaDatum' = MEMPTY,'54ucetniCena' = MEMPTY,   # CENA
+    '55SPDatumPosledniManipulace' = MEMPTY,
+    
+    '56text1' = MEMPTY, '57text2' = MEMPTY, '58text3' = Plus1T_S,
+    '59text4' = Plus2T_S,'60text5' = MEMPTY, '61text6' = MEMPTY,
+    '62text7' = MEMPTY, '63text8' = MEMPTY,'64text9' = MEMPTY,
+    '65text10' = MEMPTY,'66priznak1' = MEMPTY, '67priznak2' = MEMPTY,
+    '68priznak3' = MEMPTY, '69priznak4' = MEMPTY,'70priznak5' = MEMPTY,
+    
+    '71zpusobNabytiKod' = ZpAkv_AQ,               # NABYTI
+    '72nabytiPredmetuDatum' = '72nabytiPredmetuDatum', 
+    '73nabytiPredmetuRokAkvizice' = MEMPTY,
+    '74nabytiPredmetuDoklad' = CDoklAkv_AQ,
+    '75nabytiCena' = MEMPTY,
+    '76nabytiMena' = MEMPTY,
+    '77predchoziMajitelSlovy' = PredMajSlovy_AQ,
+    '78puvodniMajitelKod' = MEMPTY,
+    '79prispevatelKod' = MEMPTY,
+    '80nabytiPoznamka' = Okolnosti_AQ,
+    '81lokalitaNalezuNazev' = Lokalita_S,
+    '82lokalitaDoplneni' = MEMPTY,
+    '83lokalitaOriginalni' = MEMPTY,
+    '84nalezKatUzemiNazev' = MEMPTY,
+    '85pozemekSlovy' = MEMPTY,
+    '86nalezPoznamka' = MEMPTY,
+    '87sGPSsirkaNS' = MEMPTY,'88sGPSsirkaStupne' = MEMPTY,
+    '89sGPSsirkaMinuty' = MEMPTY,'90sGPSsirkaVteriny' = MEMPTY,
+    '91sGPSdelkaEW' = MEMPTY,'92sGPSdelkaStupne' = MEMPTY,
+    '93sGPSdelkaMinuty' = MEMPTY,'94sGPSdelkaVteriny' = MEMPTY,
+    '95sGPSvyska' = MEMPTY,'96nalezSouradniceY' = MEMPTY,
+    '97nalezSouradniceX' = MEMPTY,'98nalezSouradniceH' = MEMPTY,
+    '99souradniceZdroj' = MEMPTY,'100souradnicePresnost' = MEMPTY,
+    '101odborneUrceniHmotnost' = MEMPTY,
+    
+    '102numOuHodnota' = MEMPTY,
+    '103numOudobaPlatnosti' = MEMPTY,
+    '104numOuStatKod' = MEMPTY,
+    '105numOuZeme' = MEMPTY,
+    '106numOuTyp' = MEMPTY,
+    '107numOuPopisHrana' = MEMPTY,
+    
+    '108milDruh' = MEMPTY,
+    '109milVzor' = MEMPTY,
+    '110milRaze' = MEMPTY,
+    '111milVyrobniCislo' = MEMPTY,
+    '112milKategorie' = MEMPTY,
+    '113milPrukaz' = MEMPTY,
+    '114milMistoUziti' = MEMPTY,
+    
+    '115rokPrirust' = MEMPTY,'116mnozstviSlovy' = MEMPTY,
+    '117pocetCasti' = MEMPTY,'118popisCasti' = MEMPTY)
+
+oper_obp <- mus_tab
+imp <- "obp"
+```
+
+## PAR  
+
+*IMPORTNÍ ROZHRANÍ*: CSV PAR  
+*MUSEION*: import_par.csv  
+  
+Archeologicka karta.    
+
+```{r PAR}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1typPredmetuKod' = '1typPredmetuKod', '2sbirkaCisloEvidInt'= '2sbirkaCisloEvidInt',
+    '3podsbirkaCislo' = '3podsbirkaCislo', '4ciselnaRadaKod'= Rada_S,
+    
+    '5SPCislo' = MINVC, '6SPPoradoveCislo'= PorC_S, '7SPPoradoveCisloSub' = MSUB,
+    '8SPCisloDo'= MINVCDO, '9SPPoradoveCisloDo'= HPorC_S, '10SPPoradoveCisloSubDo' = MSUBDO,
+    
+    '11SPDatumZapisu' = DatZap_S, '12cisloCES' = MEMPTY,
+    '13prirustekCislo' = Plus2T_S,'14ciselnaRadaPrirustkuKod' = MEMPTY,
+    '15nabytiPrirustkuDatum' = MEMPTY,'16fondKod' = '16fondKod',
+    '17skupinaKod' = Skupina_S,
+    '18podskupina1Kod' = MEMPTY, '19podskupina2Kod' = MEMPTY,'20podskupina3Kod' = MEMPTY,
+    '21SPPocetKusu' = Pocet_S,'22jinaEvidence1Cislo' = MEMPTY,
+    '23jinaEvidence2Cislo' = MEMPTY,'24jinaEvidence3Cislo' = JineC_S,
+    '25SPPapirovaKarta' = Karta_S,'26SPKartaJeOpsana' = Opsana_S, # LOGICKA POLE
+    '27materialovaSkupinaKod' =  MEMPTY,
+    '28SPUIns' = Zapsal_S, '29SPDIns' = DatZap_S, # ZALOZENI ZAZNAMU
+    '30SPUUpd' = MEMPTY, '31SPDUpd' = DatZm_S, # UPRAVA ZAZNAMU 
+    '32stalaLokaceKod' = StLokace_S, '33aktualniLokaceKod' = AktLokace_S, # LOKACE
+    '34predmetNazev' = Titul_S, '35oznaceni1Nazev' = Predmet_S, # PREDMET
+    
+    '36odborneUrceniPopis' = Popis_S, '37odborneUrceniPoznamka' = MEMPTY, 
+    '38kompletnostKod' = MEMPTY, '39signatura' = MEMPTY,
+    '40markant' = Sign_S, '41jazykSlovy' = MEMPTY, '42urcilOsobaKod' = Markant_S,
+    '43dataceUrceniHodnota' = MEMPTY,'44odborneUrceniSchvaleno' = Urcil_S,
+    '45schvalilOsobaKod' = DatUrc_S, '46datumSchvaleni' = MEMPTY,
+    '47SPPoznamka' = MEMPTY,'48SPKlicovaSlova' = MEMPTY,
+    
+    '49pojistnaCena' = MEMPTY, '50pojistnaCenaMena' = MEMPTY,  # POJISTENI 
+    '51pojistnaCenaDatum' = MEMPTY, '52ucetniCena' = MEMPTY, 
+    '53SPDatumPosledniManipulace' = MEMPTY,
+    
+    '54text1' = MEMPTY, '55text2' = MEMPTY, '56text3' = MEMPTY, 
+    '57text4' = MEMPTY, '58text5' = MEMPTY, '59text6' = MEMPTY,
+    '60text7' = MEMPTY, '61text8' = MEMPTY, '62text9' = MEMPTY, '63text10' = MEMPTY,
+    '64priznak1' = MEMPTY, '65priznak2' = MEMPTY,'66priznak3' = MEMPTY, 
+    '67priznak4' = MEMPTY, '68priznak5' = MEMPTY,
+    
+    '69zpusobNabytiKod' = MEMPTY,'70nabytiPredmetuDatum' = MEMPTY,    # NABYTI
+    '71nabytiPredmetuRokAkvizice' = MEMPTY,'72nabytiPredmetuDoklad' = MEMPTY, 
+    '73nabytiCena' = MEMPTY,'74nabytiMena' = MEMPTY,
+    '75predchoziMajitelSlovy' = MEMPTY,'76puvodniMajitelKod' = MEMPTY,
+    '77prispevatelKod' = MEMPTY,'78nabytiPoznamka' = MEMPTY,
+    
+    '79lokalitaNalezuNazev' = MEMPTY,'80nalezKatUzemiNazev' = MEMPTY,   # LOKALITA
+    '81pozemekSlovy' = Lokalita_S,'82nalezPoznamka' = MEMPTY,
+    '83nalezGPSsirka' = MEMPTY,'84nalezGPSdelka' = MEMPTY,
+    '85nalezGPSvyska' = MEMPTY,'86nalezSouradniceY' = MEMPTY,
+    '87nalezSouradniceX' = MEMPTY,'88nalezSouradniceH' = MEMPTY,
+    '89souradniceZdroj' = MEMPTY,'90souradnicePresnost' = MEMPTY,
+    '91druhCislovaniParcelKod' = MEMPTY,'92pozemekKod' = MEMPTY,
+    
+    '93nalezArcheologieSouradniceSJTSK' = MEMPTY,'94nalezArcheologieNazevVyzkumu' = MEMPTY,
+    '95nalezArcheologieRokVyzkumu' = MEMPTY,'96nalezArcheologieFirmaVyzkumu' = MEMPTY,
+    '97nalezArcheologieVedouciVyzkumu' = MEMPTY,'98nalezCisloNalezoveZpravy' = MEMPTY,
+    '99nalezArcheologieCiziVyzkum' = MEMPTY,'100nalezMisto' = MEMPTY,
+    '101nalezKontext' = MEMPTY,'102nalezArcheologieKontext2' = MEMPTY,
+    '103nalezArcheologieKontext3' = MEMPTY,'104nalezArcheologieKomponenta' = MEMPTY,
+    '105nalezHloubka' = MEMPTY,'106nalezKraj' = MEMPTY,
+    '107nalezOkres' = MEMPTY,'108nalezObec' = MEMPTY,
+    '109nalezObecPuvodni' = MEMPTY,'110nalezCastObce' = MEMPTY,
+    '111nalezMestskaCast' = MEMPTY,'112nalezCisloPopis' = MEMPTY,
+    '113nalezUlice' = MEMPTY,'114nalezCisloOrient' = MEMPTY,
+    '115nalezPSC' = MEMPTY,'116nalezKodStatu' = MEMPTY,
+    
+    '117rokPrirustku' = MEMPTY,'118mnozstviSlovy' = MEMPTY, 
+    '119pocetCasti' = MEMPTY,'120popisCasti' = MEMPTY)
+
+oper_par <- mus_tab
+imp <- "par"
+```
+
+## VUM  
+  
+*IMPORTNÍ ROZHRANÍ*: CSV VUM  
+*MUSEION*: import_vum.csv  
+  
+Karta vytbarenho umeni.    
+
+```{r VUM}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt'= '1sbirkaCisloEvidInt', '2podsbirkaCislo' = '2podsbirkaCislo',
+    '3ciselnaRadaKod'= Rada_S, '4SPCislo' = MINVC, 
+    '5SPcisloCES' = MEMPTY, '6SPPoradoveCislo' = MEMPTY,    
+    '7SPCisloDo' = MEMPTY, '8SPPoradoveCisloDo' = MEMPTY,    
+    '9SPPoradoveCisloSub' = MEMPTY, '10SPPoradoveCisloSubDo' = MEMPTY,    
+    '11SPDatumZapisu' = MEMPTY, '12odborneUrceniSchvaleno' = MEMPTY,    
+    '13jinaEvidence1Cislo' = MEMPTY, '14jinaEvidence2Cislo' = MEMPTY,    
+    '15jinaEvidence3Cislo' = MEMPTY, '16fondKod' = MEMPTY,    
+    '17skupinaKod' = MEMPTY, '18podskupinaKod' = MEMPTY,    
+    '19oznaceniNazev' = MEMPTY, '20SPPocetKusu' = MEMPTY, 
+    
+    '21pojistnaCena' = MEMPTY, '22pojistnaCenaMena' = MEMPTY,    
+    '23pojistneCenaDatum' = MEMPTY, '24ucetniCena' = MEMPTY, 
+    '25podskupina2Kod' = MEMPTY, '26podskupina3Kod' = MEMPTY,    
+    '27SPPapirovaKarta' = MEMPTY, '28SPKartaJeOpsana' = MEMPTY,    
+    '29urcilOsobaKod' = MEMPTY, '30dataceUrceniHodnota' = MEMPTY,    
+    '31odborneUrceniPoznamka' = MEMPTY, '32odborneUrceniPopis' = MEMPTY,    
+    '33odborneUrceniPopis2' = MEMPTY, '34lokalitaNalezuNazev' = MEMPTY,    
+    '35lokalitaDoplneni' = MEMPTY, '36rokPrirustku' = MEMPTY,    
+    '37puvodnost' = MEMPTY, '38zpusobAdjustace' = MEMPTY,    
+    '39popisAdjustace' = MEMPTY, '40signatura' = MEMPTY,    
+    '41markant' = MEMPTY, '42stupenZpracovani' = MEMPTY,    
+    '43povahaZpracovani' = MEMPTY, '44sloh' = MEMPTY,    
+    '45datumExpirace' = MEMPTY, '46stalaLokaceKod' = MEMPTY,    
+    '47aktualniLokaceKod' = MEMPTY, '48SPPoznamka' = MEMPTY,    
+    '49archivalie' = MEMPTY, '50zpusobNabytiKod' = MEMPTY,    
+    '51nabytiPredmetuDatum' = MEMPTY, '52nabytiPredmetuDoklad' = MEMPTY,    
+    '53nabytiPoznamka' = MEMPTY, '54nabytiPredchoziMajitelSlovy' = MEMPTY,    
+    '55nabytiPredmetuRokAkvizice' = MEMPTY, '56nabytiCena' = MEMPTY,    
+    '57nabytiMena' = MEMPTY, '58prirustekCislo' = MEMPTY,    
+    '59ciselnaRadaPrirustkuKod' = MEMPTY, '60nabytiPrirustkuDatum' = MEMPTY,    
+    '61schvalilOsobaKod' = MEMPTY, '62datumSchvaleni' = MEMPTY,    
+    '63volne' = MEMPTY, '64SPDatumPosledniManipulace' = MEMPTY,    
+    '65text1' = MEMPTY, '66text2' = MEMPTY, '67text3' = MEMPTY, 
+    '68text4' = MEMPTY, '69text5' = MEMPTY, 
+    '70SPpriznak1' = MEMPTY, '71SPpriznak2' = MEMPTY, 
+    '72SPUIns' = MEMPTY, '73SPDIns' = MEMPTY, 
+    '74SPUUpd' = MEMPTY,  '75SPDUpd' = MEMPTY, 
+    '76puvodniMajitelKod' = MEMPTY, '77prispevatelKod' = MEMPTY, 
+    '78text6' = MEMPTY,  '79text7' = MEMPTY, '80text8' = MEMPTY,     
+    '81text9' = MEMPTY, '82text10' = MEMPTY,     
+    '83priznak3' = MEMPTY, '84priznak4' = MEMPTY, '85priznak5' = MEMPTY, 
+    '86mnozstviSlovy' = MEMPTY, '87pocetCasti' = MEMPTY, '88popisCasti' = MEMPTY)
+
+oper_vum <- must_tab
+imp <- "vum"
+```
+
+## FOT
+  
+*IMPORTNÍ ROZHRANÍ*: CSV FOT  
+*MUSEION*: import_fot.csv  
+  
+Fotograficka karta.    
+
+```{r FOT}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt'= '1sbirkaCisloEvidInt',      # !! povinne !! ze slovniku
+    '2podsbirkaCislo' = '2podsbirkaCislo',             # !! povinne !! ze slovniku
+    '3ciselnaRadaKod'= Rada_S,                         # !! povinne !! ze slovniku
+    '4SPCislo' = MINVC,                                # !! povinne !!
+    '5SPcisloCES' = MEMPTY, '6SPPoradoveCislo' = MEMPTY,    
+    '7SPCisloDo' = MEMPTY, '8SPPoradoveCisloDo' = MEMPTY,    
+    '9SPPoradoveCisloSub' = MEMPTY, '10SPPoradoveCisloSubDo' = MEMPTY,    
+    '11SPDatumZapisu' = MEMPTY, '12jinaEvidence1Cislo' = MEMPTY,    
+    '13jinaEvidence2Cislo' = MEMPTY, '14jinaEvidence3Cislo' = MEMPTY,    
+    '15fondKod' = '15fondKod', '16skupinaKod' = MEMPTY,    
+    '17oznaceniNazev' = MEMPTY, '18materialNazev' = MEMPTY,    
+    '19predmetNazev' = MEMPTY, '20SPPocetKusu' = MEMPTY, 
+    '21volne' = MEMPTY, '22SPPapirovaKarta' = MEMPTY,    
+    '23SPKartaJeOpsana' = MEMPTY, '24urcilOsobaKod' = MEMPTY, 
+    '25dataceUrceniHodnota' = MEMPTY, '26odborneUrceniPoznamka' = MEMPTY,    
+    '27odborneUrceniPopis' = MEMPTY, '28odborneUrceniPopis2' = MEMPTY,    
+    '29lokalitaVzniku' = MEMPTY, '30vznikPredmetuMisto' = MEMPTY,    
+    '31lokalitaNalezuNazev' = MEMPTY, '32rokPrirustku' = MEMPTY,    
+    '33puvodnost' = MEMPTY, '34zpusobAdjustace' = MEMPTY,    
+    '35popisAdjustace' = MEMPTY, '36signatura' = MEMPTY,    
+    '37signatura2' = MEMPTY, '38markant' = MEMPTY,    
+    '39format' = MEMPTY, '40povrch' = MEMPTY,    
+    '41barva' = MEMPTY, '42orientace' = MEMPTY,    
+    '43citelnost' = MEMPTY, '44zoom' = MEMPTY,    
+    '45stalaLokaceKod' = MEMPTY, '46aktualniLokaceKod' = MEMPTY,    
+    '47SPPoznamka' = MEMPTY, '48archivalie' = MEMPTY,    
+    '49zpusobNabytiKod' = MEMPTY, '50nabytiPredmetuDatum' = MEMPTY,    
+    '51nabytiPredmetuDoklad' = MEMPTY, '52nabytiPoznamka' = MEMPTY,    
+    '53predchoziMajitelSlovy' = MEMPTY, '54prirustekCislo' = MEMPTY,    
+    '55ciselnaRadaPrirustkuKod' = MEMPTY, '56nabytiPrirustkuDatum' = MEMPTY,    
+    '57pojistnaCena' = MEMPTY, '58pojistnaCenaMena' = MEMPTY,    
+    '59pojistnaCenaDatum' = MEMPTY, '60ucetniCena' = MEMPTY,    
+    '61text1' = MEMPTY, '62text2' = MEMPTY,    
+    '63text3' = MEMPTY, '64text4' = MEMPTY, '65text5' = MEMPTY,
+    '66SPUIns' = MEMPTY, '67SPDIns' = MEMPTY, 
+    '68SPUUpd' = MEMPTY, '69SPDUpd' = MEMPTY, 
+    '70odborneUrceniSchvaleno' = MEMPTY, '71schvalilOsobaKod' = MEMPTY, 
+    '72datumSchvaleni' = MEMPTY, '73nabytiPredmetuRokAkvizice' = MEMPTY, 
+    '74nabytiCena' = MEMPTY,  '75nabytiMena' = MEMPTY, 
+    '76puvodniMajitelKod' = MEMPTY, '77prispevatelKod' = MEMPTY, 
+    '78podskupina1Kod' = MEMPTY,  '79podskupina2Kod' = MEMPTY, '80podskupina3Kod' = MEMPTY,     
+    '81text6' = MEMPTY, '82text7' = MEMPTY,     
+    '84text9' = MEMPTY, '85text10' = MEMPTY, 
+    '85priznak5' = MEMPTY, '86priznak1' = MEMPTY, 
+    '87priznak2' = MEMPTY, '88priznak3' = MEMPTY,
+    '89priznak4' = MEMPTY, '90priznak5' = MEMPTY,
+    '91mnozstviSlovy' = MEMPTY, '92pocetCasti' = MEMPTY, '93popisCasti' = MEMPTY)
+
+oper_fot <- must_tab
+imp <- "fot"
+```
+
+
+## BIO
+  
+*IMPORTNÍ ROZHRANÍ*: CSV BIO  
+*MUSEION*: import_bio.csv  
+  
+Prirodovedna karta.    
+
+```{r BIO}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1typPredmetuKod' = '1typPredmetuKod',        # !! povinne !!
+    '2sbirkaCisloEvidInt'= '2sbirkaCisloEvidInt', # !! povinne !! ze slovniku
+    '3podsbirkaCislo' = '3podsbirkaCislo',        # !! povinne !! ze slovniku
+    '4ciselnaRadaKod'= Rada_S,                    # !! povinne !! ze slovniku
+    
+    '5SPCislo' = MINVC,                           # !! povinne !!
+    '6SPcisloCES'= PorC_S, 
+    '7SPPoradoveCislo' = MSUB,
+    '8SPCisloDo'= MINVCDO, 
+    '9SPPoradoveCisloDo'= HPorC_S, 
+    '10SPPoradoveCisloSub' = MSUBDO,
+    '11SPPoradoveCisloSubDo' = DatZap_S, 
+    
+    '12SPDatumZapisu' = MEMPTY, '13jinaEvidence1Cislo' = Plus2T_S,
+    '14jinaEvidence2Cislo' = MEMPTY,'15jinaEvidence3Cislo' =  MEMPTY,
+    '16fondKod' = '16fondKod', '17skupinaKod' = Skupina_S,
+    '18materialovaSkupinaKod' = MEMPTY, '19oznaceniNazev' = MEMPTY,'20taxon' = MEMPTY,
+    '21snadTaxon' = Pocet_S, '22SPPocetKusu' = MEMPTY,
+    '23urcilOsobaKod' = MEMPTY,'24dataceUrceniHodnota' = JineC_S,
+    '25odborneUrceniPoznamka' = Karta_S, '26odborneUrceniPopis' = Opsana_S, 
+    
+    '27lokalita' = Archiv_S,                            # LOKALITA
+    '28sirkaNS' = Zapsal_S, '29sirkaStupne' = DatZap_S, 
+    '30sirkaMinuty' = MEMPTY, '31sirkaVteriny' = DatZm_S, # UPRAVA ZAZNAMU 
+    '32delkaEW' = StLokace_S, '33delkaStupne' = AktLokace_S, # LOKACE
+    '34delkaMinuty' = Titul_S, '35delkaVteriny' = Predmet_S, # PREDMET
+    '36vyska' = Popis_S, '37specifikaceLokality' = MEMPTY, 
+    '38mapa' = MEMPTY, '39ctverec' = MEMPTY,
+    
+    '40charakteristika' = Sign_S, '41puvodniPopisLokality' = MEMPTY,
+    '42nadmorskaVyska' = Markant_S, '43nalezPoznamka' = MEMPTY,
+    '44dataceHodnota' = Urcil_S, '45datacePoznamka' = DatUrc_S, 
+    '46textEtiketa' = MEMPTY, '47typ' = MEMPTY,
+    '48cf' = MEMPTY, '49var' = MEMPTY, 
+    '50herbar' = MEMPTY, '51preparat' = MEMPTY, 
+    '52pocetSamcu' = MEMPTY, '53pocetSamic' = MEMPTY, '54pocetJuv' = MEMPTY, # CENA
+    '55collectio' = MEMPTY,
+    
+    '56stalaLokaceKod' = MEMPTY, '57aktualniLokaceKod' = MEMPTY, 
+    
+    '58SPPoznamka' = MEMPTY,
+    '59zpusobNabytiKod' = MEMPTY,'60nabytiPredmetuDatum' = MEMPTY, 
+    '61nabytiPredmetuDoklad' = MEMPTY, '62nabytiPoznamka' = MEMPTY, 
+    '63nabytiPredchoziMajitelSlovy' = MEMPTY,'64prirustekCislo' = MEMPTY,
+    '65ciselnaRadaPrirustkuKod' = MEMPTY,'66nabytiPrirustkuDatum' = MEMPTY, 
+    '67zakladniCharakteristika' = MEMPTY, '68kodPodskupiny1' = MEMPTY, 
+    '69kodPodskupiny2' = MEMPTY,'70kodPodskupiny3' = MEMPTY,
+    '71predmetCizi' = MEMPTY,
+    '72SPPapirovaKarta' = MEMPTY, '73SPKartaJeOpsana' = MEMPTY,
+    '74text1' = MEMPTY, '75text2' = MEMPTY, '76text3' = MEMPTY,
+    '77text4' = MEMPTY ,'78text5' = MEMPTY,
+    '79SPUIns' = MEMPTY,'80SPDIns' = MEMPTY,
+    '81SPUUpd' = Lokalita_S,'82SPDUpd' = MEMPTY,
+    
+    '83parageneze' = MEMPTY,'84chronostratigrafie' = MEMPTY,
+    '85litostratigrafie' = MEMPTY,'86poznamkaChrono' = MEMPTY,
+    '87poznamkaLito' = MEMPTY,'88kompletnost' = MEMPTY,
+    '89tvar' = MEMPTY,'90barva' = MEMPTY,
+    '91zrnitost' = MEMPTY,'92biozona' = MEMPTY,
+    '93fertilita' = MEMPTY,'94zpusobZachovani' = MEMPTY,
+    '95originalniJmeno' = MEMPTY,'96zoPohlavi' = MEMPTY,
+    '97zoStari' = MEMPTY,'98snadChrono' = MEMPTY,
+    '99snadLito' = MEMPTY, '100klicovaSlova' = MEMPTY,
+    '101nazevKU' = MEMPTY, '102fytochorion' = MEMPTY,
+    '103lokalitaDoplneni' = MEMPTY, '104lokalitaOriginalni' = MEMPTY,
+    '105stanoviste' = MEMPTY, '106mikroStanoviste' = MEMPTY,
+    '107biotopKod' = MEMPTY, '108zpusobZiskani' = MEMPTY,
+    '109souradniceZdroj' = MEMPTY, '110souradnicePresnost' = MEMPTY,
+    '111cisloSberu' = MEMPTY, '112rokAkvizice' = MEMPTY,
+    '113text6' = MEMPTY, '114text7' = MEMPTY,
+    '115text8' = MEMPTY, '116text9' = MEMPTY,
+    '117text10' = MEMPTY, '118rokPrirustku' = MEMPTY,
+    '119kategorieTaxonuNazev' = MEMPTY, '120nadrizenyTaxonNom' = MEMPTY)
+
+oper_bio <- mus_tab
+imp <- "bio"
+```
+
+## BR
+  
+*IMPORTNÍ ROZHRANÍ*: CSV BR  
+*MUSEION*: import_br.csv  
+  
+Karta pro Book Report.    
+
+```{r BR}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1typSbirkyNazev' = MEMPTY,    # !! povinne !!
+    '2isbn' = MEMPTY,              # !! povinne !!
+    '3inventarniCislo' = MEMPTY, 
+    '4predmetNazev' = MEMPTY,      # !! povinne !!
+    '5popisPredmetu' = MEMPTY,     # !! povinne !!
+    '6altNazev' = MEMPTY,
+    '7autorDila' = MEMPTY, '8editor' = MEMPTY,
+    '9ilustrator' = MEMPTY, '10fotograf' = MEMPTY,
+    '11grafik' = MEMPTY, '12sazec' = MEMPTY,
+    '13redaktor' = MEMPTY, '14nakladatelstvi' = MEMPTY,
+    '15vek30' = MEMPTY, '16datumVydani' = MEMPTY,
+    '17poradiVydani' = MEMPTY, '18pocetStran' = MEMPTY,
+    '19rozmery' = MEMPTY, '20pismo' = MEMPTY,
+    '21naklad' = MEMPTY, '22jazykDokumentu' = MEMPTY,
+    '23prodejniCena' = MEMPTY, '24tiskarna' = MEMPTY,
+    '25poznamka' = MEMPTY, '26prihlasovatel' = MEMPTY,
+    '27prihAdresaSlovy' = MEMPTY, '28prihBankSpoj' = MEMPTY,
+    '29prihPoIco' = MEMPTY, '30prihPoDic' = MEMPTY,
+    '31kontaktOsoba' = MEMPTY, '32koTelefon' = MEMPTY,
+    '33koMobil' = MEMPTY, '34koEmail' = MEMPTY,
+    
+    '35vratitKnihy' = MEMPTY, '36vystavitDoklad' = MEMPTY, # LOGICKA POLE
+    '37souhlasGdpr' = MEMPTY, '38souhlasPubl' = MEMPTY,
+    
+    '39nominaceRok' = MEMPTY, '40nominaceKategorie' = MEMPTY,
+    '41oceneniRok' = MEMPTY, '42oceneniKategorie' = MEMPTY,
+    '43oceneniMisto' = MEMPTY, '44oceneniTyp' = MEMPTY,
+    '45variantaCCLicenceOznaceni' = MEMPTY, '46seznamKontextovychDokumen' = MEMPTY)
+
+oper_br <- mus_tab
+imp <- "br"
+```
+
+
+\newpage
+
+# O P A K O V A T E L N E  
+
+## CSV Badatelský list  
+## CSV Další Taxony Předmětů  
+## CSV Doklad Depozitare  
+## CSV Doklad inventarizace  
+## CSV Historie odborného určení  
+## CSV Historie Stavů Předmětu  
+
+## Obrazky  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Import souborových příloh     
+*MUSEION*: import_obrazky.csv (muze byt vice slozek)    
+  
+*Postup:*    
+Udelat vypis souboru v cmd     
+Seznam cest k souborum    
+Naparovat s MINVC   
+
+```{r OBRAZKY}
+
+mus_tab <- modif_tab %>%  
+  select(
+    '1uloha' = '1uloha',   # !! povinne !!                            
+    '2cislo' = MINVC,   # !! povinne !!     
+    '3poradi' = MPORADI,   # !! povinne !!          
+    '4nazev' = MEMPTY,                                   
+    '5typDokumentuNazev' = MEMPTY,          
+    '6url' = '6url',    # !! povinne !!
+    '7nahled' = '7nahled',       # priznak {0;1}                       
+    '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
+    '9tisk1' = '9tisk1',          # priznak {0;1}                     
+    '10tisk2' = '10tisk2',         # priznak {0;1}                   
+    '11poznamka' = MEMPTY, 
+    '12neDigitalni' = MEMPTY, 
+    '13umisteni' = MEMPTY, 
+    '14publikace' = MEMPTY, 
+    '15literaturaNazev' = MEMPTY, 
+    '16literaturaSlovy' = MEMPTY, 
+    '17APlicenceCC' = MEMPTY, 
+    '18APvariantaCCOznaceni' = MEMPTY, 
+    '19APautorSubjektKod' = MEMPTY, 
+    '20APdrzitelSubjektKod' = MEMPTY, 
+    '21APtypLicence' = MEMPTY, 
+    '22APcasovaLicence' = MEMPTY, 
+    '23APuzemniLicence' = MEMPTY, 
+    '24APmnozstevniLicence' = MEMPTY, 
+    '25APdatumVyprseni' = MEMPTY, 
+    '26APpoznamka' = MEMPTY
+    )                    
+
+oper_obrazky_h11t <- mus_tab
+imp <- "obrazky"
+```
+
+## CSV JinaEvidence  
+## CSV Katalog PAR   
+## CSV Katastr Vyzkumu  
+## CSV Klíč Obsahu  
+## CSV Komponenta  
+## CSV Komponenta nalezu prirustku  
+## CSV Kontextový dokument  
+## CSV Kontextový dokument obrázek  
+## CSV Literatura Předmětu  
+## CSV Lokalita Obsahu  
+
+## Materál předmětu  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Materiál předmětu  
+*MUSEION*: import_matPtu.csv  
+
+```{r MATERIAL PREDMETU}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
+    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
+    '4poradi' = MMAT_POR,                              # !! povinne !!
+    '5materialNazev' = MMATERIAL,                      # !! povinne !!
+    '6materialovaSkupina' = MEMPTY, 
+    '7materialSpecifikaceNazev' = MEMPTY, '8materialPredmetuPoznam' = MEMPTY)
+
+oper_matpred <- mus_tab
+imp <- "matPtu"
+```
+
+## CSV Materialu Zasahu  
+## CSV Nabídka  
+## CSV Námět Obsahu  
+## CSV Označení předmětů  
+## CSV Polozka Dokladu Depozitare  
+## CSV Položka dokladu inventarizace  
+## CSV Položky dokladu (smlouvy)  
+## CSV Polozka Prirustku  
+## CSV Poradní sbor  
+## CSV Povrch předmětů  
+## CSV Predmet Zasahu  
+## CSV Prezentace  
+## CSV Příbuzné Předměty  
+## CSV Revize taxonu předmětu  
+
+## Rozmery Předmětů  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Rozměry předmětu  
+*MUSEION*: import_rozmPtu.csv  
+
+Miry = data -> CSV Rozmery Predmetu    
+Rozmery = slovnik -> rucne nebo CSV Rozmer    
+
+```{r ROZMERY PREDMETU}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                   # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     
+    '3podsbirkaCislo' = '3podsbirkaCislo',                # 
+    '4rozmerNazev' = MROZMER,                             # !! povinne !!
+    '5rozmerPredmetuHodnota' = '5rozmerPredmetuHodnota',  # !! povinne !!
+    '6rozmerPredmetuPoznamka' = Pozn_MR, 
+    '7$poradi' = MPORADI) # !! povinne !!
+
+oper_rozmPtu <- mus_tab
+imp <- "rozmPtu"
+```
+
+## CSV Sběratelé Předmětů  
+## CSV Smlouva licenční  
+## CSV Smlouva nabývací  
+## CSV Smlouva výpůjční  
+## CSV Souřadnice polygonu  
+## CSV Subjekt Obsahu  
+
+## Technika předmětu  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Technika předmětu  
+*MUSEION*: import_techPtu.csv  
+  
+```{r TECHNIKA PREDMETU}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
+    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
+    '4poradi' = MTECH_POR,                             # !! povinne !!
+    '5technikaNazev' = MTECHNIKA,                      # !! povinne !!
+    '6materialovaSkupina' = MEMPTY, 
+    '7technikaSpecifikaceNazev' = MEMPTY, '8technikaPredmetuPoznam' = MEMPTY)
+
+oper_techpred <- mus_tab
+imp <- "techPtu"
+```
+
+## CSV Titul Předmětu  
+
+## Uložení předmětu  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Uložení předmětu  
+*MUSEION*: import_ulozeniPtu.csv  
+  
+Stala Lokace a Aktualni Lokace -> porovnat    
+Pokud je to stejne, Aktualni lokace se nemigruje    
+Pokud nejsou stejne, Stala = Stalam, Aktualni = Docasna    
+
+```{r ULOZENI PREDMETU}
+
+mus_tab <- modif_tab %>% 
+  select('1typKarty' = '1typKarty', # max. 1 znak, povinný, povolené hodnoty "K" a "P" (katalog / prirustek)
+         '2evidencniCislo' = MINVC,
+         '3poradiPredmetuPrirustku' = MEMPTY,
+         '4poradiPredmetuPrirustkuPomocne' = MEMPTY,
+         '5konvInventarniCislo' = MEMPTY, 
+         '6konvPrirustkoveCislo' = MEMPTY, 
+         '7staleUlozeniKod' = MSTALA,
+         '8docUlozeniDlouhodobeKod' = MEMPTY,
+         '9docUlozeniKratkodobeKod' = MEMPTY,
+         '10poznamka' = MEMPTY,
+         '11text1' = MAKTUAL,
+         '12text2' = MEMPTY,
+         '13text3' = MEMPTY,
+         '14text4' = MEMPTY, 
+         '15text5' = MEMPTY)
+
+oper_ulozeniPtu <- mus_tab
+imp <- "ulozeniPtu"
+```
+
+## CSV Vlastník předmětu akvizice  
+## CSV Vyřazení předmětu  
+## CSV Výzkumy  
+
+## Vznik predmetu  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Vznik předmětů  
+*MUSEION*: import_vznikPtu.csv  
+
+Trojice AUTOR - DATACE - MISTO VZNIKU  
+
+```{r VZNIK PREDMETU}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                          # !! povinne !!
+    '2poradi' = MPORADI,                         # !! povinne !!
+    '3$autorSubjektKod' = '3$autorSubjektKod',             
+    '4autorSnad' = MEMPTY,                       # priznak 0 1                        
+    '5autorRoleNazev' = '5autorRoleNazev',          
+    '6autorPoznamka' = MEMPTY, 
+    '7mistoLokalitaNazev' = MistoVz_S, 
+    '8mistoSnad' = MEMPTY,                       # priznak 0 1 
+    '9specifikaceMistaNazev' = MEMPTY, 
+    '10mistoDoplneni' = MEMPTY, 
+    '11dataceHodnota' = MDATACE_FIN, 
+    '12datacePoznamka' = MEMPTY, 
+    '13poznamka' = MEMPTY, 
+    '14kvalifikatorDatace' = MEMPTY, 
+    '15dataceSnad' = MSNAD,                      # priznak 0 1 
+    '16kvalifikatorDatace2' = MEMPTY,  
+    '17dataceSnad' = MEMPTY)                     # priznak 0 1  
+
+oper_vznikPtu <- mus_tab
+imp <- "vznikPtu"
+```
+
+## CSV Zasah KR  
+

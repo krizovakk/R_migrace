@@ -46,7 +46,7 @@ require(xlsx) # write excel in sheets
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
-project <- "MSK_MUZBE"
+project <- "MUZBE"
 
 
 # slovnik <- "animalia"
@@ -64,8 +64,11 @@ path_data <-  paste0(path, "data/")
 path_csv <-  paste0(path, "mus_csv/", project, "/")
 
 path_mdb <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/01 muzBE analyza/"
+path_muzbe <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/"
 
 ```
+
+# 1. ANALYZA
 
 # NACTENI BIOLIB SLOVNÍKU
 
@@ -83,7 +86,7 @@ biolib <- if(slovnik %in% c("animalia", "fungi", "plantae")){
   read.table(paste0(path, "bioslov/BioLib_KKsummary_", slovnik, ".csv"), sep = ";", header = T)
 } else if (slovnik == "ento"){ # ento uses animalia dictionary
   read.table(paste0(path, "bioslov/BioLib_KKsummary_animalia.csv"), sep = ";", header = T)
-} else{print("Try harder")}
+} else{print("Try harder.")}
 
 
 # function 'coalesce' merges two columns in one :
@@ -428,3 +431,446 @@ write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_plant_ROZDI
            sheetName="autori", row.names=FALSE, append=TRUE)
 
 ```
+
+# 2. KONVERZE
+
+
+## Mechorosty
+
+### MUZBE slovniky a data
+
+Pro ucely pozadavku na pana Ondreje Zichu z BioLib.  
+Potrebujeme ziskat BioLib slovnik pro skupinu Mechorostu.  
+
+ID a stupen ohrozeni  
+
+```{r SET DATABASE CONNECTION}
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/ciselnik_taxonu.mdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
+cis <- RODBC::sqlFetch(con, "data")              # read specific table
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/mechorosty_Vrána.mdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
+data <- RODBC::sqlFetch(con, "data")             # read specific table
+
+# RODBC::sqlTables(con)                          # list tables in database
+
+sel_cis <- cis %>% 
+  select(taxon) %>% 
+  distinct()                  # unikatni druhy z tabulky ciselnik
+
+sel_data <- data %>% 
+  select(taxon) %>%
+  mutate(taxon = str_trim(taxon)) %>% 
+  distinct()                  # unikatni druhy z tabulky data
+
+check <- sel_cis %>% 
+  full_join(sel_data, by = ("taxon" = "taxon"), keep = T) %>%             # unikatni druhy z obou tabulek
+  mutate(MDRUH = coalesce(taxon.x, taxon.y)) %>%                          # vytvoreni sloupce druh
+  separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge") %>%  # vytvoreni sloupce rod
+  select(MROD) %>%                                                        # vytazeni pouze potrebneho sloupce 
+  distinct() %>%                                                          # pouze unikatni hodnoty pro rod
+  arrange(MROD)                                                           # seradit abecedne
+ 
+  
+write.xlsx(check, file=paste0(path_csv, project, "_mechorosty_pozadavky_BioLib.xlsx"), 
+           row.names = F, col.names = F)
+
+bio_plant <- biolib %>%  # biolib = slovnik na zaklade accessu
+  select(rod_Nomen) %>% 
+  filter(!is.na(rod_Nomen)) %>% 
+  distinct()
+
+bio_mech <- check %>% 
+  left_join(bio_plant, by = c("MROD" = "rod_Nomen"), keep = T)
+
+nrow(bio_mech)
+sum(is.na(bio_mech$rod_Nomen))
+
+```
+
+### BioLib mechy NOVÁ DATA
+
+Dostali jsme nová csv s daty pro mechorosty z BioLib. 
+
+Je třeba:
+  a) vytvořit strom,  
+  b) porovnat s daty z MUZBE.  
+
+```{r MECHOROSTY BIOLIB STROM}
+
+com <- read.table(paste0(path_data, project, "/ComName.csv"), 
+                   sep = ";", header = T, fileEncoding="cp1250")
+tax <- read.table(paste0(path_data, project, "/TaxName.csv"), 
+                   sep = ";", header = T, fileEncoding="cp1250")
+ton <- read.table(paste0(path_data, project, "/Taxon.csv"), 
+                   sep = ";", header = T, fileEncoding="cp1250")
+
+# doplneni taxonomickyh kategorii na zaklade koncovek
+
+tax_modif <- tax %>% 
+  mutate(tn_name = str_trim(tn_name),
+         MLEVEL = case_when(str_detect(tn_name, "\\ssubsp\\.|\\svar\\.|\\sf\\.|\\sß") ~ "poddruh",  
+                            str_detect(tn_name, "^\\w+\\s\\w+$")|str_detect(tn_name, "-|\\?") ~ "druh", 
+                            str_detect(tn_name, "\\ssubgen\\.|\\ssect\\.") ~ "rod",  
+                            str_detect(tn_name, "^\\w+ae$") ~ "celed",  
+                            str_detect(tn_name, "^\\w+ales$") ~ "rad",  
+                            str_detect(tn_name, "^\\w+psida$") ~ "trida",  
+                            str_detect(tn_name, "^\\w+phyta$") ~ "oddeleni", 
+                            # str_detect(tn_name, "\\?") ~ "nejasne",  
+                            TRUE ~ "jine"),
+         MLEVEL = ifelse(MLEVEL == "jine" & !str_detect(tn_name, "\\s"), "rod", MLEVEL),
+         MLEVEL = case_when(str_detect(tn_name, "Marchantiomorpha|Hepaticae|Musci") ~ "oddeleni", # specialni pripady -> rucni prepsani
+                            TRUE ~ MLEVEL)) 
+# %>% 
+#   mutate(MTAXPOR = case_when(MLEVEL == "poddruh" ~ 7,
+#                              MLEVEL == "druh" ~ 6,
+#                              MLEVEL == "rod" ~ 5,
+#                              MLEVEL == "celed" ~ 4,
+#                              MLEVEL == "rad" ~ 3,
+#                              MLEVEL == "trida" ~ 2,
+#                              MLEVEL == "oddeleni" ~ 1)) 
+#         
+# jine <- tax_modif %>% 
+#   filter(MLEVEL == "jine") 
+# 
+# poddruh <- tax_modif %>% 
+#   filter(MLEVEL == "poddruh")
+# 
+# druh <- tax_modif %>% 
+#   filter(MLEVEL == "druh")
+# 
+# rod <- tax_modif %>%
+#   filter(MLEVEL == "rod")
+# 
+# celed <- tax_modif %>% 
+#   filter(MLEVEL == "celed")
+# 
+# rad <- tax_modif %>% 
+#   filter(MLEVEL == "rad")
+# 
+# trida <- tax_modif %>% 
+#   filter(MLEVEL == "trida")
+# 
+# oddeleni <- tax_modif %>% 
+#   filter(MLEVEL == "oddeleni")
+
+# ******* SOUCTY SEDI -> KATEGORIE JSOU ROZRAZENY VSECHNY ******* 
+
+# strom
+
+wide <- spread(tax_modif,                                  # Applying spread function
+                        key = MLEVEL,
+                        value = tn_name) %>% 
+  select(tn_id, tn_tx_id, tn_authority, tn_type, oddeleni, trida, rad, celed, rod, druh, poddruh)
+
+
+strom <- wide %>%
+  mutate(BU_DRUH = druh,
+         BU_PODDRUH = poddruh) %>% # backup column for druh and poddruh
+  filter(tn_type == 0) %>%  # work only with preffered names, filter out synonyms (1)
+  fill(oddeleni, .direction = "down") %>%  # group and fill the taxonomy
+  fill(trida, .direction = "down") %>% 
+  group_by(oddeleni, trida) %>% 
+  fill(rad, .direction = "down") %>% 
+  group_by(oddeleni, trida, rad) %>%
+  fill(celed, .direction = "down") %>% 
+  group_by(oddeleni, trida, rad, celed) %>%
+  fill(rod, .direction = "down") %>%  # zbytecne ?
+  # group_by(oddeleni, trida, rad, celed, rod) %>%
+  # fill(druh, .direction = "down") %>% 
+  # group_by(oddeleni, trida, rad, celed, rod, druh) %>%
+  # fill(poddruh, .direction = "down") %>% 
+  ungroup() %>% 
+  mutate(rod = ifelse(is.na(druh), word(poddruh, 1), word(druh, 1))) %>% # take rod from the druh name (= more precise)
+  mutate(druh = ifelse(is.na(druh), paste(word(poddruh, 1), word(poddruh, 2)), druh)) %>% # take rod from the druh name (= more precise)
+  unite(sys_tree, c("oddeleni", "trida", "rad", "celed", "rod", "druh"), # "poddruh"
+         sep = "/", na.rm = T, remove = FALSE)  # create systematic tree
+
+druhy <- strom %>% 
+  filter(!is.na(BU_DRUH)|!is.na(BU_PODDRUH)) # POZOR ! Nesedi vzdy..
+
+rm(cis)
+rm(com)
+rm(tax)
+rm(ton)
+rm(wide)
+
+```
+
+### mechy porovnani
+
+- nove promenne pro praci na porovnani  
+- zjistit, zda jsou data z databaze v ciselniku dodanem klientem  
+- zjistit, zda jsou data v BioLib slovniku pro Plantae (-> overeny BioLib strom -> PREFEROVANE)
+- zjistit, zda jsou data v BioLib slovniku pro Bryophyta (-> slovnik semtam nesedi -> POUZE PRO NUTNE PRIPADY)  
+--> vytvorit tabulku: data - ciselnik - biolib Plantae - biolib Bryophyta
+
+```{r MECHOROSTY BIOLIB POROVNANI}
+
+mechy_data <- sel_data # n = 491
+mechy_cis <- sel_cis   # n = 902
+biolib_pl <- sel_biol  # n = 6528
+biolib_bry <- druhy    # n = 9226
+
+
+# 1) jsou vsechna data ve slovniku (ciselniku)?
+
+# data 491
+# ciselnik 902
+
+colnames(mechy_data) <- paste0("data")
+colnames(mechy_cis) <- paste0("cis")
+
+mechy_data <- mechy_data %>% 
+  mutate(clean_sp = paste(word(data, 1), word(data, 2)), # osekat na druhy (bez poddruhu, autoru)
+         clean_sp = ifelse(str_detect(clean_sp, "^\\w+\\sNA$"), word(clean_sp, 1), clean_sp)) # v nekterych pripadech bylo zapsano 'Sphagnum NA' -> odstraneni NA
+
+st1 <- left_join(mechy_data, mechy_cis, by = c("data" = "cis"), keep = T) %>%
+  select("DB_data" = data,
+         "DB_ciseln" = cis,
+         "DB_clean" = clean_sp)
+
+chybi_v_cis <- st1 %>% 
+  filter(is.na(DB_ciseln))
+
+
+# 2) data vs. puvodni biolib plantae?
+
+# data 491
+# biolib plantae 6528
+
+st2 <- left_join(st1, biolib_pl, by = c("DB_clean" = "druh"), keep = T) %>% 
+  select(DB_data, DB_ciseln, DB_clean,
+         "BLPL_tree" = sys_tree_BIOL,
+         "BLPL_druh" = druh,
+         "BLPL_autor" = druh_Autor)
+
+chybi_v_biolpl <- st2 %>% 
+  filter(is.na(BLPL_druh))
+
+# 3) data vs. novy biolib mechy?
+
+# data 491
+# biolib plantae 9226
+
+st3 <- left_join(st2, biolib_bry, by = c("DB_clean" = "druh"), keep = T) %>% 
+  distinct() %>% 
+  select(DB_data, DB_ciseln, DB_clean, BLPL_tree, BLPL_druh, BLPL_autor,
+         "BLBR_tree" = sys_tree,
+         "BLBR_druh" = druh,
+         "BLBR_autor" = tn_authority)
+
+chybi_v_biolbr <- st3 %>% 
+  filter(is.na(BLBR_druh))
+
+chybi_uplne <- st3 %>% 
+  filter(is.na(BLBR_tree)&is.na(BLPL_tree))
+
+# synonyma ?
+
+synon <- wide %>%
+  mutate(BU_DRUH = druh,
+         BU_PODDRUH = poddruh,
+         rn = row_number()) %>% # backup column for druh and poddruh
+  filter(tn_type == 1) 
+
+rn <- synon$rn # synonyma
+rn1 <- synon$rn+1 # radek za synonymem -> k nemu se synonymum vaze
+rnfin <- c(rn, rn1) # identifikace radku, se synonymy ?
+
+# tohle neni dobre -> pracuj s tn_tx_id !!!!!!! group apod
+
+syn <- wide %>% 
+  slice(rnfin) # filtruj radky dle row number identifikovane vyse
+
+```
+
+
+
+## Adresar
+
+Pripady:
+
+1) Krizova 
+2) Krizova K.
+3) Krizova K. et | & | ed | , Novak V.
+4) Krizova & Novak
+5) anonymni darce
+6) Chytil Petr, Mgr.
+7) JUDr. Cejchoň
+8) MěÚ Frýdlant. n. O., odbor ŽP
+9) Poloczek B. (Poloček B.)
+10) pracovníci zemědělského družstva
+11) T.Kukulka
+12) Pustka St.
+13) Lukáš J. sen
+
+```{r MODIF ADRESAR}
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/Databaze_PVO.accdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the connection
+adr <- RODBC::sqlFetch(con, "Rejstřík_Adresar")              # read specific table
+
+# modify
+
+# 1-2
+simple <- adr %>% 
+  filter(str_detect(symbol, "\\s\\w\\.$")|str_detect(symbol, "^\\w+$")) %>%
+  filter(!str_detect(symbol, "\\s(et|&|ed|rev)")) %>% 
+  filter(!str_detect(symbol, ",")) %>% 
+  mutate(MA = "simple") %>% 
+  mutate(MPRIJM = word(symbol, 1),
+         MJM = ifelse(!is.na(jmeno), jmeno, word(symbol, 2)),
+         MTIT = "", 
+         MPOZN = "")
+  
+# 3-4
+combi <- adr %>% 
+  filter(str_detect(symbol, "\\s(et|&|ed|rev)|,")) %>% 
+  filter(!str_detect(symbol, "Mgr.|Frýdlant")) %>%  # n = 36
+  mutate(MA = "combi") %>% 
+  mutate(MCOMBI = strsplit(as.character(symbol), ",")) %>%
+  unnest(MCOMBI) %>%
+  mutate(MCOMBI = gsub("rev.", "", MCOMBI),
+         MCOMBI = str_trim(MCOMBI),
+         MPRIJM = case_when(str_detect(MCOMBI, "^\\w+\\s\\w\\.$") ~ word(MCOMBI, 1),
+                            TRUE ~ MCOMBI),
+         MJM = case_when(str_detect(MCOMBI, "^\\w+\\s\\w\\.$") ~ word(MCOMBI, 2),
+                            TRUE ~ ""),
+         MTIT = "", 
+         MPOZN = "") %>%
+  select(-MCOMBI)
+
+
+# 5-13
+extra <- adr %>% 
+  filter(str_detect(symbol, "anonym|Mgr|JUDr.|Frýdlant|Poloczek|pracovníci|T.Kukulka|St.$|\\ssen$")) %>% 
+  mutate(MA = "extra") %>% 
+  mutate(MPRIJM = case_when(str_detect(symbol, "anonym") ~ "anonymní dárce",
+                            str_detect(symbol, "Mgr") ~ "Chytil",
+                            str_detect(symbol, "JUDr.") ~ "Cejchoň",
+                            str_detect(symbol, "Frýdlant") ~ "MěÚ Frýdlant. n. O., odbor ŽP",
+                            str_detect(symbol, "Poloczek") ~ "Poloczek",
+                            str_detect(symbol, "pracovníci") ~ "pracovníci zemědělského družstva",
+                            str_detect(symbol, "T.Kukulka") ~ "Kukulka",
+                            str_detect(symbol, "St.$") ~ "Pustka",
+                            str_detect(symbol, "\\ssen$") ~ "Lukáš"),
+         MJM = case_when(str_detect(symbol, "Mgr") ~ "Petr",
+                         str_detect(symbol, "Poloczek") ~ "B.",
+                         str_detect(symbol, "Kukulka") ~ "T."),
+         MTIT = case_when(str_detect(symbol, "Mgr") ~ "Mgr.",
+                          str_detect(symbol, "JUDr.") ~ "JUDr.", TRUE ~ ""), 
+         MPOZN = case_when(str_detect(symbol, "Poloczek") ~ "Poloček B.",
+                           str_detect(symbol, "St.$") ~ "St.",
+                           str_detect(symbol, "\\ssen$") ~ "sen", TRUE ~ "")) 
+
+# back together
+df1 <- rbind(simple, combi)
+df <- rbind(df1, extra)
+
+check <- left_join(adr, df, by = "symbol", all.x = T, keep = T) %>% 
+  select(symbol.x, symbol.y) 
+
+sum(is.na(check))
+
+
+```
+
+```{r IMPORT CSV ADRESAR}
+
+# M O D I F Y
+
+modify_tab <- df %>% 
+  mutate(MEMPTY = "",
+         '1typSubjektuKod' = "OO",
+         '10osobaPohlavi' = "neznámé",  # povinne: "muž", "žena", "neznámé"
+         '18subjektStatKod' = "CZ") %>% 
+  unite('2subjektKod', c(MPRIJM, MJM), na.rm = T, remove = FALSE, sep = " ")
+
+modif_save <- paste0(path_csv, project, "_modif_adresar.csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
+         '2subjektKod' = '2subjektKod',         # !! povinne !!
+         '3subjektAlterKod' = MEMPTY, '4osobaJmenoPrvni'= MJM, 
+         '5osobaJmenoDruhe' = MEMPTY, 
+         '6osobaPrijmeni' = MPRIJM,         # !! povinne !!
+         '7osobaTitulPredJmenem' = MTIT, '8osobaTitulZaJmenem' = MEMPTY, 
+         '9osobaRodnePrijmeni' = MEMPTY, 
+         '10osobaPohlavi' = '10osobaPohlavi',   # !! povinne !! "muž", "žena", "neznámé"
+         
+         '11osobaDatumNarozeni' = MEMPTY, '12osobaMistoNarozeni' =MEMPTY,
+         '13okresNarozeniNazev' = MEMPTY, '14obecNarozeniNazev' = MEMPTY,
+         '15statNarozeniKod' = MEMPTY, '16osobaDatumUmrti' = MEMPTY,
+         '17osobaMistoUmrti' = MEMPTY, 
+         
+         '18subjektStatKod' = '18subjektStatKod',
+         '19kontaktEmail' = MEMPTY, '20kontaktMobil' = MEMPTY,
+         '21kontaktMobil2' = MEMPTY, '22kontaktTelefon' = MEMPTY,
+         '23kontaktInternet' = MEMPTY, '24kontaktInternetoveVolani' = MEMPTY,
+         '25adresaText' = MEMPTY, '26kontaktniAdresaText' = MEMPTY,
+         '27fyzickaOsobaRodneCislo' = MEMPTY, '28subjektPoznamka' = poznamka, # kam MPOZN ???
+         
+         '29AdresaTextoveOkres' = MEMPTY, '30AdresaTextoveObec' = mesto,
+         '31AdresaTextoveCastObce' = MEMPTY, '32AdresaTextoveMestskaCast' = MEMPTY,
+         '33AdresaTextoveUlice' = ulice, '34AdresaTextoveCisloOrientacni' = cp,
+         '35AdresaTextoveCislo' = MEMPTY, '36AdresaTextovePSC' = psc,
+         
+         '37zamestnanecCislo' = MEMPTY, '38oddeleniKod' = MEMPTY,
+         '39osobnostMedailon' = MEMPTY, '40osobnostPseudonym' = MEMPTY,
+         '41okruhSubjektuNazev' = MEMPTY, '42subjektSbirka' =  MEMPTY,           
+         '43subjektPodsbirka' =  MEMPTY, '44osobaStudia' = MEMPTY,
+         '45osobaSpolky' = MEMPTY, '46osobaOsobnost' = MEMPTY,
+         '47subjektDatumOd' = MEMPTY, '48subjektDatumDo' = MEMPTY,
+         '49kontaktEmail2' = MEMPTY, 
+         '50text1' = MEMPTY, '51text2' = MEMPTY, '52text3' = MEMPTY, 
+         '53role1' = MEMPTY, '54role2' = MEMPTY, 
+         '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY,
+         rel_ZkrJm = symbol)
+
+oper_adresar <- mus_tab %>% 
+  select(rel_ZkrJm, '1typSubjektuKod', '2subjektKod', '4osobaJmenoPrvni', '6osobaPrijmeni')
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "_import_adresar.csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+
+```
+
+
+
+# ? CONNECT TO SQL
+
+```{r SQL CONNECTION}
+
+install.packages("readr")
+require(readr)
+
+fileName = read_file("M:/02 dokumenty/03 migrace/BIO/biolibexport.sql")
+
+
+```
+

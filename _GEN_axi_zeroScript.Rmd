@@ -1,0 +1,61 @@
+---
+title: "ZERO SCRIPT"
+subtitle: "Sablona pro proces migrace dat"
+author: "Kateřina Křížová"
+date: "2023-01-26"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+\newpage 
+
+```{r}
+
+# L O A D
+
+demus_tab <- read_excel()
+
+# M O D I F Y
+
+modif_tab <- demus_tab %>% 
+  mutate(MEMPTY = "") 
+  
+modif_save <- paste0(path_csv, spravce, "")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modif_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modif_tab 
+  
+oper_technika <- mus_tab
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_csv, spravce, "")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+```
+

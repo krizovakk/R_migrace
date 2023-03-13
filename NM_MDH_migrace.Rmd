@@ -800,7 +800,8 @@ Byly zkontrolovany jiz zadane hodnoty ve slovnku Museionu.
 
 ## Označení
 
-**DEMUS**: Nazvy **MUSEION**: import_oznaceni.csv
+**DEMUS**: Nazvy 
+**MUSEION**: import_oznaceni.csv
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Označení
 
@@ -855,8 +856,6 @@ if(file.exists(save)){
   }
 
 ```
-
-\newpage
 
 \newpage
 
@@ -2170,7 +2169,6 @@ if(file.exists(save)){
 
 ```
 
-
 ## Uložení předmětu
 
 **DEMUS**: Sbirky
@@ -2178,9 +2176,9 @@ if(file.exists(save)){
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Uložení předmětu
 
--   Stala Lokace a Aktualni Lokace -> porovnat
--   Pokud je to stejne, Aktualni lokace se nemigruje
--   Pokud nejsou stejne, Stala = Stalam, Aktualni = Docasna
+Stala Lokace a Aktualni Lokace -> porovnat  
+Pokud je to stejne, Aktualni lokace se nemigruje  
+Pokud nejsou stejne, Stala = Stala, Aktualni = Docasna  
 
 ```{r TABLE ULOZENI PTU FROM TAB SBIRKY}
 
