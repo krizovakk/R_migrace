@@ -46,7 +46,7 @@ require(xlsx) # write excel in sheets
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
-project <- "MUZBE"
+projekt <- "MUZBE"
 
 
 # slovnik <- "animalia"
@@ -54,23 +54,21 @@ project <- "MUZBE"
 # slovnik <- "fungi"
 slovnik <- "plantae"
 
-
-
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
+
 
 path <-  "C:/Users/krizova/Documents/R/"
 
 path_data <-  paste0(path, "data/")
-path_csv <-  paste0(path, "mus_csv/", project, "/")
+path_csv <-  paste0(path, "mus_csv/", projekt, "/")
 
-path_mdb <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/01 muzBE analyza/"
-path_muzbe <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/"
+path_muzbe <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/" # databaze
 
 ```
 
 # 1. ANALYZA
 
-# NACTENI BIOLIB SLOVNÍKU
+## NACTENI BIOLIB SLOVNÍKU
 
 Kmen  
 Třída  
@@ -90,7 +88,7 @@ biolib <- if(slovnik %in% c("animalia", "fungi", "plantae")){
 
 
 # function 'coalesce' merges two columns in one :
-#                     when a) Agricales b) Agricales -> Agicales
+#                     when a) Agricales b) Agricales -> Agricales
 #                     when a) NA b) Agricales -> Agicales
 
 sel_biol <- biolib %>% 
@@ -116,11 +114,11 @@ sel_biol <- biolib %>%
 ```
 
 
-# PRIPOJENI DATABAZE
+## PRIPOJENI DATABAZE
 
 ```{r SET DATABASE CONNECTION}
 
-dbname <- paste0(path_mdb, "PVO/Databaze_PVO_2021-11-03.accdb") # path to database
+dbname <- paste0(path_muzbe, "01 muzBE analyza/PVO/Databaze_PVO_2021-11-03.accdb") # path to database
 con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the connection
 
 # RODBC::sqlTables(con)                                            # list tables in database
@@ -130,7 +128,7 @@ con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the conne
 \newpage
 
 
-# SYSTEMATIKA
+## SYSTEMATIKA
 
 ## ANIMALIA
     
@@ -200,9 +198,9 @@ diff_author <- diff_author %>%
 # write excel with differences
 
 library(xlsx)
-write.xlsx(diff_tree, file=paste0(path_mdb, project, "_bioslovniky_zoo_ROZDILY.xlsx"), 
+write.xlsx(diff_tree, file=paste0(path_mdb, projekt, "_bioslovniky_zoo_ROZDILY.xlsx"), 
            sheetName="systematika", row.names=FALSE)
-write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_zoo_ROZDILY.xlsx"), 
+write.xlsx(diff_author, file=paste0(path_mdb, projekt, "_bioslovniky_zoo_ROZDILY.xlsx"), 
            sheetName="autori", row.names=FALSE, append=TRUE)
 
 ```
@@ -267,9 +265,9 @@ diff_author <- diff_author %>%
 # write excel with differences
 
 library(xlsx)
-write.xlsx(diff_tree, file=paste0(path_mdb, project, "_bioslovniky_ento_ROZDILY.xlsx"), 
+write.xlsx(diff_tree, file=paste0(path_mdb, projekt, "_bioslovniky_ento_ROZDILY.xlsx"), 
            sheetName="systematika", row.names=FALSE)
-write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_ento_ROZDILY.xlsx"), 
+write.xlsx(diff_author, file=paste0(path_mdb, projekt, "_bioslovniky_ento_ROZDILY.xlsx"), 
            sheetName="autori", row.names=FALSE, append=TRUE)
 
 ```
@@ -344,9 +342,9 @@ diff_author <- diff_author %>%
 # write excel with differences
 
 library(xlsx)
-write.xlsx(diff_tree, file=paste0(path_mdb, project, "_bioslovniky_fungi_ROZDILY.xlsx"), 
+write.xlsx(diff_tree, file=paste0(path_mdb, projekt, "_bioslovniky_fungi_ROZDILY.xlsx"), 
            sheetName="systematika", row.names=FALSE)
-write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_fungi_ROZDILY.xlsx"), 
+write.xlsx(diff_author, file=paste0(path_mdb, projekt, "_bioslovniky_fungi_ROZDILY.xlsx"), 
            sheetName="autori", row.names=FALSE, append=TRUE)
 
 ```
@@ -425,14 +423,55 @@ diff_author <- diff_author %>%
 # write excel with differences
 
 library(xlsx)
-write.xlsx(diff_tree, file=paste0(path_mdb, project, "_bioslovniky_plant_ROZDILY.xlsx"), 
+write.xlsx(diff_tree, file=paste0(path_mdb, projekt, "_bioslovniky_plant_ROZDILY.xlsx"), 
            sheetName="systematika", row.names=FALSE)
-write.xlsx(diff_author, file=paste0(path_mdb, project, "_bioslovniky_plant_ROZDILY.xlsx"), 
+write.xlsx(diff_author, file=paste0(path_mdb, projekt, "_bioslovniky_plant_ROZDILY.xlsx"), 
            sheetName="autori", row.names=FALSE, append=TRUE)
 
 ```
 
 # 2. KONVERZE
+
+spm = systematicka evidence podsbirky Pm (mechorosty)  
+cpm = ciselnik podsbirky Pm (mechorosty)  
+
+```{r LOAD ALL TABLES FROM DB}
+
+# L O A D 
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbePVO_DK.accdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname, pwd = "Fazole")      # set the connection
+
+prk <- RODBC::sqlFetch(con, "PRIRUSTKOVA kniha") # prirustkova kniha
+spe <- RODBC::sqlFetch(con, "Pe_ENTOMOLOGICKÁ podsbírka") # systematicka evidence
+sp_ <- RODBC::sqlFetch(con, "Pe_MOLLUSCA")
+spg <- RODBC::sqlFetch(con, "Pg_GEOLOGICKÁ podsbírka")
+sph <- RODBC::sqlFetch(con, "Ph_MYKOLOGICKÁ podsbírka")
+spz <- RODBC::sqlFetch(con, "Pz_ZOOLOGICKÁ podsbírka")
+
+# 
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbeBOT_DK.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+
+spm <- RODBC::sqlFetch(con, "data")   
+
+#
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/ciselnik_taxonu.mdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)     
+
+cpm <- RODBC::sqlFetch(con, "data")              
+
+#
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/ciselnik_botanickych_druhu.mdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)     
+
+cpm <- RODBC::sqlFetch(con, "data")              
+
+
+```
 
 
 ## Mechorosty
@@ -474,7 +513,7 @@ check <- sel_cis %>%
   arrange(MROD)                                                           # seradit abecedne
  
   
-write.xlsx(check, file=paste0(path_csv, project, "_mechorosty_pozadavky_BioLib.xlsx"), 
+write.xlsx(check, file=paste0(path_csv, projekt, "_mechorosty_pozadavky_BioLib.xlsx"), 
            row.names = F, col.names = F)
 
 bio_plant <- biolib %>%  # biolib = slovnik na zaklade accessu
@@ -500,11 +539,11 @@ Je třeba:
 
 ```{r MECHOROSTY BIOLIB STROM}
 
-com <- read.table(paste0(path_data, project, "/ComName.csv"), 
+com <- read.table(paste0(path_data, projekt, "/ComName.csv"), 
                    sep = ";", header = T, fileEncoding="cp1250")
-tax <- read.table(paste0(path_data, project, "/TaxName.csv"), 
+tax <- read.table(paste0(path_data, projekt, "/TaxName.csv"), 
                    sep = ";", header = T, fileEncoding="cp1250")
-ton <- read.table(paste0(path_data, project, "/Taxon.csv"), 
+ton <- read.table(paste0(path_data, projekt, "/Taxon.csv"), 
                    sep = ";", header = T, fileEncoding="cp1250")
 
 # doplneni taxonomickyh kategorii na zaklade koncovek
@@ -595,7 +634,7 @@ rm(cis)
 rm(com)
 rm(tax)
 rm(ton)
-rm(wide)
+
 
 ```
 
@@ -690,22 +729,21 @@ syn <- wide %>%
 
 
 ## Adresar
-
-Pripady:
-
-1) Krizova 
-2) Krizova K.
-3) Krizova K. et | & | ed | , Novak V.
-4) Krizova & Novak
-5) anonymni darce
-6) Chytil Petr, Mgr.
-7) JUDr. Cejchoň
-8) MěÚ Frýdlant. n. O., odbor ŽP
-9) Poloczek B. (Poloček B.)
-10) pracovníci zemědělského družstva
-11) T.Kukulka
-12) Pustka St.
-13) Lukáš J. sen
+  
+Pripady:  
+1) Krizova   
+2) Krizova K.  
+3) Krizova K. et | & | ed | , Novak V.  
+4) Krizova & Novak  
+5) anonymni darce  
+6) Chytil Petr, Mgr.  
+7) JUDr. Cejchoň  
+8) MěÚ Frýdlant. n. O., odbor ŽP  
+9) Poloczek B. (Poloček B.)  
+10) pracovníci zemědělského družstva  
+11) T.Kukulka  
+12) Pustka St.  
+13) Lukáš J. sen  
 
 ```{r MODIF ADRESAR}
 
@@ -789,7 +827,7 @@ modify_tab <- df %>%
          '18subjektStatKod' = "CZ") %>% 
   unite('2subjektKod', c(MPRIJM, MJM), na.rm = T, remove = FALSE, sep = " ")
 
-modif_save <- paste0(path_csv, project, "_modif_adresar.csv")
+modif_save <- paste0(path_csv, projekt, "_modif_adresar.csv")
 
 if(file.exists(modif_save)){
   print("You've been here before!")
@@ -860,17 +898,71 @@ if(file.exists(save)){
 
 ```
 
+## Botanika
+
+Akvarely.bf
+Botanika aktuální.bf
+Quercus Holuša.bf
+mechorosty_Vrána.bf
+
+### Botanika aktualni
+
+```{r BOTANIKA AKTUALNI}
+
+# L O A D
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbeBOT_DK.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+
+# akv <- RODBC::sqlFetch(con, "lcl_akvarely")   
+bot <- RODBC::sqlFetch(con, "lcl_botanika")   
+# bry <- RODBC::sqlFetch(con, "lcl_mechorosty")   
+# que <- RODBC::sqlFetch(con, "lcl_quercus")   
+
+# B R O W S E 
 
 
-# ? CONNECT TO SQL
 
-```{r SQL CONNECTION}
+```
 
-install.packages("readr")
-require(readr)
+```{r BOTANIKA BIOLIB}
 
-fileName = read_file("M:/02 dokumenty/03 migrace/BIO/biolibexport.sql")
+bot_druhy <- bot %>% 
+  select(druh, celed) %>% 
+  mutate(druh_clean = ifelse(str_detect(druh, "\\sx\\s"), paste(word(druh, 1), word(druh, 3)),
+                             paste(word(druh, 1), word(druh, 2))),
+         MROD = word(druh, 1)) %>% 
+  distinct()
 
+biol_rod <- sel_biol %>% 
+  mutate(MROD = word(druh, 1),
+         MROD_TREE = ifelse(str_detect(sys_tree_BIOL, "-"), gsub("\\/\\w+\\s\\w+-\\w+$","", sys_tree_BIOL),
+                       gsub("\\/\\w+\\s\\w+$","", sys_tree_BIOL)))
+
+check <- left_join(bot_druhy, biol_rod, by = c("druh_clean" = "druh"))
+
+check2 <- check %>% 
+  filter(is.na(sys_tree_BIOL)) %>% 
+  inner_join(biol_rod, by = c("MROD.x" = "MROD")) # oprav
+
+na <- check %>% 
+  filter(is.na(sys_tree_BIOL)) %>% 
+  mutate(MROD = word(druh, 1)) %>% 
+  select(MROD) %>% 
+  distinct()
+
+BLrod <- sel_biol%>% 
+  mutate(MROD = word(druh, 1)) %>% 
+  filter(!is.na(MROD)) %>%  
+  mutate(MTREE = word(sys_tree_BIOL , 1  , -2)) %>% 
+  select(MROD, MTREE) %>% 
+  distinct()
+
+check <- inner_join(na, BLrod, by = c("MROD" = "MROD"))
+
+rodtree <- sel_biol %>% 
+  mutate(MROD = ifelse(str_detect(sys_tree_BIOL, "-"), gsub("\\/\\w+\\s\\w+-\\w+$","", sys_tree_BIOL),
+                       gsub("\\/\\w+\\s\\w+$","", sys_tree_BIOL)))
 
 ```
 

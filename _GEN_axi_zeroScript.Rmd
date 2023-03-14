@@ -27,13 +27,14 @@ demus_tab <- read_excel()
 modif_tab <- demus_tab %>% 
   mutate(MEMPTY = "") 
   
-modif_save <- paste0(path_csv, spravce, "")
+modif_save <- paste0(path_csv, projekt, "_modif_", imp, ".csv") # imp == nazev csv
 
 if(file.exists(modif_save)){
   print("You've been here before!")
 } else {
   write.table(modif_tab, file = modif_save, 
-            sep = ";", quote = T, row.names = F, 
+             quote = T, row.names = F, 
+            sep = ";", dec = ",",  
             na = "", fileEncoding="cp1250")
   print("Operational file  S A V E D  !")
   }
@@ -42,17 +43,18 @@ if(file.exists(modif_save)){
 
 mus_tab <- modif_tab 
   
-oper_technika <- mus_tab
+oper_ <- mus_tab
 
 # S A V E   I M P O R T   C S V
 
-save <- paste0(path_csv, spravce, "")
+save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
 
 if(file.exists(save)){
   print("You've been here before!")
 } else {
   write.table(mus_tab, file = save, 
-            sep = ";", quote = T, row.names = F, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
             na = "", fileEncoding="cp1250")
   print("Import csv  W R I T T E N  !")
   }

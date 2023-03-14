@@ -39,7 +39,7 @@ knitr::opts_chunk$set(echo = F, eval = F)
         -> ulozeni   
         -> pro dalsi praci zapsani i do operativniho df *'oper_'* + nazev  
         
-# Archivace tabulek
+## Archivace tabulek
 
 Uklada se vzdy:  
     1)  upravena tabulka pro informaci, z ceho byl vytvoren csv soubor  
@@ -951,7 +951,7 @@ imp <- "techPtu"
   
 Stala Lokace a Aktualni Lokace -> porovnat    
 Pokud je to stejne, Aktualni lokace se nemigruje    
-Pokud nejsou stejne, Stala = Stalam, Aktualni = Docasna    
+Pokud nejsou stejne, Stala = Stala, Aktualni = Docasna    
 
 ```{r ULOZENI PREDMETU}
 
