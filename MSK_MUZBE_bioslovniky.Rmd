@@ -111,6 +111,13 @@ sel_biol <- biolib %>%
          ) %>% 
   distinct()
 
+# filtr pro mechy
+
+bl_mechy <- biolib %>% 
+  filter(kmen_Nomen %in% c("Anthocerotophyta", "Marchantiophyta", "Bryophyta"))
+
+length(unique(bl_mechy$rod_Nomen))
+
 ```
 
 
@@ -432,6 +439,13 @@ write.xlsx(diff_author, file=paste0(path_mdb, projekt, "_bioslovniky_plant_ROZDI
 
 # 2. KONVERZE
 
+
+Akvarely.bf
+Botanika aktuální.bf
+Quercus Holuša.bf
+mechorosty_Vrána.bf
+
+
 spm = systematicka evidence podsbirky Pm (mechorosty)  
 cpm = ciselnik podsbirky Pm (mechorosty)  
 
@@ -529,7 +543,7 @@ sum(is.na(bio_mech$rod_Nomen))
 
 ```
 
-### BioLib mechy NOVÁ DATA
+### BioLib mechy NOVÉ
 
 Dostali jsme nová csv s daty pro mechorosty z BioLib. 
 
@@ -602,7 +616,35 @@ tax_modif <- tax %>%
 wide <- spread(tax_modif,                                  # Applying spread function
                         key = MLEVEL,
                         value = tn_name) %>% 
-  select(tn_id, tn_tx_id, tn_authority, tn_type, oddeleni, trida, rad, celed, rod, druh, poddruh)
+  select(tn_id, tn_tx_id, tn_authority, tn_type, oddeleni, trida, rad, celed, rod, druh, poddruh) %>% 
+  mutate(oddeleni_ID = ifelse(!is.na(oddeleni), tn_tx_id, NA),
+         trida_ID = ifelse(!is.na(trida), tn_tx_id, NA), 
+         rad_ID = ifelse(!is.na(rad), tn_tx_id, NA), 
+         celed_ID = ifelse(!is.na(celed), tn_tx_id, NA), 
+         rod_ID = ifelse(!is.na(rod), tn_tx_id, NA), 
+         druh_ID = ifelse(!is.na(druh), tn_tx_id, NA), 
+         poddruh_ID = ifelse(!is.na(poddruh), tn_tx_id, NA)) %>% 
+  relocate(oddeleni_ID, .before = oddeleni) %>% 
+  relocate(trida_ID, .before = trida) %>% 
+  relocate(rad_ID, .before = rad) %>% 
+  relocate(celed_ID, .before = celed) %>% 
+  relocate(rod_ID, .before = rod) %>% 
+  relocate(druh_ID, .before = druh) %>% 
+  relocate(poddruh_ID, .before = poddruh) %>% 
+  mutate(oddeleni_Autor = ifelse(!is.na(oddeleni), tn_authority, NA),
+         trida_Autor = ifelse(!is.na(trida), tn_authority, NA), 
+         rad_Autor = ifelse(!is.na(rad), tn_authority, NA), 
+         celed_Autor = ifelse(!is.na(celed), tn_authority, NA), 
+         rod_Autor = ifelse(!is.na(rod), tn_authority, NA), 
+         druh_Autor = ifelse(!is.na(druh), tn_authority, NA), 
+         poddruh_Autor = ifelse(!is.na(poddruh), tn_authority, NA)) %>% 
+  relocate(oddeleni_Autor, .before = oddeleni) %>% 
+  relocate(trida_Autor, .before = trida) %>% 
+  relocate(rad_Autor, .before = rad) %>% 
+  relocate(celed_Autor, .before = celed) %>% 
+  relocate(rod_Autor, .before = rod) %>% 
+  relocate(druh_Autor, .before = druh) %>% 
+  relocate(poddruh_Autor, .before = poddruh) 
 
 
 strom <- wide %>%
@@ -610,33 +652,195 @@ strom <- wide %>%
          BU_PODDRUH = poddruh) %>% # backup column for druh and poddruh
   filter(tn_type == 0) %>%  # work only with preffered names, filter out synonyms (1)
   fill(oddeleni, .direction = "down") %>%  # group and fill the taxonomy
-  fill(trida, .direction = "down") %>% 
+  fill(oddeleni_ID, .direction = "down") %>%  # group and fill BioLib ID
+  fill(oddeleni_Autor, .direction = "down") %>%  # group and fill BioLib Autor
+  fill(trida, .direction = "down") %>%  
+  fill(trida_ID, .direction = "down") %>% 
+  fill(trida_Autor, .direction = "down") %>% 
+  
   group_by(oddeleni, trida) %>% 
   fill(rad, .direction = "down") %>% 
+  fill(rad_ID, .direction = "down") %>% 
+  fill(rad_Autor, .direction = "down") %>% 
+  
   group_by(oddeleni, trida, rad) %>%
   fill(celed, .direction = "down") %>% 
+  fill(celed_ID, .direction = "down") %>% 
+  fill(celed_Autor, .direction = "down") %>% 
+  
   group_by(oddeleni, trida, rad, celed) %>%
   fill(rod, .direction = "down") %>%  # zbytecne ?
+  fill(rod_ID, .direction = "down") %>%  
+  fill(rod_Autor, .direction = "down") %>%  
   # group_by(oddeleni, trida, rad, celed, rod) %>%
   # fill(druh, .direction = "down") %>% 
   # group_by(oddeleni, trida, rad, celed, rod, druh) %>%
   # fill(poddruh, .direction = "down") %>% 
   ungroup() %>% 
   mutate(rod = ifelse(is.na(druh), word(poddruh, 1), word(druh, 1))) %>% # take rod from the druh name (= more precise)
-  mutate(druh = ifelse(is.na(druh), paste(word(poddruh, 1), word(poddruh, 2)), druh)) %>% # take rod from the druh name (= more precise)
+  mutate(druh = ifelse(is.na(druh), paste(word(poddruh, 1), word(poddruh, 2)), druh), # take rod from the druh name (= more precise)
+         druh = gsub("NA NA", NA, druh)) %>%
   unite(sys_tree, c("oddeleni", "trida", "rad", "celed", "rod", "druh"), # "poddruh"
-         sep = "/", na.rm = T, remove = FALSE)  # create systematic tree
+        sep = "/", na.rm = T, remove = FALSE) %>%   # create systematic tree
+  relocate(sys_tree, .after = tn_type)
+  
+# druhy <- strom %>% 
+#   filter(!is.na(BU_DRUH)|!is.na(BU_PODDRUH)) # POZOR ! Nesedi vzdy..
 
-druhy <- strom %>% 
-  filter(!is.na(BU_DRUH)|!is.na(BU_PODDRUH)) # POZOR ! Nesedi vzdy..
+length(unique(strom$rod)) # 593
 
-rm(cis)
+
 rm(com)
 rm(tax)
 rm(ton)
 
+strom1 <- strom %>% 
+  select(-BU_DRUH, -BU_PODDRUH)
+
+write.table(strom1, file = "M:/02 dokumenty/03 migrace/BIO/BRYOLOGIE/BioLib_Bryologie_strom_KK.txt", 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+```
+
+### BioLib slovnik PLANTAE+BRYOPHYTA
+
+```{r}
+
+# BioLib Plantae
+
+bl_plant <- read.table(paste0(path, "bioslov/BioLib_KKsummary_plantae.csv"), sep = ";", header = T)
+
+sel_biol <- bl_plant %>% 
+  mutate(kmen = coalesce(kmen_Nomen, trida_NadNomen),
+         trida = coalesce(trida_Nomen, rad_NadNomen),
+         rad = coalesce(rad_Nomen, celed_NadNomen),
+         celed = coalesce(celed_Nomen, rod_NadNomen),
+         rod = coalesce(rod_Nomen, druh_NadNomen),
+         druh = coalesce(druh_Nomen, poddruh_NadNomen),
+         poddruh = poddruh_Nomen) %>% 
+  unite(sys_tree_BIOL, c(
+    # "kmen",  # ? does data have 'kmen' ?
+    # "trida", "rad", 
+    "celed", "rod", "druh_Nomen"
+    # ,"poddruh"
+    )
+    ,sep = "/", na.rm = T, remove = FALSE) %>% 
+  select(sys_tree_BIOL, druh, druh_Autor 
+         # ,poddruh, poddruh_Autor # ? does data have 'poddruh' ?
+         ) %>% 
+  distinct()
+
+bl_plantmech <- biolib %>%  # filtr pro mechy
+  filter(kmen_Nomen %in% c("Anthocerotophyta", "Marchantiophyta", "Bryophyta"))
+length(unique(bl_plantmech$rod_Nomen)) # 252
+colnames(bl_plantmech)
+
+# BioLib Bryophyta
+
+bl_mech <- strom %>% 
+  select(-BU_DRUH,-BU_PODDRUH) %>% 
+  rename(oddeleni_Nomen = oddeleni, trida_Nomen = trida, rad_Nomen = rad, celed_Nomen = celed, 
+         rod_Nomen = rod, druh_Nomen = druh, poddruh_Nomen = poddruh)
+
+length(unique(bl_mech$rod_Nomen)) # 593
+colnames(bl_mech)
+
+# autori
+
+# bl_mech <- left_join(bl_mech, bl_id_aut, by = c("oddeleni_ID" = "tn_tx_id")) %>% 
+#   rename(oddeleni_Autor = tn_authority.y) %>% 
+#   relocate(oddeleni_Autor, .after = oddeleni_Nomen)
+# 
+# bl_mech <- left_join(bl_mech, bl_id_aut, by = c("trida_ID" = "tn_tx_id")) %>% 
+#   rename(trida_Autor = tn_authority) %>%
+#   relocate(trida_Autor, .after = trida_Nomen)
+# 
+# bl_mech <- left_join(bl_mech, bl_id_aut, by = c("rad_ID" = "tn_tx_id")) %>% 
+#   rename(rad_Autor = tn_authority) %>%
+#   relocate(rad_Autor, .after = rad_Nomen)
+#   
+# bl_mech <- left_join(bl_mech, bl_id_aut, by = c("celed_ID" = "tn_tx_id")) %>% 
+#   rename(celed_Autor = tn_authority) %>%
+#   relocate(celed_Autor, .after = celed_Nomen)
+#   
+# bl_mech <- left_join(bl_mech, bl_id_aut, by = c("rod_ID" = "tn_tx_id")) %>% 
+#   rename(rod_Autor = tn_authority) %>%
+#   relocate(rod_Autor, .after = rod_Nomen)
+#   
+# bl_mech <- left_join(bl_mech, bl_id_aut, by = c("druh_ID" = "tn_tx_id")) %>% 
+#   rename(druh_Autor = tn_authority) %>%
+#   relocate(druh_Autor, .after = druh_Nomen)
+#   
+# bl_mech <- left_join(bl_mech, bl_id_aut, by = c("poddruh_ID" = "tn_tx_id")) %>% 
+#   rename(poddruh_Autor = tn_authority) %>%
+#   relocate(poddruh_Autor, .after = poddruh_Nomen)
+  
+# RBIND
+
+colnames(bl_plantmech)
+colnames(bl_mech)
+
+
+pb <- bl_plantmech %>% 
+  mutate(source = "BL Plantae", # filter jen pro Bryo
+         oddeleni_ID = NA, 
+         oddeleni_Nomen = NA,
+         oddeleni_Autor = NA)
+
+length(unique(pb$druh_Nomen)) # 936
+length(unique(pb$poddruh_Nomen)) # 10
+
+bb <- bl_mech %>% 
+  mutate(source = "BL Bryo", 
+         kmen_ID = NA, 
+         kmen_Nomen = NA,
+         kmen_Autor = NA)
+
+length(unique(bb$druh_Nomen)) # 9092
+length(unique(bb$poddruh_Nomen)) # 135
+
+# kontrola prekryvu 
+
+prekryv <- intersect(pb$druh_Nomen, bb$druh_Nomen) # 902
+prekryv2 <- intersect(pb$poddruh_Nomen, bb$poddruh_Nomen) # 10
+
+# CZ
+
+czm <- com %>% 
+  filter(tvn_type == 0)
+
+mechCZ <- bl_mech
+
+mechCZ <- left_join(mechCZ, czm %>% select(tvn_name, tvn_tx_id), by = c("oddeleni_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = oddeleni_Nomen) %>% 
+  rename(oddeleni_Nazev = tvn_name)
+
+mechCZ <- left_join(mechCZ, czm %>% select(tvn_name, tvn_tx_id), by = c("trida_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = trida_Nomen) %>% 
+  rename(trida_Nazev = tvn_name)
+
+mechCZ <- left_join(mechCZ, czm %>% select(tvn_name, tvn_tx_id), by = c("rad_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = rad_Nomen) %>% 
+  rename(rad_Nazev = tvn_name)
+
+mechCZ <- left_join(mechCZ, czm %>% select(tvn_name, tvn_tx_id), by = c("celed_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = celed_Nomen) %>% 
+  rename(celed_Nazev = tvn_name)
+
+mechCZ <- left_join(mechCZ, czm %>% select(tvn_name, tvn_tx_id), by = c("rod_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = rod_Nomen) %>% 
+  rename(rod_Nazev = tvn_name)
+
+mechCZ <- left_join(mechCZ, czm %>% select(tvn_name, tvn_tx_id), by = c("druh_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = druh_Nomen) %>% 
+  rename(druh_Nazev = tvn_name)
+
+mechCZ <- left_join(mechCZ, czm %>% select(tvn_name, tvn_tx_id), by = c("poddruh_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = poddruh_Nomen) %>% 
+  rename(poddruh_Nazev = tvn_name)
 
 ```
+
 
 ### mechy porovnani
 
@@ -728,7 +932,7 @@ syn <- wide %>%
 
 
 
-## Adresar
+### MECH: Adresar
   
 Pripady:  
 1) Krizova   
@@ -879,43 +1083,700 @@ mus_tab <- modify_tab %>%
          '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY,
          rel_ZkrJm = symbol)
 
-oper_adresar <- mus_tab %>% 
+oper_MECHadresar <- mus_tab %>% 
+  select(rel_ZkrJm, '1typSubjektuKod', '2subjektKod', '4osobaJmenoPrvni', '6osobaPrijmeni')
+imp <-"MECHadresar"
+
+```
+
+
+## Botanika
+
+BIO karta?  
+
+```{r BOTANIKA}
+
+# L O A D
+
+# dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbeBOT_DK.accdb") 
+dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/MB_PVO_Botanika/botanika - aktuální.mdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+
+# akv <- RODBC::sqlFetch(con, "lcl_akvarely")   
+bot <- RODBC::sqlFetch(con, "data")   
+# bry <- RODBC::sqlFetch(con, "lcl_mechorosty")   
+# que <- RODBC::sqlFetch(con, "lcl_quercus")   
+
+```
+
+### bot adresar
+
+```{r BOT ADRESAR}
+
+# M O D I F Y
+
+# install.packages("randomNames")
+require(randomNames)
+
+# ********* create_uid ********* 
+
+bot_create <- bot %>% 
+  select(create_uid) %>% 
+  separate(create_uid, into=c("M1", "M2") , sep="\\s|\\.", remove = F, extra = "merge") %>% 
+  mutate(M1 = str_to_title(M1), # velke prvni pismeno
+         M2 = str_to_title(M2),
+         MKODOS = ifelse(str_detect(M2, "\\w\\.$"), paste(M1, M2), paste(M2, M1)),
+         MKODOS = ifelse(is.na(M2), paste(M1), MKODOS)) %>% 
+  select(-M1, -M2)
+
+
+#  ********* lastwrite_uid ********* 
+
+bot_lwrt <- bot %>% 
+  select(lastwrite_uid) %>% 
+  separate(lastwrite_uid, into=c("M1", "M2") , sep="\\s|\\.", remove = F, extra = "merge") %>% 
+  mutate(M1 = str_to_title(M1), # velke prvni pismeno
+         M2 = str_to_title(M2),
+         MLASTWR = ifelse(str_detect(M2, "\\w\\.$"), paste(M2, M1), paste(M1, M2))) %>% 
+  mutate(KODOS = ifelse(is.na(MLASTWR), lastwrite_uid, MLASTWR)) %>%
+  select(-M1, -M2, -MLASTWR) 
+
+
+#  ********* urcil ********* 
+
+bot_urc <- bot %>% 
+  select(urcil) %>% 
+  mutate(urcil = ifelse(urcil == "E. Burša,, rev. J. Chrtek Jun.", "E. Burša, rev. J. Chrtek Jun.", urcil),
+         urcil = ifelse(urcil == "D. Hlisnikovskýet al.", "D. Hlisnikovský et al.", urcil),
+         urcil = ifelse(urcil == "Z .Kilián", "Z. Kilián", urcil),
+         urcil = ifelse(str_detect(urcil, "O . Rotreklová"), "O. Rotreklová", urcil),
+         urcil = ifelse(str_detect(urcil, "E.  Burša"), "E. Burša", urcil),
+         Mforma = ifelse(str_detect(urcil, "rev\\.|rev\\s"), "revize", 
+                                    ifelse(str_detect(urcil, " et | & "), "kolektiv", "")),
+         MID = seq_along(urcil)) %>% 
+  relocate(Mforma, .before = "urcil") %>% 
+       
+  separate(urcil, into=c("M", "MR") , 
+           sep="rev\\s|,\\srev\\s|,\\srev\\.|,\\s\\srev\\.|,\\s\\srev\\s|;\\srev\\.|\\srev\\.|rev\\.", # oddeleni revizi do samost. sloupce
+           remove = F, extra = "merge") %>% 
+  mutate(MR = gsub("rev.", "", MR), # nahradit rev prazdnym retezcem
+         MR = str_trim(MR), # oriznout whitespace
+         M = gsub("rev.|det.", "", M),  # nahradit rev a det prazdnym retezcem
+        
+         MREVDAT = case_when(str_detect(M, "\\d+") ~  str_extract(M, "\\d+\\.\\d+\\.\\d+"), TRUE ~ ""), # pokud ma sloupec cislice
+         M = case_when(str_detect(M, "\\d+") ~  str_remove(M, ",\\s\\d+\\.\\d+\\.\\d+"), TRUE ~ M), # vymazat datum
+
+         # METAL = case_when(str_detect(M, " et | & ") ~  str_extract(M, ".+"), TRUE ~ ""), # oddeleni et al do samost. sloupce
+         # M = case_when(str_detect(M, " et | & ") ~  str_remove(M, ".+"), TRUE ~ M),
+         
+         MPOZN = case_when(str_detect(M, "\\(.+\\)|det\\.|2010 - potvrdil |adnot.") ~  
+                                str_extract(M, "\\(.+\\)|det\\.|2010 - potvrdil |adnot."), TRUE ~ ""),
+         M = case_when(str_detect(M, "\\(.+\\)|det\\.|2010 - potvrdil |adnot.") ~  
+                              str_remove(M, "\\(.+\\)|det\\.|2010 - potvrdil |adnot."), TRUE ~ M),
+      
+         M = str_trim(M), # TRIM !!!
+         
+         MRforma = ifelse(str_detect(MR, " et | & "), "kolektiv", "revize")) %>%   
+  relocate(MRforma, .before = "MR") %>%
+
+  separate(M, into=c("M1", "M2", "M3") , sep=",| et | a(?! J.)| &", remove = F, extra = "merge") %>%  
+  # separate(MR, into=c("MR1", "MR2", "MR3") , sep=",| et | a(?! J.)| &", remove = F, extra = "merge") %>% 
+  
+  pivot_longer(
+    cols = c(
+      M1, M2, M3,
+    ),
+    names_to = "source", # poradi techniky
+    values_to = "Mnames",
+    values_drop_na = TRUE) %>%  
+  mutate(
+    Mnames = str_trim(Mnames),
+    MPJM = case_when(str_detect(Mnames, "^\\w\\.\\s\\w\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"), # L. a J. Reitmyerovi
+                     str_detect(Mnames, "^\\w+$") ~ str_extract(Mnames, "^\\w+$"), # Vrubel
+                     str_detect(Mnames, "^\\w\\.\\w+$") ~ str_extract(Mnames, "\\b\\w+$"), # A.Hájková
+                     str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\.$"), # D., al.
+                     str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R. J. Vašut
+                     str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R.J. Vašut
+                     str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # Miroslava Bilkova
+                     str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "\\w+\\s\\w+\\.$"), # J. Chrtek jun.
+                     str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+\\s\\w+$"), # J. Chrtek jun
+                     str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "\\w+\\s\\(\\w+\\)"), # O. Rotreklová (BRNU)
+                     str_detect(Mnames, "^[:upper:]{3}$") ~ str_extract(Mnames, "^[:upper:]{3}$"), # PVO
+                     str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 1), # "Ekrt L."
+                     TRUE ~ word(Mnames, 2)),
+    MJM = case_when(str_detect(Mnames, "^\\w+\\.\\s+\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  	# V. Dvořák
+                    str_detect(Mnames, "^\\w+\\.\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  # 	J.Danihelka
+                    str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\s\\w\\."),  # R. J. Vašut
+                    str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\w\\."),  # R.J. Vašut 
+                    str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"),  # Miroslava Bilkova
+                    str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\."), # J. Chrtek jun.
+                    str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"), # J. Chrtek jun
+                    str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "^\\w+\\."), # O. Rotreklová (BRNU)
+                    str_detect(Mnames, "^\\w\\.\\sa\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\sa\\s\\w\\."), # L. a J. Reitmyerovi
+                    str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 2), # "Ekrt L."
+                    # str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, ""), # al.
+                    TRUE ~ ""),
+    MTIT = case_when(str_detect(MJM, "doc.|Ing.") ~ str_extract(Mnames, "doc.|Ing."), TRUE ~ ""),
+    MJM = case_when(str_detect(MJM, "doc.|Ing.") ~  str_remove(MJM, "doc.|Ing."), TRUE ~ MJM)) %>% 
+  replace(is.na(.), "") %>% 
+    mutate(MKODOS = paste(MPJM, MJM)) 
+
+# back to wide
+
+bw <- bot_urc %>% 
+  group_by(MID) %>% 
+  pivot_wider(names_from = source, values_from = c(MPJM, MJM, MTIT, MKODOS)) %>% 
+  select(-Mnames) 
+bw[bw == ""] <- NA
+
+bw <- bw %>%  
+  fill(MPJM_M1, .direction = "down") %>% 
+  fill(MPJM_M2, .direction = "down") %>% 
+  fill(MPJM_M2, .direction = "up") %>% 
+  fill(MPJM_M3, .direction = "up") %>% 
+  fill(MJM_M1, .direction = "down") %>% 
+  fill(MJM_M2, .direction = "down") %>% 
+  fill(MJM_M2, .direction = "up") %>% 
+  fill(MJM_M3, .direction = "up") %>% 
+  fill(MTIT_M1, .direction = "down") %>% 
+  fill(MTIT_M2, .direction = "down") %>% 
+  fill(MTIT_M2, .direction = "up") %>% 
+  fill(MTIT_M3, .direction = "up") %>% 
+  fill(MKODOS_M1, .direction = "down") %>% 
+  fill(MKODOS_M2, .direction = "down") %>% 
+  fill(MKODOS_M2, .direction = "up") %>% 
+  fill(MKODOS_M3, .direction = "up") %>% 
+  distinct() %>% 
+  ungroup()
+bw[bw == " "] <- NA
+
+bot_urc <- bw %>% 
+  # mutate(MKODOS = case_when(Mforma == "kolektiv" ~ paste(MKODOS_M1, MKODOS_M2, MKODOS_M3, sep = " et ", na.rm = T),
+  #                          TRUE ~ paste(MKODOS_M1, MKODOS_M2, MKODOS_M3, sep = ", ", na.rm = T))) %>% 
+  unite(MKODOS, c("MKODOS_M1", "MKODOS_M2", "MKODOS_M3"), sep = ", ", na.rm = T, remove = FALSE) %>% 
+  relocate(MKODOS, .after = "urcil") %>% 
+  mutate(MKODOS =  case_when(Mforma == "kolektiv" ~ gsub(", ", " et ", MKODOS),
+                             TRUE ~ MKODOS)) %>% 
+  select(urcil, MKODOS, MR, MREVDAT, MPOZN, MTIT_M1, MPJM_M1, MJM_M1)
+  
+    
+#  ********* sberatel ********* 
+ 
+bot_sbe <- bot %>% 
+  select(sberatel) %>%
+  mutate(
+         sberatel = ifelse(sberatel == "D. Hlisnikovskýet al.", "D. Hlisnikovský et al.", sberatel),
+         sberatel = ifelse(sberatel == "E.  Burša", "E. Burša", sberatel),
+         Mforma = ifelse(str_detect(sberatel, "rev\\.|rev\\s"), "revize", 
+                                    ifelse(str_detect(sberatel, " et | & "), "kolektiv", "")),
+         MID = seq_along(sberatel)) %>% 
+  relocate(Mforma, .before = "sberatel") %>% 
+  separate(sberatel, into=c("M", "MR") , 
+           sep="rev\\s|,\\srev\\s|,\\srev\\.|,\\s\\srev\\.|,\\s\\srev\\s|;\\srev\\.|\\srev\\.|rev\\.", # oddeleni revizi do samost. sloupce
+           remove = F, extra = "merge") %>% 
+
+  mutate(MR = str_trim(MR), # oriznout whitespace
+         M = str_trim(M), # TRIM !!!
+         
+         MRforma = ifelse(str_detect(MR, " et | & "), "kolektiv", "revize")) %>%   
+  relocate(MRforma, .before = "MR") %>%
+
+  separate(M, into=c("M1", "M2", "M3") , sep=",| et | a(?! J.)| &", remove = F, extra = "merge")  %>% 
+  # separate(MR, into=c("MR1", "MR2", "MR3") , sep=",| et | a(?! J.)| &", remove = F, extra = "merge") %>% 
+  
+  pivot_longer(
+    cols = c(
+      M1, M2, M3,
+    ),
+    names_to = "source", # poradi techniky
+    values_to = "Mnames",
+    values_drop_na = TRUE) %>%  
+  mutate(
+    Mnames = str_trim(Mnames),
+    MPJM = case_when(
+                     str_detect(Mnames, "^\\w+$") ~ str_extract(Mnames, "^\\w+$"), # Vrubel
+                     str_detect(Mnames, "^\\w\\.\\w+$") ~ str_extract(Mnames, "\\b\\w+$"), # A.Hájková
+                     str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\.$"), # D., al.
+                     # str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R. J. Vašut
+                     # str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R.J. Vašut
+                     str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # Miroslava Bilkova
+                     # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "\\w+\\s\\w+\\.$"), # J. Chrtek jun.
+                     # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+\\s\\w+$"), # J. Chrtek jun
+                     # str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "\\w+\\s\\(\\w+\\)"), # O. Rotreklová (BRNU)
+                     # str_detect(Mnames, "^[:upper:]{3}$") ~ str_extract(Mnames, "^[:upper:]{3}$"), # PVO
+                     # str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 1), # "Ekrt L."
+                     TRUE ~ word(Mnames, 2)),
+    MJM = case_when(str_detect(Mnames, "^\\w+\\.\\s+\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  	# V. Dvořák
+                    str_detect(Mnames, "^\\w+\\.\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  # 	J.Danihelka
+                    # str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\s\\w\\."),  # R. J. Vašut
+                    # str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\w\\."),  # R.J. Vašut 
+                    str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"),  # Miroslava Bilkova
+                    # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\."), # J. Chrtek jun.
+                    # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"), # J. Chrtek jun
+                    # str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "^\\w+\\."), # O. Rotreklová (BRNU)
+                    # str_detect(Mnames, "^\\w\\.\\sa\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\sa\\s\\w\\."), # L. a J. Reitmyerovi
+                    # str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 2), # "Ekrt L."
+                    # str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, ""), # al.
+                    TRUE ~ "")) %>% 
+    # MTIT = case_when(str_detect(MJM, "doc.|Ing.") ~ str_extract(Mnames, "doc.|Ing."), TRUE ~ ""),
+    # MJM = case_when(str_detect(MJM, "doc.|Ing.") ~  str_remove(MJM, "doc.|Ing."), TRUE ~ MJM)) %>% 
+  replace(is.na(.), "") %>% 
+    mutate(MKODOS = paste(MPJM, MJM)) 
+
+# back to wide
+
+bw <- bot_sbe %>% 
+  group_by(MID) %>% 
+  pivot_wider(names_from = source, values_from = c(MPJM, MJM, MKODOS)) %>% 
+  select(-Mnames) 
+bw[bw == ""] <- NA
+
+bw <- bw %>%  
+  fill(MPJM_M1, .direction = "down") %>% 
+  fill(MPJM_M2, .direction = "down") %>% 
+  fill(MPJM_M2, .direction = "up") %>% 
+  fill(MPJM_M3, .direction = "up") %>% 
+  fill(MJM_M1, .direction = "down") %>% 
+  fill(MJM_M2, .direction = "down") %>% 
+  fill(MJM_M2, .direction = "up") %>% 
+  fill(MJM_M3, .direction = "up") %>% 
+  fill(MKODOS_M1, .direction = "down") %>% 
+  fill(MKODOS_M2, .direction = "down") %>% 
+  fill(MKODOS_M2, .direction = "up") %>% 
+  fill(MKODOS_M3, .direction = "up") %>% 
+  distinct() %>% 
+  ungroup()
+bw[bw == " "] <- NA
+
+bot_sbe <- bw %>% 
+  # mutate(MKODOS = case_when(Mforma == "kolektiv" ~ paste(MKODOS_M1, MKODOS_M2, MKODOS_M3, sep = " et ", na.rm = T),
+  #                          TRUE ~ paste(MKODOS_M1, MKODOS_M2, MKODOS_M3, sep = ", ", na.rm = T))) %>% 
+  unite(MKODOS, c("MKODOS_M1", "MKODOS_M2", "MKODOS_M3"), sep = ", ", na.rm = T, remove = FALSE) %>% 
+  relocate(MKODOS, .after = "sberatel") %>% 
+  mutate(MKODOS =  case_when(Mforma == "kolektiv" ~ gsub(", ", " et ", MKODOS),
+                             TRUE ~ MKODOS)) %>% 
+  select(sberatel, MKODOS, MR, MPJM_M1, MJM_M1)
+  
+
+# S L O V N I K
+
+# slo_cre <- bot_create %>% 
+#   select(puv = create_uid, MKODOS) %>% 
+#   mutate(MR = NA, MTIT = NA)
+# 
+# slo_lwr <- bot_lwrt %>% 
+#   select(puv = lastwrite_uid, MKODOS = KODOS) %>% # opravit nahore KODOS na MKODOS
+#   mutate(MR = NA, MTIT = NA)
+
+slo_urc <- bot_urc %>% 
+  select(puv = urcil, MKODOS, MR, MTIT = MTIT_M1, MDAT = MREVDAT, MPOZN)
+
+slo_sbe <- bot_sbe %>% 
+  select(puv = sberatel, MKODOS, MR) %>% 
+  mutate(MTIT = NA,
+         MDAT = NA, 
+         MPOZN = NA)
+
+botanika_slovnik <- rbind(slo_sbe, slo_urc) %>% # slo_cre, slo_lwr, 
+  mutate(MKODOS = str_trim(MKODOS)) %>% 
+  select(MKODOS, MTIT) %>% 
+  distinct()
+
+oper_botanika_adresar <- rbind(slo_sbe, slo_urc) %>% # slo_cre, slo_lwr, 
+  mutate(MKODOS = str_trim(MKODOS),
+         subjektKod = ifelse(nchar(MKODOS)>30, str_remove_all(MKODOS, "\\set\\s|\\w\\.|,\\s|al\\.$"), MKODOS),
+         subjektKod = ifelse(nchar(subjektKod)>30, str_remove_all(subjektKod, "\\s"), subjektKod),
+         subjektKod = str_trim(subjektKod),
+         len = nchar(subjektKod)) %>% 
+  # select(MKODOS, MTIT) %>% 
+  distinct()
+```
+
+### bot lokality
+
+* nvyska:
+    + 498 m n.m.  
+    + 640 - 730 m n.m.  
+    + nad 250 m  
+    + kolem 250 mnm  
+    + cca 250 mnm  
+    + ca 250 mnm
+
+```{r BOT LOKALITY}
+
+ku <- read_excel("C:/Users/krizova/Documents/R/gen_tabdata/katastryCR_cuzk_2023.xlsx")
+fy0 <- read_excel("C:/Users/krizova/Documents/R/gen_tabdata/fytochorionyCR_csop_2023.xlsx") 
+  
+fy <- fy0 %>% 
+  mutate(naz = str_trim(naz),
+         fy_id = paste(idf, naz))
+
+# M O D I F Y
+
+bot_init <- bot %>% 
+  select(oblast, katastr, lokalita_geo, mapa, ctverec, nvyska) 
+
+bot_lok <- bot %>% 
+  select(oblast, katastr, lokalita_geo, mapa, ctverec, nvyska) %>% 
+  
+  # coordinates
+  
+  mutate(Mmapa = case_when(str_detect(mapa, "WGS 84:\\s|WGS:\\s|WGS\\s|GPS\\s\\(WGS\\):\\s|\\(WGS\\)") ~ 
+                             gsub("WGS 84:\\s|WGS:\\s|WGS\\s|GPS\\s\\(WGS\\):\\s|\\(WGS\\)", "", mapa),
+                            TRUE ~ mapa),
+         Mmap_presn = ifelse(str_detect(Mmapa, "^ca|\\sm"), str_extract(Mmapa, "^ca|.......$"), NA),
+         Mmapa = ifelse(str_detect(Mmapa, "^ca|\\sm$"), str_remove(Mmapa, "^ca|.......$"), Mmapa),
+         Mmap_scale = ifelse(str_detect(Mmapa, "^1"), str_extract(Mmapa, ".+"), NA),
+         Mmapa = ifelse(str_detect(Mmapa, "^1"), str_remove(Mmapa, ".+"), Mmapa),
+         Mmap_pozn = ifelse(str_detect(Mmapa, "Ostravská|louky|dosti|6375b|\\d+\\-\\d+\\-\\d+"), str_extract(Mmapa, ".+"), NA),
+         Mmap_pozn = ifelse(str_detect(Mmapa, "\\sopr|\\soprav"), str_extract(Mmapa, "opr|oprav"), Mmap_pozn),
+         Mmapa = ifelse(str_detect(Mmapa, "Ostravská|louky|dosti|6375b|\\d+\\-\\d+\\-\\d+"), str_remove(Mmapa, ".+"), Mmapa)) %>% 
+  separate(Mmapa, into=c("MN", "ME"), sep="N|\\/", extra = "merge", remove = F) %>% 
+  mutate(ME = gsub(",\\s|\\.\\s|;\\s|E|opr|oprav", "", ME),
+         MN = gsub("\\.", ",", MN),
+         ME = gsub("\\.", ",", ME),
+         MN = str_trim(MN),
+         MN = gsub("°,|; ", "°", MN),
+         MN = gsub("\"", "'°''", MN),
+         MN = gsub("' |´", "'", MN),  
+         ME = str_trim(ME),
+         ME = gsub("´", "'", MN)) %>% 
+  
+  # elevation
+  
+  mutate(Mele_pznk = ifelse(str_detect(nvyska, "nad|kolem|cca|ca"), word(nvyska, 1), ""), 
+         MMNM = ifelse(str_detect(nvyska, "-"), gsub("[^[:digit:], -]", "", nvyska), # 640 - 730 m n.m. -> odstranit mnm
+                       parse_number(nvyska)),
+         # MMNM = ifelse(str_detect(MMNM, "\\W\\s\\W"), gsub("\\W\\s\\W", "\\s\\-\\s", MMNM), MMNM)) %>% 
+         MMNM = ifelse(str_detect(MMNM, "-\\s-"), gsub("-\\s-", " - ", MMNM), MMNM)) %>% 
+
+  # ctverec
+
+  mutate(MCTVEREC = ctverec) %>% 
+  
+  # oblast
+  
+  mutate(oblast = str_trim(oblast),
+         MZEME = case_when(str_detect(oblast, "^Polsko") ~ "Polsko",
+                           str_detect(oblast, "^Slovensko") ~ "Slovensko", 
+                           str_detect(oblast, "^Andorra") ~ "Andorra", 
+                           str_detect(oblast, "^Francie") ~ "Francie", 
+                           str_detect(oblast, "^Rumunsko") ~ "Rumunsko", 
+                           TRUE ~ "Česko"),
+         MFYTOCH = ifelse(oblast %in% fy$fy_id|oblast %in% fy$naz, oblast, NA),
+         # MFYTOCH = ifelse(str_detect(oblast, "^\\d+"), oblast, NA), # co s temi, kde se shoduje nazev, ale nemaji cislo?
+         # Mfytoch_wonum = ifelse(oblast %in% fy$naz, oblast, "neidentifikovatelna oblast"),
+         Mkat_anone = ifelse(katastr %in% ku$ku_name, "katastr", "nekatastr"), 
+         MKATASTR = ifelse(katastr %in% ku$ku_name, katastr, NA)) %>% 
+  relocate(MFYTOCH, .after = "oblast") %>% 
+  # relocate(Mfytoch_wonum, .after = "oblast") %>% 
+  relocate(Mkat_anone, .after = "katastr") %>% 
+  relocate(MKATASTR, .after = "katastr") %>% 
+  mutate_all(~na_if(., '')) %>% 
+  mutate(MLOKALITA = ifelse(is.na(katastr), lokalita_geo, katastr),
+         MLOKALITA = ifelse(is.na(MLOKALITA), oblast, MLOKALITA)) %>% 
+  relocate(MLOKALITA, .after = "katastr") %>% 
+  mutate(across(everything(), ~gsub("\\s{2}", " ", .)))
+
+# bot_lok[bot_lok == ""] <- NA
+# bot_lok[is.na(bot_lok)] <- ""
+
+```
+
+```{r BOTANIKA BIOLIB}
+
+# biolib
+
+biol_rod <- sel_biol %>% 
+  mutate(blMROD = word(druh, 1),
+         blMROD_TREE = case_when(str_detect(sys_tree_BIOL, "-") ~ gsub("\\/\\w+\\s\\w+-\\w+$","", sys_tree_BIOL),
+                               str_detect(sys_tree_BIOL, "×") ~ gsub("\\/\\w+\\s×\\s\\w+$","", sys_tree_BIOL), # -> Filago, Pinus, Polystrichum je v seznamu dvakrat, jednou vymazat (obsahuji ×)
+                               TRUE ~ gsub("\\/\\w+\\s\\w+$","", sys_tree_BIOL))) %>%
+         # MROD_TREE = ifelse(str_detect(sys_tree_BIOL, "-"), gsub("\\/\\w+\\s\\w+-\\w+$","", sys_tree_BIOL),
+         #               gsub("\\/\\w+\\s\\w+$","", sys_tree_BIOL))) %>% 
+  select(blMROD, blMROD_TREE) %>% 
+  distinct() %>% 
+  filter(!is.na(blMROD))
+
+# botanika
+
+bot_rod <- bot %>% 
+  mutate(boMDRUHc = ifelse(str_detect(druh, "\\sx\\s"), paste(word(druh, 1), word(druh, 3)),
+                             paste(word(druh, 1), word(druh, 2))),
+         boMROD = word(druh, 1)) 
+
+# pridani MROD_TREE do tabulky bot
+
+check <- left_join(bot_rod, biol_rod, by = c("boMROD" = "blMROD")) # multiple = "first" # n musi souhlasit s bot
+
+# tabulka check obsahuje sparovane (bot_tree, 23283) a nesparovane (treeNA, 228) zaznamy => 23511
+
+
+treeNA <- check %>% 
+  filter(is.na(blMROD_TREE)) # -> !! NEMAME V BIOLIB !! 
+
+bot_tree <- check %>% 
+  filter(!is.na(blMROD_TREE)) %>% 
+  mutate(fiMTREE = paste0(blMROD_TREE, "/", boMDRUHc)) %>% 
+  select(skup, pskup, celed, druh, boMDRUHc, boMROD, blMROD_TREE, fiMTREE) %>% 
+  mutate(boMCELED = word(gsub("[()]", "", celed), 1),
+         blMCELED = sub("\\/.*", "", fiMTREE))
+  
+check <- bot_tree %>% 
+  filter(boMCELED != blMCELED) # !! ROZDILY V CELEDI OPROTI BIOLIBU !!
+  
+# cekame na odpoved od pani Tkacikove ohledne rozdilu mezi daty a biolibem
+
+```
+
+
+### BOT: Inventarni a prirustkove cislo
+
+invc = inventarni cislo  
+sinvc = stare inv. cislo  
+jcis = jine cislo   
+prirc = prisrustkove cislo   
+
+maska:  \{S\}\{#####\}\/\{a\}  
+
+```{r INVENTARNI CISLO}
+
+# invc = puvodni -> rozdelit na radu a cislo (Mrada a Minvc)
+# MPORC = pridani vedoucich nul k Minvc
+# MINVC = finalni cislo <- kombinace Mrada a MPORCS dle masky inv.cisla
+
+bot_invc <- bot %>% 
+  separate(invc, into=c("Mrada", "Minvc") , sep=" ", extra = "merge", remove = FALSE) %>% 
+  mutate(MPORC = str_pad(Minvc, 5, pad = "0")) %>% 
+  relocate(MPORC, .after = Minvc) %>% 
+  mutate(MINVC = paste0(Mrada, MPORC)) %>% 
+  relocate(MINVC, .after = MPORC)
+  
+```
+
+"Umíme nahrát zkratku podsbírky před přírůstkovým čísle, ale nové přírůstky budou bez písmen na začátku." *(impl.dokument)*  
+
+maska:  \{S\}\{####\}\/\{YYYY\}   
+
+```{r PRIRUSTKOVE CISLO}
+
+bot_prirc <- bot_invc %>% 
+  separate(prirc, into=c("Mprir", "Mrok") , sep="/", extra = "merge", remove = FALSE) %>% 
+  mutate(Mpodsb = "Pb") %>% 
+  relocate(Mpodsb, .before = "Mprir")
+
+  
+```
+
+
+## Botanika - CSV
+
+### Fondy
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Fond
+**MUSEION**: import_fond.csv
+
+```{r FONDY}
+
+# M O D I F Y
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt',  # !! povinne !!
+    '2podsbirkaCislo'= '2podsbirkaCislo',           # !! povinne !!
+    '3fondKod' = MFOND,                             # !! povinne !!
+    '4nazev'= Fond_FN,                              # !! povinne !!
+    '5poznamka' = Pozn_FN, '6popisPubl'= MEMPTY,
+    '7poradi' = MEMPTY, '8oaiId'= MEMPTY,
+    '9oaiDatumHarvestingu'= MEMPTY, '10oaiDatumModifikace' = MEMPTY)
+
+oper_fondy <- mus_tab
+imp <- "fond"
+```
+
+### Skupiny
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Skupiny
+**MUSEION**: import_skupiny.csv
+
+```{r SKUPINY}
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
+    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
+    '3fondKod' ='3fondKod',                        # !! povinne !!
+    '4skupinaKod'= Skupina_S,                      # !! povinne !!
+    '5nazev' = '5nazev',                           # !! povinne !!
+    '6poznamka'= MEMPTY,
+    '7popisPubli' = MEMPTY, '8poradi'= MEMPTY,
+    '9oaiId'= MEMPTY, '10oaiDatumHarvestingu'= MEMPTY, 
+    '11oaiDatumModifikace' = MEMPTY)
+
+oper_skupiny <- mus_tab
+imp <- "skupiny"
+```
+
+### Adresar
+
+*IMPORTNÍ ROZHRANÍ*: CSV Adresář osob  
+
+pole:  
+    + create_uid
+    + lastwrite_uid
+    + sberatel  (vice zaznamu)  
+    + urcil  (vice zaznamu)  
+
+```{r BOT CSV ADRESAR}
+
+# M O D I F Y
+
+modify_tab <- botanika_slovnik %>% 
+  mutate(MEMPTY = "",
+         '1typSubjektuKod' = "OO",
+         subjektKod = ifelse(nchar(MKODOS)>30, str_remove_all(MKODOS, "\\set\\s|\\w\\.|,\\s|al\\.$"), MKODOS),
+         subjektKod = ifelse(nchar(subjektKod)>30, str_remove_all(subjektKod, "\\s"), subjektKod),
+         subjektKod = str_trim(subjektKod),
+         len = nchar(subjektKod),
+         '4osobaJmenoPrvni' = if_else(str_detect(MKODOS, "^\\w+\\s\\w\\.$"), str_extract(MKODOS, "\\w\\.$"), ""),
+         '6osobaPrijmeni' = if_else(str_detect(MKODOS, "^\\w+\\s\\w\\.$"), str_extract(MKODOS, "^\\w+"), MKODOS), 
+         '10osobaPohlavi' = "neznámé",  # povinne: "muž", "žena", "neznámé"
+         '18subjektStatKod' = "CZ",
+         '42subjektSbirka' = "MUZBE",
+         '43subjektPodsbirka' = "Pb")  
+modify_tab[modify_tab == ""] <- NA  
+
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
+         '2subjektKod' = subjektKod,         # !! povinne !!
+         '3subjektAlterKod' = MEMPTY, '4osobaJmenoPrvni'= '4osobaJmenoPrvni', 
+         '5osobaJmenoDruhe' = MEMPTY, 
+         '6osobaPrijmeni' = '6osobaPrijmeni',         # !! povinne !!
+         '7osobaTitulPredJmenem' = MTIT, '8osobaTitulZaJmenem' = MEMPTY, 
+         '9osobaRodnePrijmeni' = MEMPTY, 
+         '10osobaPohlavi' = '10osobaPohlavi',   # !! povinne !! "muž", "žena", "neznámé"
+         
+         '11osobaDatumNarozeni' = MEMPTY, '12osobaMistoNarozeni' = MEMPTY,
+         '13okresNarozeniNazev' = MEMPTY, '14obecNarozeniNazev' = MEMPTY,
+         '15statNarozeniKod' = MEMPTY, '16osobaDatumUmrti' = MEMPTY,
+         '17osobaMistoUmrti' = MEMPTY, 
+         
+         '18subjektStatKod' = '18subjektStatKod',
+         '19kontaktEmail' = MEMPTY, '20kontaktMobil' = MEMPTY,
+         '21kontaktMobil2' = MEMPTY, '22kontaktTelefon' = MEMPTY,
+         '23kontaktInternet' = MEMPTY, '24kontaktInternetoveVolani' = MEMPTY,
+         '25adresaText' = MEMPTY, '26kontaktniAdresaText' = MEMPTY,
+         '27fyzickaOsobaRodneCislo' = MEMPTY, '28subjektPoznamka' = MEMPTY, 
+         
+         '29AdresaTextoveOkres' = MEMPTY, '30AdresaTextoveObec' = MEMPTY,
+         '31AdresaTextoveCastObce' = MEMPTY, '32AdresaTextoveMestskaCast' = MEMPTY,
+         '33AdresaTextoveUlice' = MEMPTY, '34AdresaTextoveCisloOrientacni' = MEMPTY,
+         '35AdresaTextoveCislo' = MEMPTY, '36AdresaTextovePSC' = MEMPTY,
+         
+         '37zamestnanecCislo' = MEMPTY, '38oddeleniKod' = MEMPTY,
+         '39osobnostMedailon' = MEMPTY, '40osobnostPseudonym' = MEMPTY,
+         '41okruhSubjektuNazev' = MEMPTY, '42subjektSbirka' = '42subjektSbirka',           
+         '43subjektPodsbirka' = '43subjektPodsbirka', 
+         '44osobaStudia' = MEMPTY,
+         '45osobaSpolky' = MEMPTY, '46osobaOsobnost' = MEMPTY,
+         '47subjektDatumOd' = MEMPTY, '48subjektDatumDo' = MEMPTY,
+         '49kontaktEmail2' = MEMPTY, 
+         '50text1' = MEMPTY, '51text2' = MEMPTY, '52text3' = MEMPTY, 
+         '53role1' = MEMPTY, '54role2' = MEMPTY, 
+         '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY
+         # , rel_ZkrJm = puv
+         )
+
+oper_BOTadresar <- mus_tab %>% 
   select(rel_ZkrJm, '1typSubjektuKod', '2subjektKod', '4osobaJmenoPrvni', '6osobaPrijmeni')
 
-# S A V E   I M P O R T   C S V
+imp <- "BOTadresar"
 
-save <- paste0(path_csv, spravce, "_import_adresar.csv")
+# pokracuj k ulozeni do sekce: # ! ! !   E X P O R T Y  C S V   ! ! !
 
-if(file.exists(save)){
-  print("You've been here before!")
-} else {
-  write.table(mus_tab, file = save, 
-            sep = ";", quote = T, row.names = F, 
-            na = "", fileEncoding="cp1250")
-  print("Import csv  W R I T T E N  !")
-  }
+```
+
+### Lokality
+
+*IMPORTNÍ ROZHRANÍ*: CSV Lokalita  
+
+1$lokalitaNazev - P O V I N N E, *katastr*, kdyz katastr neni, tak *lokalita_geo*, jinak *oblast*
+2$okresNazev - nic
+3$statKod - vytvorit: vsude CZ
+4$oblastNazev - *oblast*
+5$lokalitaZeme - vytvorit z pole *oblast*
+6$lokalitaCtverec - *ctverec*
+7$lokalitaMapa -                                                 ???
+8$lokalitaZemepisnaSirka - z pole *mapa*
+9$lokalitaZemepisnaDelka - z pole *mapa*
+10$lokalitaNadmorskaVyska - z pole *nvyska*
+11$lokalitaPoznamka - *lokalita_geo*
+12$lokalitaSbirka - vytvorit
+13$lokalitaPodsbirka - vytvorit
+14$fytochorion1 - z pole *oblast*
+15$lokalitaPublicNadNazev -                                      ??? 
+16$lokalitaPublicNazev -                                         ??? 
+17$fytochorion2 - nic
+18$fytochorion3 - nic
+19$fytochorion4 - nic
+
+
+```{r BOT CSV LOKALITY}
+
+# M O D I F Y
+
+modify_tab <- bot_lok %>% 
+  mutate(MEMPTY = "",
+         '3statKod' = "CZ",
+         '12lokalitaSbirka' = "MUZBE",
+         '13lokalitaPodsbirka' = "Pb")  
+modify_tab[modify_tab == ""] <- NA  
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1lokalitaNazev' = MLOKALITA,  # !! povinne !!
+    '2okresNazev'= MEMPTY,
+    '3statKod' = '3statKod', 
+    '4oblastNazev'= oblast,
+    '5lokalitaZeme' = MZEME, 
+    '6lokalitaCtverec'= MCTVEREC,
+    '7lokalitaMapa' = MEMPTY, 
+    '8lokalitaZemepisnaSirka'= MN,
+    '9lokalitaZemepisnaDelka'= ME, 
+    '10lokalitaNadmorskaVyska'= MMNM,
+    '11lokalitaPoznamka'= lokalita_geo, 
+    '12lokalitaSbirka'= '12lokalitaSbirka',
+    '13lokalitaPodsbirka'= '13lokalitaPodsbirka', 
+    '14fytochorion1'= MFYTOCH,
+    '15lokalitaPublicNadNazev'= MEMPTY, '16lokalitaPublicNazev'= MEMPTY,
+    '17fytochorion2'= MEMPTY, '18fytochorion3'= MEMPTY,
+    '19fytochorion4'= MEMPTY)
+
+oper_lokalita <- mus_tab
+imp <- "lokalita"
 
 
 ```
 
-## Botanika
 
-Akvarely.bf
-Botanika aktuální.bf
-Quercus Holuša.bf
-mechorosty_Vrána.bf
+## Akvarely
 
-### Botanika aktualni
-
-```{r BOTANIKA AKTUALNI}
+```{r AKVARELY}
 
 # L O A D
 
 dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbeBOT_DK.accdb") 
 con <- RODBC::odbcConnectAccess2007(dbname)      
 
-# akv <- RODBC::sqlFetch(con, "lcl_akvarely")   
-bot <- RODBC::sqlFetch(con, "lcl_botanika")   
+akv <- RODBC::sqlFetch(con, "lcl_akvarely")
+# bot <- RODBC::sqlFetch(con, "lcl_botanika")   
 # bry <- RODBC::sqlFetch(con, "lcl_mechorosty")   
 # que <- RODBC::sqlFetch(con, "lcl_quercus")   
 
@@ -923,46 +1784,153 @@ bot <- RODBC::sqlFetch(con, "lcl_botanika")
 
 
 
-```
-
-```{r BOTANIKA BIOLIB}
-
-bot_druhy <- bot %>% 
-  select(druh, celed) %>% 
-  mutate(druh_clean = ifelse(str_detect(druh, "\\sx\\s"), paste(word(druh, 1), word(druh, 3)),
-                             paste(word(druh, 1), word(druh, 2))),
-         MROD = word(druh, 1)) %>% 
-  distinct()
-
-biol_rod <- sel_biol %>% 
-  mutate(MROD = word(druh, 1),
-         MROD_TREE = ifelse(str_detect(sys_tree_BIOL, "-"), gsub("\\/\\w+\\s\\w+-\\w+$","", sys_tree_BIOL),
-                       gsub("\\/\\w+\\s\\w+$","", sys_tree_BIOL)))
-
-check <- left_join(bot_druhy, biol_rod, by = c("druh_clean" = "druh"))
-
-check2 <- check %>% 
-  filter(is.na(sys_tree_BIOL)) %>% 
-  inner_join(biol_rod, by = c("MROD.x" = "MROD")) # oprav
-
-na <- check %>% 
-  filter(is.na(sys_tree_BIOL)) %>% 
-  mutate(MROD = word(druh, 1)) %>% 
-  select(MROD) %>% 
-  distinct()
-
-BLrod <- sel_biol%>% 
-  mutate(MROD = word(druh, 1)) %>% 
-  filter(!is.na(MROD)) %>%  
-  mutate(MTREE = word(sys_tree_BIOL , 1  , -2)) %>% 
-  select(MROD, MTREE) %>% 
-  distinct()
-
-check <- inner_join(na, BLrod, by = c("MROD" = "MROD"))
-
-rodtree <- sel_biol %>% 
-  mutate(MROD = ifelse(str_detect(sys_tree_BIOL, "-"), gsub("\\/\\w+\\s\\w+-\\w+$","", sys_tree_BIOL),
-                       gsub("\\/\\w+\\s\\w+$","", sys_tree_BIOL)))
 
 ```
 
+
+### AKV: Inventarni a prirustkove cislo
+
+invc = inventarni cislo  
+sinvc = stare inv. cislo  
+jcis = jine cislo   
+prirc = prisrustkove cislo   
+
+maska:  \{S\}\{#####\}\/\{A}  
+
+```{r INVENTARNI CISLO}
+
+# invc = puvodni -> rozdelit na radu a cislo (Mrada a Minvc)
+# MPORC = pridani vedoucich nul k Minvc
+# MINVC = finalni cislo <- kombinace Mrada a MPORCS dle masky inv.cisla
+
+akv_invc <- akv %>% 
+  separate(invc, into=c("Mrada", "Minvc") , sep=" ", extra = "merge", remove = FALSE) %>% 
+  mutate(MPORC = str_pad(Minvc, 7, pad = "0")) %>% # 7 proto, ze pracujeme i s podlomenim, tzn 5 mist + 2 znaky = '/A'
+  relocate(MPORC, .after = Minvc) %>% 
+  mutate(MINVC = paste0(Mrada, MPORC)) %>% 
+  relocate(MINVC, .after = MPORC)
+  
+```
+
+"Umíme nahrát zkratku podsbírky před přírůstkovým čísle, ale nové přírůstky budou bez písmen na začátku." *(impl.dokument)*  
+
+maska:  \{S\}\{####\}\/\{YYYY\}   
+
+```{r PRIRUSTKOVE CISLO}
+
+bot_prirc <- bot_invc %>% 
+  separate(prirc, into=c("Mprir", "Mrok") , sep="/", extra = "merge", remove = FALSE) %>% 
+  mutate(Mpodsb = "Pb") %>% 
+  relocate(Mpodsb, .before = "Mprir")
+
+  
+```
+
+
+
+### Quercus
+
+```{r QUERCUS}
+
+# L O A D
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbeBOT_DK.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+
+# akv <- RODBC::sqlFetch(con, "lcl_akvarely")
+# bot <- RODBC::sqlFetch(con, "lcl_botanika")   
+# bry <- RODBC::sqlFetch(con, "lcl_mechorosty")   
+que <- RODBC::sqlFetch(con, "lcl_quercus")
+
+# B R O W S E 
+
+
+
+
+```
+
+
+### QUE: Inventarni a prirustkove cislo
+
+invc = inventarni cislo  
+sinvc = stare inv. cislo  
+jcis = jine cislo   
+prirc = prisrustkove cislo   
+
+maska:  \{S\}\{#####\}\/\{Q}  
+
+```{r INVENTARNI CISLO}
+
+# invc = puvodni -> rozdelit na radu a cislo (Mrada a Minvc)
+# MPORC = pridani vedoucich nul k Minvc
+# MINVC = finalni cislo <- kombinace Mrada a MPORCS dle masky inv.cisla
+
+que_invc <- que %>% 
+  separate(invc, into=c("Mrada", "Minvc") , sep=" ", extra = "merge", remove = FALSE) %>% 
+  mutate(MPORC = str_pad(Minvc, 7, pad = "0")) %>% # 7 proto, ze pracujeme i s podlomenim, tzn 5 mist + 2 znaky = '/Q'
+  relocate(MPORC, .after = Minvc) %>% 
+  mutate(MINVC = paste0(Mrada, MPORC)) %>% 
+  relocate(MINVC, .after = MPORC)
+  
+```
+
+"Umíme nahrát zkratku podsbírky před přírůstkovým čísle, ale nové přírůstky budou bez písmen na začátku." *(impl.dokument)*  
+
+maska:  \{S\}\{####\}\/\{YYYY\}   
+
+```{r PRIRUSTKOVE CISLO}
+
+bot_prirc <- bot_invc %>% 
+  separate(prirc, into=c("Mprir", "Mrok") , sep="/", extra = "merge", remove = FALSE) %>% 
+  mutate(Mpodsb = "Pb") %>% 
+  relocate(Mpodsb, .before = "Mprir")
+
+  
+```
+
+# ! ! !   E X P O R T Y  C S V   ! ! !
+
+
+```{r EXPORT CSV}
+
+# finalni csv
+
+save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+# upravena tabulka
+
+modif_save <- paste0(path_csv, projekt, "_modif_", imp, ".csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",",              # desetinny oddelovac musi byt carka
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+```
+
+
+# KONFLIKTY PRI MIGRACI DAT
+
+## Botanika
+
+* B 15781 - celed - "Orobanchaceae (zárazovité)Orobanchaceae (zárazovité)"  
+
+* B 20207 - mapa - "6375b" - KK: cislo ctverce ?
+  
+* sort(unique(bot$nabyti))  
+[1] "dar"   "nákup" "Nákup" "nkup"  "sběr"  "svěr" 

@@ -139,85 +139,199 @@ write.table(join6, paste0(path, "bioslov/BioLib_KKsummary_", slovnik, ".csv"), s
 
 ```
 
-# p i s k o v i s t e
+# Mechorosty
 
-```{r sandbox, eval = F}
+## BioLib
 
-# merge taxon tables one by one
+```{r PATH}
 
-# ani1 <- merge(kmen, trida, by.x = "kmen_Nomen", by.y = "trida_NadNomen", all.y = T) # 98
-# ani2 <- merge(ani1, rad, by.x = "trida_Nomen", by.y = "rad_NadNomen", all.y = T) # 581
-# ani3 <- merge(ani2, celed, by.x = "rad_Nomen", by.y = "celed_NadNomen", all.y = T) # 6 515
-# ani4 <- merge(ani3, rod, by.x = "celed_Nomen", by.y = "rod_NadNomen", all.y = T) # 19 643
-# ani5 <- merge(ani4, druh, by.x = "rod_Nomen", by.y = "druh_NadNomen", all.y = T) # 103 970
-# ani6 <- merge(ani5, poddruh, by.x = "druh_Nomen", by.y = "poddruh_NadNomen", all = T) # 124 505
+projekt <- "MUZBE"
 
-# inner_join - wrong path
+path <-  "C:/Users/krizova/Documents/R/"
 
-# ani1 <- inner_join(kmen, trida, by = c("kmen_Nomen" = "trida_NadNomen")) # 98
-# ani2 <- inner_join(ani1, rad, by = c("trida_Nomen" = "rad_NadNomen")) # 557
-# ani3 <- inner_join(ani2, celed, by = c("rad_Nomen" = "celed_NadNomen")) # 6 153
-# ani4 <- inner_join(ani3, rod, by = c("celed_Nomen" = "rod_NadNomen")) # 18 324
-# ani5 <- inner_join(ani4, druh,by = c("rod_Nomen" = "druh_NadNomen")) # 92 791
-# ani6 <- inner_join(ani5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen")) # 25 972 
+path_data <-  paste0(path, "data/")
+path_csv <-  paste0(path, "mus_csv/", projekt, "/")
 
-# right_join - this setup gives exactely the same result as 'merge', BUT WITH ORDERED COLUMNS
+path_muzbe <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/" # databaze
 
-# ani11 <- right_join(kmen, trida, by = c("kmen_Nomen" = "trida_NadNomen"), keep = T) # 98
-# ani22 <- right_join(ani1, rad, by = c("trida_Nomen" = "rad_NadNomen"), keep = T) # 557
-# ani33 <- right_join(ani2, celed, by = c("rad_Nomen" = "celed_NadNomen"), keep = T) # 6 153
-# ani44 <- right_join(ani3, rod, by = c("celed_Nomen" = "rod_NadNomen"), keep = T) # 18 324
-# ani55 <- right_join(ani4, druh,by = c("rod_Nomen" = "druh_NadNomen"), keep = T) # 92 791
-# ani66 <- left_join(ani5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"), keep = T) # 25 972 
+```
 
+com = ceske ekvivalenty  
+tax = strom latinsky  
+ton = com (?)  
 
-check_kt <- join6 %>% 
-  select(kmen_Nomen, trida_NadNomen, trida_Nomen) %>% 
-  distinct()
+```{r O ZICHA BIOLIB DATA}
 
-check_tr <- join6 %>% 
-  select(trida_Nomen, rad_NadNomen, rad_Nomen) %>% 
-  distinct() %>% 
-  filter(is.na(trida_Nomen))
+com <- read.table(paste0(path_data, projekt, "/ComName.csv"), 
+                   sep = ";", header = T, fileEncoding="cp1250")
+tax <- read.table(paste0(path_data, projekt, "/TaxName.csv"), 
+                   sep = ";", header = T, fileEncoding="cp1250")
+ton <- read.table(paste0(path_data, projekt, "/Taxon.csv"), 
+                   sep = ";", header = T, fileEncoding="cp1250")
 
-check_rc <- join6 %>% 
-  select(rad_Nomen, celed_NadNomen, celed_Nomen) %>% 
-  distinct() %>% 
-  filter(is.na(rad_Nomen))
+# prideleni kategorii jednotlivym nazvum
 
-write.table(check_rc, paste0(path_csv, "check_tabs2print_rc.csv"), sep = ";", row.names = F)
+tax_modif <- tax %>% 
+  mutate(tn_name = str_trim(tn_name),
+         MLEVEL = case_when(str_detect(tn_name, "\\ssubsp\\.|\\svar\\.|\\sf\\.|\\sß") ~ "poddruh",  
+                            str_detect(tn_name, "^\\w+\\s\\w+$")|str_detect(tn_name, "-|\\?") ~ "druh", 
+                            str_detect(tn_name, "\\ssubgen\\.|\\ssect\\.") ~ "rod",  
+                            str_detect(tn_name, "^\\w+ae$") ~ "celed",  
+                            str_detect(tn_name, "^\\w+ales$") ~ "rad",  
+                            str_detect(tn_name, "^\\w+psida$") ~ "trida",  
+                            str_detect(tn_name, "^\\w+phyta$") ~ "oddeleni", 
+                            # str_detect(tn_name, "\\?") ~ "nejasne",  
+                            TRUE ~ "jine"),
+         MLEVEL = ifelse(MLEVEL == "jine" & !str_detect(tn_name, "\\s"), "rod", MLEVEL),
+         MLEVEL = case_when(str_detect(tn_name, "Marchantiomorpha|Hepaticae|Musci") ~ "oddeleni", # specialni pripady -> rucni prepsani
+                            TRUE ~ MLEVEL)) 
 
+# prevedeni do wide formatu + tvorba poli potrebnych pro finalni slovnik
 
-check_tab <- join6 %>% 
-  select(kmen_Nomen, trida_NadNomen, trida_Nomen, 
-         rad_NadNomen, rad_Nomen, 
-         celed_NadNomen, celed_Nomen, 
-         rod_NadNomen, rod_Nomen, 
-         druh_NadNomen, druh_Nomen, 
-         poddruh_NadNomen, poddruh_Nomen, 
-         )
+tax_wide <- spread(tax_modif, key = MLEVEL, value = tn_name) %>% # Applying spread function
+  select(tn_id, tn_tx_id, tn_authority, tn_type, oddeleni, trida, rad, celed, rod, druh, poddruh) %>% 
+  
+  mutate(oddeleni_ID = ifelse(!is.na(oddeleni), tn_tx_id, NA),            # ID
+         trida_ID = ifelse(!is.na(trida), tn_tx_id, NA), 
+         rad_ID = ifelse(!is.na(rad), tn_tx_id, NA), 
+         celed_ID = ifelse(!is.na(celed), tn_tx_id, NA), 
+         rod_ID = ifelse(!is.na(rod), tn_tx_id, NA), 
+         druh_ID = ifelse(!is.na(druh), tn_tx_id, NA), 
+         poddruh_ID = ifelse(!is.na(poddruh), tn_tx_id, NA)) %>% 
+  relocate(oddeleni_ID, .before = oddeleni) %>% 
+  relocate(trida_ID, .before = trida) %>% 
+  relocate(rad_ID, .before = rad) %>% 
+  relocate(celed_ID, .before = celed) %>% 
+  relocate(rod_ID, .before = rod) %>% 
+  relocate(druh_ID, .before = druh) %>% 
+  relocate(poddruh_ID, .before = poddruh) %>% 
+  
+  mutate(oddeleni_Autor = ifelse(!is.na(oddeleni), tn_authority, NA),     # AUTOR
+         trida_Autor = ifelse(!is.na(trida), tn_authority, NA), 
+         rad_Autor = ifelse(!is.na(rad), tn_authority, NA), 
+         celed_Autor = ifelse(!is.na(celed), tn_authority, NA), 
+         rod_Autor = ifelse(!is.na(rod), tn_authority, NA), 
+         druh_Autor = ifelse(!is.na(druh), tn_authority, NA), 
+         poddruh_Autor = ifelse(!is.na(poddruh), tn_authority, NA)) %>% 
+  relocate(oddeleni_Autor, .before = oddeleni) %>% 
+  relocate(trida_Autor, .before = trida) %>% 
+  relocate(rad_Autor, .before = rad) %>% 
+  relocate(celed_Autor, .before = celed) %>% 
+  relocate(rod_Autor, .before = rod) %>% 
+  relocate(druh_Autor, .before = druh) %>% 
+  relocate(poddruh_Autor, .before = poddruh) 
 
-check_tab2 <- check_tab %>% 
-  select(-poddruh_Nomen, -poddruh_NadNomen, -druh_Nomen) %>% 
-  filter(is.na(kmen_Nomen)) %>% 
-  distinct()
+# doplneni NA poli 
 
-# write.table(check_tab2, paste0(path_csv, "check_kmeny.csv"), sep = ";")
+tax_strom <- tax_wide %>%
+  mutate(BU_DRUH = druh,
+         BU_PODDRUH = poddruh) %>% # backup column for druh and poddruh
+  filter(tn_type == 0) %>%  # work only with preffered names, filter out synonyms (1)
+  
+  fill(oddeleni, .direction = "down") %>%  # group and fill the taxonomy
+  fill(oddeleni_ID, .direction = "down") %>%  # group and fill BioLib ID
+  fill(oddeleni_Autor, .direction = "down") %>%  # group and fill BioLib Autor
+  fill(trida, .direction = "down") %>%  
+  fill(trida_ID, .direction = "down") %>% 
+  fill(trida_Autor, .direction = "down") %>% 
+  
+  group_by(oddeleni, trida) %>% 
+  fill(rad, .direction = "down") %>% 
+  fill(rad_ID, .direction = "down") %>% 
+  fill(rad_Autor, .direction = "down") %>% 
+  
+  group_by(oddeleni, trida, rad) %>%
+  fill(celed, .direction = "down") %>% 
+  fill(celed_ID, .direction = "down") %>% 
+  fill(celed_Autor, .direction = "down") %>% 
+  
+  group_by(oddeleni, trida, rad, celed) %>%
+  fill(rod, .direction = "down") %>%  # zbytecne ?
+  fill(rod_ID, .direction = "down") %>%  
+  fill(rod_Autor, .direction = "down") %>%  
+  # group_by(oddeleni, trida, rad, celed, rod) %>%
+  # fill(druh, .direction = "down") %>% 
+  # group_by(oddeleni, trida, rad, celed, rod, druh) %>%
+  # fill(poddruh, .direction = "down") %>% 
+  ungroup() 
 
-check_kmen <- check_tab %>% 
-  select(kmen_Nomen, trida_NadNomen) %>% 
-  distinct() %>% 
-  filter(is.na(trida_NadNomen))
+# check <- tax_strom %>% 
+#   select(rod, druh) %>% 
+#   mutate(druh1 = word(druh, 1)) %>% 
+#   filter(rod != druh1)
+  
+  
+# doplneni rodu a druhu, kde chybi + prejmenovat na _Nomen
 
-check_trida <- check_tab %>% 
-  select(trida_Nomen, rad_NadNomen) %>% 
-  distinct() 
-  filter(is.na(rad_NadNomen))
+tax_rodr <- tax_strom %>% 
+  
+  mutate(CHYBIDRUH = ifelse(is.na(druh), 1, 0),
+         druh = ifelse(is.na(druh), paste(word(poddruh, 1), word(poddruh, 2)), druh), # take rod from the druh name (= more precise)
+         druh = gsub("NA NA", NA, druh)) %>%
+  
+  mutate(CHYBIROD = ifelse(is.na(rod), 1, 0),
+         rod = ifelse(is.na(rod), word(druh, 1), rod)) %>% # take rod from the druh name (= more precise))
+  unite(sys_tree, c("oddeleni", "trida", "rad", "celed", "rod", "druh"), # "poddruh"
+        sep = "/", na.rm = T, remove = FALSE) %>%   # create systematic tree
+  relocate(sys_tree, .after = tn_type) %>% 
+  select(-BU_DRUH,-BU_PODDRUH) %>% 
+  rename(oddeleni_Nomen = oddeleni, trida_Nomen = trida, rad_Nomen = rad, celed_Nomen = celed, 
+         rod_Nomen = rod, druh_Nomen = druh, poddruh_Nomen = poddruh)
 
-check_chordata <- join6 %>% 
-  filter(rad_NadNomen %in% c("Chordata"))
+length(unique(tax_rodr$rod_Nomen)) # 593
+colnames(tax_rodr)
 
+# nekde nesedi rod a rodove jmeno !!
 
+tax_rod <- tax_rodr %>% 
+  mutate(druh1 = word(druh_Nomen , 1),
+         rod_ID = ifelse(rod_Nomen == druh1|is.na(druh_Nomen), rod_ID, NA)) %>% 
+  mutate(rod_Nomen = ifelse(is.na(rod_ID), NA, case_when(rod_Nomen == druh1 ~ rod_Nomen,
+                                                         TRUE ~ druh1))) %>% 
+  mutate(rod_Nomen = case_when(rod_Nomen == druh1 ~ rod_Nomen,
+                               is.na(rod_Nomen)&!is.na(druh1) ~ druh1,
+                               TRUE ~ druh1))
+
+# doplnit ceske nazvy z tabulky 'com', parovat pres 'com$tn_tx_id'
+
+czm <- com %>% 
+  filter(tvn_type == 0) # bez synonym
+
+tax_mech <- tax_rod
+
+tax_mech <- left_join(tax_mech, czm %>% select(tvn_name, tvn_tx_id), by = c("oddeleni_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = oddeleni_Nomen) %>% 
+  rename(oddeleni_Nazev = tvn_name)
+
+tax_mech <- left_join(tax_mech, czm %>% select(tvn_name, tvn_tx_id), by = c("trida_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = trida_Nomen) %>% 
+  rename(trida_Nazev = tvn_name)
+
+tax_mech <- left_join(tax_mech, czm %>% select(tvn_name, tvn_tx_id), by = c("rad_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = rad_Nomen) %>% 
+  rename(rad_Nazev = tvn_name)
+
+tax_mech <- left_join(tax_mech, czm %>% select(tvn_name, tvn_tx_id), by = c("celed_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = celed_Nomen) %>% 
+  rename(celed_Nazev = tvn_name)
+
+tax_mech <- left_join(tax_mech, czm %>% select(tvn_name, tvn_tx_id), by = c("rod_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = rod_Nomen) %>% 
+  rename(rod_Nazev = tvn_name)
+
+tax_mech <- left_join(tax_mech, czm %>% select(tvn_name, tvn_tx_id), by = c("druh_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = druh_Nomen) %>% 
+  rename(druh_Nazev = tvn_name)
+
+tax_mech <- left_join(tax_mech, czm %>% select(tvn_name, tvn_tx_id), by = c("poddruh_ID" = "tvn_tx_id")) %>% 
+  relocate(tvn_name, .after = poddruh_Nomen) %>% 
+  rename(poddruh_Nazev = tvn_name)
+
+# doplneni ceskych nazvu rod <- druh <- poddruh
+
+tax_cz <- tax_mech %>% 
+  mutate(druh_Nazev = ifelse(is.na(druh_Nazev), paste(word(poddruh_Nazev, 1), word(poddruh_Nazev, 2)), druh_Nazev),
+         rod_Nazev = ifelse(is.na(rod_Nazev), word(druh_Nazev, 1), rod_Nazev))
 
 ```
 

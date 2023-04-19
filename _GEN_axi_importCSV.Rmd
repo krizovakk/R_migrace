@@ -51,7 +51,7 @@ Chraneno proti prepsani. Pokud bude zadouci vystupy prepsat, je treba nejprve sm
 
 # finalni csv
 
-save <- paste0(path_csv, projekt, "_import_fond.csv")
+save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
 
 if(file.exists(save)){
   print("You've been here before!")
@@ -65,7 +65,7 @@ if(file.exists(save)){
 
 # upravena tabulka
 
-modif_save <- paste0(path_csv, projekt, "_modif_fond.csv")
+modif_save <- paste0(path_csv, projekt, "_modif_", imp, ".csv")
 
 if(file.exists(modif_save)){
   print("You've been here before!")
@@ -90,6 +90,10 @@ if(file.exists(modif_save)){
 
 ```{r FONDY}
 
+# M O D I F Y
+
+# C R E A T E    C S V
+
 mus_tab <- modify_tab %>% 
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt',  # !! povinne !!
@@ -111,12 +115,16 @@ imp <- "fond"
 
 ```{r SKUPINY}
 
+# M O D I F Y
+
+# C R E A T E    C S V
+
 mus_tab <- modify_tab %>% 
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
     '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
     '3fondKod' ='3fondKod',                        # !! povinne !!
-    '4skupinaKod'= Skupina_S,                      # !! povinne !!
+    '4skupinaKod'= Skupina_S,                      # !! povinne !! max 20 znaku, zkracovat
     '5nazev' = '5nazev',                           # !! povinne !!
     '6poznamka'= MEMPTY,
     '7popisPubli' = MEMPTY, '8poradi'= MEMPTY,
@@ -125,6 +133,34 @@ mus_tab <- modify_tab %>%
 
 oper_skupiny <- mus_tab
 imp <- "skupiny"
+```
+
+## Podskupiny
+
+**IMPORTNÍ ROZHRANNÍ**: CSV podskupiny1
+**MUSEION**: import_podskupiny.csv
+
+```{r PODSKUPINY}
+
+# M O D I F Y
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
+    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
+    '3fondKod' ='3fondKod',                        # !! povinne !!
+    '4skupinaKod'= Skupina_S,                      # !! povinne !!
+    '5podskupina1Kod' = '5podskupina1Kod',         # !! povinne !! max 20 znaku, zkracovat
+    '6nazev'= MEMPTY,
+    '7poznamka'= MEMPTY,
+    '8popisPubli' = MEMPTY, '9poradi'= MEMPTY,
+    '10oaiId'= MEMPTY, '11oaiDatumHarvestingu'= MEMPTY, 
+    '12oaiDatumModifikace' = MEMPTY)
+
+oper_podskupiny <- mus_tab
+imp <- "podskupiny"
 ```
 
 \newpage   
@@ -295,7 +331,33 @@ imp <- "oznaceni"
 ## CSV Rozměr  
 ## CSV Specifikace Technik  
 ## CSV Specifikací Materiálů  
-## CSV Taxonu  
+
+## Taxon  
+
+*IMPORTNÍ ROZHRANÍ*: CSV Taxonu  
+*MUSEION*: import_taxon.csv  
+
+```{r OZNACENI}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', 
+    '2podsbirkaCislo'= '2podsbirkaCislo',          
+    '3kodOboru' = MEMPTY, 
+    '4nazevKategorie'= Nazev_NZ,          # !! povinne !!
+    '5nomen'= Nazev_NZ,                   # !! povinne !!
+    '6nazev'= Nazev_NZ,                   
+    '7autor'= Nazev_NZ,                  
+    '8nadrizenyTaxon'= Nazev_NZ,                   
+    '9preferovanyTaxon'= Nazev_NZ,                   
+    '10Poznamka'= Nazev_NZ,                   
+    '11nazevKategorieNadrizenehoTaxonu' = Pozn_NZ)
+
+oper_taxon <- mus_tab
+imp <- "taxon"
+```
+
+SELECT "" As 1sbirkaCisloEvidInt, "" As 2podsbirkaCislo, "" As 3kodOboru, "" As 4nazevKategorie, "" As 5nomen, "" As 6nazev, "" As 7autor, "" As 8nadrizenyTaxon, "" As 9preferovanyTaxon, "" As 10Poznamka, "" As 11nazevKategorieNadrizenehoTaxo FROM TABULKA;
 
 ## Technika  
 
@@ -663,7 +725,7 @@ Prirodovedna karta.
 
 mus_tab <- modif_tab %>% 
   select(
-    '1typPredmetuKod' = '1typPredmetuKod',        # !! povinne !!
+    '1typPredmetuKod' = '1typPredmetuKod',        # !! povinne !! (BI, BO, ZO, EN, GE nebo PL)
     '2sbirkaCisloEvidInt'= '2sbirkaCisloEvidInt', # !! povinne !! ze slovniku
     '3podsbirkaCislo' = '3podsbirkaCislo',        # !! povinne !! ze slovniku
     '4ciselnaRadaKod'= Rada_S,                    # !! povinne !! ze slovniku
@@ -684,11 +746,11 @@ mus_tab <- modif_tab %>%
     '23urcilOsobaKod' = MEMPTY,'24dataceUrceniHodnota' = JineC_S,
     '25odborneUrceniPoznamka' = Karta_S, '26odborneUrceniPopis' = Opsana_S, 
     
-    '27lokalita' = Archiv_S,                            # LOKALITA
+    '27lokalita' = Archiv_S,                                    # GEOGRAFIE
     '28sirkaNS' = Zapsal_S, '29sirkaStupne' = DatZap_S, 
-    '30sirkaMinuty' = MEMPTY, '31sirkaVteriny' = DatZm_S, # UPRAVA ZAZNAMU 
-    '32delkaEW' = StLokace_S, '33delkaStupne' = AktLokace_S, # LOKACE
-    '34delkaMinuty' = Titul_S, '35delkaVteriny' = Predmet_S, # PREDMET
+    '30sirkaMinuty' = MEMPTY, '31sirkaVteriny' = DatZm_S, 
+    '32delkaEW' = StLokace_S, '33delkaStupne' = AktLokace_S, 
+    '34delkaMinuty' = Titul_S, '35delkaVteriny' = Predmet_S, 
     '36vyska' = Popis_S, '37specifikaceLokality' = MEMPTY, 
     '38mapa' = MEMPTY, '39ctverec' = MEMPTY,
     
@@ -805,7 +867,9 @@ imp <- "br"
 *Postup:*    
 Udelat vypis souboru v cmd     
 Seznam cest k souborum    
-Naparovat s MINVC   
+Naparovat s MINVC 
+
+V MUSEIONU: Další agendy -> Multimédia/přílohy -> Import souborových příloh
 
 ```{r OBRAZKY}
 

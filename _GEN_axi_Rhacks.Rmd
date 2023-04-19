@@ -18,9 +18,9 @@ output:
 
 # *GENERAL*
 
-## S T R I N G S
+## N U M E R I C S
 
-### Leading zeros
+### Leading zeros -add
 
 ```{r LEADING ZEROS}
 
@@ -39,6 +39,32 @@ PorC_S = name of a source column (contains value '6' which we want add lead.zero
 6 = we want a final value to have exactly 6 places  
 pad = "0" = empty places fill with "0"  
 
+### Leading zeros -remove
+
+```{r}
+
+mutate(Mcislo = sub("^0+", "", Mcislo))
+```
+
+
+## T E X T 
+
+### String length
+
+```{r}
+
+mutate(Mpskp_len = nchar(pskup)) 
+
+```
+
+### String detect case INsensitive
+
+```{r}
+
+str_detect(MFN, regex("^FM\\s\\d+\\.jpg$", ignore_case = T))
+
+```
+
 ### Split string
 
 ```{r SPLIT STRING}
@@ -53,6 +79,20 @@ separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ")
 
 separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge") # at first whitespace
 
+separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge", remove = F) # ponecha puvodni sloupec
+
+```
+
+### Keep text before specific sign
+
+```{r}
+  mutate(blMCELED = sub("\\/.*", "", fiMTREE)) # ponechej text do prvni /
+```
+
+### Extract specific word in a row
+
+```{r}
+mutate(boMROD = word(druh, 1)) # vezmi 1. slovo ze sloupce druh
 ```
 
 ### Remove parentheses
@@ -62,7 +102,6 @@ separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge") # at first wh
 mutate(celed_LAT = gsub("[()]", "", celed_LAT))
        
 ```
-
 
 ### Remove whitespace
 
@@ -138,16 +177,18 @@ mutate(kmen = coalesce(kmen_Nomen, trida_NadNomen))
 
 coalesce = [function](https://www.rdocumentation.org/packages/dplyr/versions/1.0.10/topics/coalesce)
 
-### Rename and rearrange columns
+### Relocate columns
 
-
-\newpage
-
-## R E G E X S
+```{r}
+relocate(MINVC, .before = JineC_S) 
+relocate(MINVCDO, .after = MINVC)
+```
 
 \newpage
 
 ## D A T A B A S E S
+
+### Connect db and read table
 
 ```{r}
 # package 
@@ -163,14 +204,37 @@ kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen") # read specified ta
 
 ```
 
-
 *.mdb = old MS ACCESS  
 *.accdb = new MS ACCESS 
 
 
+### List files from one or more folders
+
+```{r}
+
+# one
+vypis <- as.data.frame(list.files("D:/MUZBE/Negativy/Image", full.names = T)) 
+
+# more
+vypis <- as.data.frame(list.files(c("D:/MUZBE/Obecné sbírky-4složky obrázků/Image_01",
+                                    "D:/MUZBE/Obecné sbírky-4složky obrázků/Image_02",
+                                    "D:/MUZBE/Obecné sbírky-4složky obrázků/Image_03",
+                                    "D:/MUZBE/Obecné sbírky-4složky obrázků/Image_04"), 
+                                  pattern = "jpg$|JPG$", full.names = T)) 
+
+colnames(vypis)[1] <- "path"
+
+```
+
+
 ## J O I N S
 
-merge, innerjoin, leftjoin, fulljoin atp
+*inner_join* only keeps observations from x that have a matching key in y
+*left_join()* keeps all observations in x.
+*right_join()* keeps all observations in y.
+*full_join()* keeps all observations in x and y.
+
+[description and parameters](https://dplyr.tidyverse.org/reference/mutate-joins.html)
 
 \newpage
 
@@ -228,6 +292,30 @@ dopr_tab <- sbirky %>%
   
 
 ```
+
+## TVORBA INVENTARNIHO CISLA
+
+```{r MINVC}
+
+sbirky <- read_excel(paste0(path_data, "/Sbirky.xlsx")) %>% 
+  
+  select(-MSUBOD, -MSUBDO, -MINVC, -MINVCDO) %>%    # get rid of .accdb columns
+  
+  mutate(MPORC = str_pad(PorC_S, 6, pad = "0"),
+         MPORCDO = str_pad(HPorC_S, 6, pad = "0"),
+         MSUB = ifelse(Lomeni_S == "_", NA, Lomeni_S),
+         MSUBDO = HLomeni_S, 
+         MINVC = case_when(is.na(MSUB) ~ paste0(Rada_S, "-", MPORC),
+                             TRUE ~ paste0(Rada_S, "-", MPORC, "/", MSUB)),
+         MINVCDO = case_when(is.na(MSUBDO) ~ "",
+                             TRUE ~ paste0(Rada_S, "-", MPORCDO, "/", MSUBDO))) %>% 
+  # select(-MPORC, -MPORCDO) %>%
+  relocate(MINVC, .before = JineC_S) %>% 
+  relocate(MINVCDO, .after = MINVC) 
+
+```
+
+
 
 \newpage
 
