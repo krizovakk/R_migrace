@@ -27,7 +27,7 @@ require(tidyverse)
 
 ### import
 
-PACKAGES: "XML", "xml2"  
+PACKAGES: "XML", "xml2", "methods", "tibble"
 ARTICLES: https://appsilon.com/r-xml/  ;  https://www.w3schools.com/xml/schema_howto.asp
 
 ```{r XML IMPORT}
@@ -45,17 +45,17 @@ install.packages("tibble")
 require(tibble)
 
 # funkcni prikazy
-xml <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/grafika.xml", as_html = F) 
-xsd <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/grafika_xsd.xsd")
+xml <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml", as_html = F) 
+xsd <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/priloha_c_1_CAIR_CEMUZ_e4g.xsd")
 
-xml2::xml_validate(xml, xsd) # TRUE - what does this mean?
+xml2::xml_validate(xml1, xsd) # TRUE - what does this mean?
 structure <- xml2::xml_structure(xml) # ?
-namesp <- xml2::xml_set_namespace(xml, uri = "http://www.w3.org/XML/1998/namespace") # 
+namesp <- xml2::xml_set_namespace(xml, uri = "http://www.w3.org/2001/XMLSchema-instance") # 
 
 
 xml <- xml2::xmlParse(xml)
 
-dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/cvdata.xml") # ok
+dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml") # ok
 dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/grafikaupr.xml") # jiny format, nenacita spravne
 dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/PRM_BioLib_090_Fungi_Trida.xml") # ok
 print(dataframe)
@@ -87,5 +87,138 @@ xmltib <- tibble(department = dept, salary = salary)
 
 
 df_employees <- XML::xmlToDataFrame(nodes = XML::getNodeSet(xml, "//employee"))
+
+#----------------------------- B R N O -------------------------------------------
+
+xml <- XML::xmlParse("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml") 
+print(xml)
+
+# rootnode <- XML::xmlRoot(xml)
+# nodes <- XML::xmlSize(rootnode)
+# second_node <- rootnode[2]
+# attri <- rootnode[[4]][[3]]
+# 
+# dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml") # nefunguje
+
+# now
+# https://urbandatapalette.com/post/2021-03-xml-dataframe-r/
+
+install.packages("xml2")
+require(xml2)
+restaurant_license_xml <- as_list(read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml"))
+
+xml_df <- tibble::as_tibble(restaurant_license_xml) %>%
+  unnest_longer(import)
+
+lp_wider <- xml_df %>%
+  dplyr::filter(import_id == "Podskup") %>%
+  unnest_wider(import, names_sep = "_" )
+
+lp_df = lp_wider %>%
+  # 1st time unnest to release the 2-dimension list?
+  unnest(cols = names(.)) %>%
+  # 2nd time to nest the single list in each cell?
+  unnest(cols = names(.)) %>%
+  # convert data type
+  readr::type_convert() 
+
+myFun <- function(data) {
+  temp1 <- sapply(data, is.list)
+  temp2 <- do.call(
+    cbind, lapply(data[temp1], function(x) 
+      data.frame(do.call(rbind, x), check.names=FALSE)))
+  cbind(data[!temp1], temp2)
+}
+
+
+xml_unlist <- myFun(xml_df)
+xml_unlist2 <- tidyr::unnest_longer(xml_unlist, value)
+
+un <- unlist(xml_df)
+print(un)
+
+
+# flat xml
+
+# install.packages("flatXML")
+# install.packages("devtools")
+# require(devtools)
+# install_github("https://github.com/jsugarelli/flatxml/")
+# require(flatxml)
+install.packages("xmlconvert", dependencies = TRUE)
+require(xmlconvert)
+
+fx <- fxml_importXMLFlat()
+fxdf <- xml_to_df("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml")
+
+```
+
+## D E M Z
+
+```{r PACKAGES}
+
+require(xml2)
+
+```
+
+
+```{r PISKOVISTE}
+
+xml1 <- as_list(read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml"))
+xml2 <- as_list(read_xml("P:/w4dz/migrace/boj/26272175.xml"))
+xml3 <- as_list(read_xml("P:/w4dz/migrace/boj/26280130.xml"))
+xml4 <- as_list(read_xml("P:/w4dz/migrace/boj/26282696.xml"))
+xml5 <- as_list(read_xml("P:/w4dz/migrace/boj/26332340.xml"))
+
+path_xml <- "P:/w4dz/migrace/"
+fold <- "boj"
+# fold <- "zmt"
+Lx <- c("10918171.xml", "26272175.xml", "26280130.xml", "26282696.xml", "26332340.xml")
+
+infoex <- data.frame()
+
+for (i in Lx) {
+  a <- as_list(read_xml(paste0(path_xml, fold, "/", i)))
+  b <- tibble::as_tibble(a) %>%
+  unnest_longer(import)
+  c <- b %>%
+  dplyr::filter(import_id == "PrirCisl") %>%
+  unnest_wider(import, names_sep = "_")
+  s <- c[1]
+  infoex <- rbind(infoex, s)
+}
+
+```
+
+
+*!!! NIZE JEN OVERENE A FUNKCNI PRIKAZY !!!*    
+
+```{r LOAD AND EDIT XML}
+
+# L I S T   O F   F I L E S ^
+
+Lxml_boj <- list.files("P:/w4dz/migrace/boj/", pattern = "xml") # 182
+Lxml_zmt <- list.files("P:/w4dz/migrace/zmt/", pattern = "xml") # 59795
+
+Lxml <- c(Lxml_boj, Lxml_zmt) # 59977
+
+
+# L O O P   F O R   E X T R A C T I N G   S P E C.   I N F O
+
+infoex <- data.frame() # info export dataframe
+
+for (i in Lxml_boj) {
+  a <- as_list(read_xml(paste0(path_xml, fold, "/", i))) # read xml
+  b <- tibble::as_tibble(a) %>%  
+  unnest_longer(import)
+  c <- b %>%
+  dplyr::filter(import_id == "Signatura") %>%
+  unnest_wider(import, names_sep = "_")
+  s <- c[1]
+  infoex <- rbind(infoex, s)
+}
+
+
+
 ```
 

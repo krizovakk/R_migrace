@@ -1,0 +1,373 @@
+---
+title: "DEMZ"
+subtitle: "Zpracovani xml souboru"
+author: "Kateřina Křížová"
+date: "2023-01-26"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+\newpage 
+
+# D E M Z
+
+```{r PACKAGES}
+
+require(tidyverse)
+require(XML)
+require(xml2)
+require(methods)
+
+```
+
+```{r PATHS}
+
+path_sndb <- "C:/Users/krizova/Documents/R/data/_piskoviste/"
+path_xml <- "P:/w4dz/migrace/"
+path_xml2 <- "P:/w4dz/migrace/new-xml/e4g/"
+
+```
+
+## piskoviste 
+
+```{r PISKOVISTE}
+
+# xml1 <- as_list(read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml"))
+# xml2 <- as_list(read_xml("P:/w4dz/migrace/boj/26272175.xml"))
+# xml3 <- as_list(read_xml("P:/w4dz/migrace/boj/26280130.xml"))
+# xml4 <- as_list(read_xml("P:/w4dz/migrace/boj/26282696.xml"))
+# xml5 <- as_list(read_xml("P:/w4dz/migrace/boj/26332340.xml"))
+
+path_xml <- "P:/w4dz/migrace/"
+path_xml2 <- "P:/w4dz/migrace/new-xml/e4g/"
+# fold <- "boj"
+# fold <- "zmt"
+fold <- "stm"
+Lx <- c("10918171.xml", "26272175.xml", "26280130.xml", "26282696.xml", "26332340.xml")
+
+infoex <- data.frame()
+
+for (i in Lx) {
+  a <- as_list(read_xml(paste0(path_xml, fold, "/", i)))
+  b <- tibble::as_tibble(a) %>%
+  unnest_longer(import)
+  c <- b %>%
+  dplyr::filter(import_id == "PrirCisl") %>%
+  unnest_wider(import, names_sep = "_")
+  s <- c[1]
+  infoex <- rbind(infoex, s)
+}
+
+# ---------- novy format 20042023 ----------
+
+xml1 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml"))
+xml2 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16809748.xml"))
+xml3 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16810414.xml"))
+xml4 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16820407.xml"))
+xml5 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16906385.xml"))
+
+xml1 <- XML::xmlParse("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml")
+print(xml1)
+
+rootnode <- XML::xmlRoot(xml1)
+nodes <- XML::xmlSize(rootnode)
+second_node <- rootnode[2]
+print(second_node)
+third_node <- rootnode[3]
+print(third_node)
+fourth_node <- rootnode[4]
+print(fourth_node)
+
+dfx <- XML::xmlToDataFrame(nodes = XML::getNodeSet(xml1, "//property")) # vraci prazdny df
+
+
+xml1 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml"))
+xml1_tb <- tibble::as_tibble(xml1) %>% 
+  unnest_longer('mets')
+xml1_df <- xml1_tb %>% unnest_wider("mets") # nefunguje
+
+xml1 <-read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml")
+xml1_path <- xml_find_all(xml1, xpath = "//mets/metsHdr")
+driver_id <- xml_attr(driver, "driverId")
+url_name <- xml_attr(driver, "url")
+
+
+#------------ tuto ------------- https://appsilon.com/r-xml/
+
+# R XML Basics – How to Read and Parse XML Files
+
+library(xml2)
+library(XML)
+
+#load
+employee_data <- read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/data.xml")
+demz <- read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/priloha_C_1_priklad_1.xml")
+employee_data
+demz
+
+# parse
+employee_xml <- xmlParse(employee_data)
+demz_xml <- xmlParse(demz)
+employee_xml
+demz_xml
+
+xml_structure(employee_data) # Pro tip: if you don’t care about the data, you can print the structure only. That’s done with the xml_structure() function:
+xml_structure(demz)
+
+xml_find_all(demz, ".//e4g:name")
+xml_find_all(xml1, ".//objectDefName") # nic
+
+xml_text(xml_find_all(employee_data, ".//position")) # only values
+xml_text(xml_find_all(demz, ".//e4g:Meno"))
+xml_text(xml_find_all(demz, ".//e4g:Meno//eg4:name")) # nefunguje
+
+# How to Convert XML Data to tibble and data.frame
+
+library(tibble)
+
+# Extract department and salary info
+dept <- xml_text(xml_find_all(employee_data, ".//department"))
+salary <- xml_integer(xml_find_all(employee_data, ".//salary"))
+
+# Format as a tibble
+df_dept_salary <- tibble(department = dept, salary = salary)
+df_dept_salary
+
+df_employees <- xmlToDataFrame(nodes = getNodeSet(employee_xml, "//employee"))
+df_employees
+
+
+# a <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml"))
+a <- as_list(read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/priloha_C_1_priklad_1.xml"))
+aa <- a$`OAI-PMH`$ListRecords
+aaa <- aa$record$header
+df <- as.data.frame(do.call(rbind, aa))
+df2 <- unlist(df)
+
+b <- tibble::as_tibble(aa)
+  unnest_longer('OAI-PMH')
+c <- b %>%
+  dplyr::filter('OAI-PMH_id' == "record") %>%
+  unnest_wider('OAI-PMH', names_sep = "_")
+d <- unlist(c)
+s <- c[1]
+infoex <- rbind(infoex, s)
+
+
+infoex <- data.frame() # info export dataframe
+
+for (i in Lxml_stm) {
+  a <- as_list(read_xml(paste0(path_xml2, fold, "/", i))) # read xml
+  b <- tibble::as_tibble(a) %>%  
+  unnest_longer(mets)
+  c <- b %>%
+  dplyr::filter(mets_id == "agent") %>%
+  unnest_wider(mets, names_sep = "_")
+  d <- unlist(c)
+  s <- d[1]
+  infoex <- rbind(infoex, s)
+}
+
+xml <- xml2::read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml")
+xsd <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/priloha_c_1_CAIR_CEMUZ_e4g.xsd")
+
+xml2::xml_validate(xml, xsd) # TRUE - what does this mean?
+
+# ---------- Exploring and Extracting Data from XML in R ---------- 
+# https://rstudio-pubs-static.s3.amazonaws.com/499292_d6edbb19b08f456097333fbf9443f9b7.html
+
+xml3 <- XML::xmlParse("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml")
+class(xml3)
+xmlRoot(xml3)
+
+xmltop <- xmlRoot(xml3) #gives content of root
+xmlName(xmltop)
+xmlSize(xmltop) # how many children in node,
+xmlName(xmltop[[1]]) # name of root's children
+xmlName(xmltop[[2]]) # name of root's children
+xmltop[[1]]
+xmltop[[2]]
+xmltop[[3]]
+xmltop[[4]]
+
+xmlName(xmltop[[1]][[1]])
+xmlName(xmltop[[1]][[1]][[1]])
+xmlName(xmltop[[1]][[1]][[1]][[1]])
+xmlValue(xmltop[[1]][[1]][[1]][[1]])
+xmlValue(xmltop[[2]][[1]][[1]][[1]])
+
+xpathSApply(xml3, '/PubmedArticleSet/PubmedArticle/MedlineCitation/PMID', xmlValue)
+xpathSApply(xmltop[[2]], '//display', xmlValue)
+xpathSApply(xml3, '/mets/dmdSec/mdwrap/xmlData/esez/objectInfo/display/', xmlValue)
+
+#-------------------------- priklad-------------------------------
+
+xml <- XML::xmlParse("C:/Users/krizova/Documents/R/data/_piskoviste/priloha_C_1_priklad_1.xml")
+
+class(xml)
+xmlRoot(xml)
+
+xmltop <- xmlRoot(xml) #gives content of root
+xmlName(xmltop)
+xmlSize(xmltop) # how many children in node,
+xmlName(xmltop[[1]]) # name of root's children
+xmlName(xmltop[[2]]) # name of root's children
+xmlName(xmltop[[3]]) # name of root's children
+xmltop[[1]]
+xmltop[[2]]
+xmltop[[3]]
+
+xmlName(xmltop[[1]][[1]])
+
+
+xpathSApply(xml3, '/PubmedArticleSet/PubmedArticle/MedlineCitation/PMID', xmlValue)
+xpathSApply(xmltop, '//e4g:name', xmlValue)
+k <- xpathSApply(xml, '/OAI-PMH/ListRecords/record/metadata/e4g:E4GEvid2/e4g:Jazyk/e4g:id', xmlValue)
+print(k)
+
+```
+
+```{r PISKOVISTE 2}
+
+# read
+
+xmla <- read_xml(paste0(path_sndb, "priloha_C_1_priklad_1.xml"))
+xmlb <- xml2::as_list(xml2::read_xml(paste0(path_sndb, "priloha_C_1_priklad_1.xml")))
+xmlc <- XML::xmlParse(paste0(path_sndb, "priloha_C_1_priklad_1.xml"))
+
+# extract third element of nested list
+
+# install.packages("purrr")            # Install & load purrr package
+library("purrr")
+a <- map(xmlb, 3)                      # https://statisticsglobe.com/select-first-element-of-nested-list-in-r
+b <- map(a, 1)
+
+c <- b[[1]][[2]]
+c[[1]][[9]]
+
+
+
+# realny xml, ne priklad
+
+l <- xml2::as_list(xml2::read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml"))
+x <- xml2::read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml")
+xp <- XML::xmlParse(xml2::read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml"))
+
+
+# xml2 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16809748.xml"))
+# xml3 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16810414.xml"))
+# xml4 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16820407.xml"))
+# xml5 <- as_list(read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16906385.xml"))
+
+
+library(XML)
+myData <- xmlParse(xmla)
+xmltop <- xmlRoot(myData)
+xmlName(xmltop)
+xmlSize(xmltop)
+
+
+md <- xpathSApply(xp, "//*//e4gEvidCislo", # xpath works only for parsed files
+             # , namespaces = c(e4g = "http://www.cemuz.sk/ver3/")  #*/e4g:E4GEvid2/
+              xmlValue)[1]
+
+md <- xpathSApply(xp, "mets/dmdSec/mdWrap/xmlData/esez/objectInfo/properties/e4gEvidCislo", # xpath works only for parsed files
+             # , namespaces = c(e4g = "http://www.cemuz.sk/ver3/")  #*/e4g:E4GEvid2/
+              xmlValue)[1]
+
+md <- xpathSApply(myData, "//*/xs:EvidCislo"
+              , namespaces = c(xs = "http://www.w3.org/2001/XMLSchema")
+              , xmlValue)
+
+xpathSApply(myData, "//*/e4g:E4GEvid2/e4g:EvidCislo"
+              , namespaces = c(e4g = "http://www.cemuz.sk/ver3/")  #*/e4g:E4GEvid2/
+              , xmlValue)[1]           # https://www.opencodez.com/how-to-guide/how-to-use-xpath-for-web-scraping-with-r.htm
+
+xpathSApply(myData, "display"
+             # , namespaces = c(e4g = "http://www.cemuz.sk/ver3/")  #*/e4g:E4GEvid2/
+              , xmlValue)           # https://www.opencodez.com/how-to-guide/how-to-use-xpath-for-web-scraping-with-r.htm
+
+
+# nic nefunguje, nechapu, nerozumim
+
+```
+
+```{r PRIKLAD}
+
+xa <- read_xml(paste0(path_sndb, "priloha_C_1_priklad_1.xml"))
+# xa <- read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml")
+xb <- XML::xmlParse(paste0(path_sndb, "priloha_C_1_priklad_1.xml"))
+# xl <- xml2::as_list(xml2::read_xml(paste0(path_sndb, "priloha_C_1_priklad_1.xml")))
+
+# https://appsilon.com/r-xml/
+# https://rpubs.com/Howetowork/499292
+
+class(xa) # "xml_document" "xml_node"    
+class(xb) # "XMLInternalDocument" "XMLAbstractDocument"
+
+xmlRoot(xb)
+
+# struct <- xml_structure(xa) # ne
+
+xml_find_all(xa, ".//e4g:Muzeum/e4g:name") # !!!! FUNKCNI !!!!
+xml_find_all(xa, ".//e4g:Muzeum/e4g:id") # !!!! FUNKCNI !!!!
+xml_find_all(xa, ".//e4g:Jazyk/e4g:name") # !!!! FUNKCNI !!!!
+
+muzec <- xml_text(xml_find_all(xa, ".//e4g:EvidCislo")) # !!!! FUNKCNI !!!!
+muzname <- xml_text(xml_find_all(xa, ".//e4g:Muzeum/e4g:name")) # !!!! FUNKCNI !!!!
+muzid <- xml_text(xml_find_all(xa, ".//e4g:Muzeum/e4g:id")) # !!!! FUNKCNI !!!!
+muzos <- xml_text(xml_find_all(xa, ".//e4g:NadobOsoby/e4g:Rola/e4g:name")) # 1:n, ostatni maji 96 zaznamu, zde jiz 279 -> vyresit! 
+# https://stackoverflow.com/questions/16805050/extract-xml-node-and-attribute-in-r
+
+
+muz <- tibble(evidc = muzec, name = muzname, id = muzid) # !!!! FUNKCNI !!!!
+
+
+
+```
+
+
+## ostra analyza
+
+*!!! NIZE JEN OVERENE A FUNKCNI PRIKAZY !!!*    
+
+```{r LOAD AND EDIT XML}
+
+# L I S T   O F   F I L E S ^
+
+Lxml_boj <- list.files("P:/w4dz/migrace/boj/", pattern = "xml") # 182
+Lxml_zmt <- list.files("P:/w4dz/migrace/zmt/", pattern = "xml") # 59795
+Lxml_stm <- list.files("P:/w4dz/migrace/new-xml/e4g/stm/", pattern = "xml") # 955
+
+Lxml <- c(Lxml_boj, Lxml_zmt) # 59977
+
+# fold <- "boj"
+# fold <- "zmt"
+fold <- "stm"
+
+# L O O P   F O R   E X T R A C T I N G   S P E C.   I N F O
+
+infoex <- data.frame() # info export dataframe
+
+for (i in Lxml_boj) {
+  a <- as_list(read_xml(paste0(path_xml, fold, "/", i))) # read xml
+  b <- tibble::as_tibble(a) %>%  
+  unnest_longer(import)
+  c <- b %>%
+  dplyr::filter(import_id == "Signatura") %>%
+  unnest_wider(import, names_sep = "_")
+  s <- c[1]
+  infoex <- rbind(infoex, s)
+}
+
+
+
+```
+

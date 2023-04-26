@@ -1,0 +1,239 @@
+---
+title: "MIGRACE DAT - DEMUS / MUSEION"
+subtitle: "Prirodovedne sbirky - BIOLIB slovniky"
+author: "Katerina Krizova"
+date: "2023-02-08"
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+\newpage 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+require(tidyverse)
+require(readxl)
+require(stringr) # ::str_split_fixed
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+
+```
+
+\newpage 
+
+# PROJEKT A CESTY
+
+```{r PROJECT SPECIFICATIONS AND PATHS}
+
+# *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
+
+project <- "MSK_MUZBE"
+
+# sbirka <- 
+# podsbirka <- 
+
+# *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
+
+path <-  "C:/Users/krizova/Documents/R/"
+
+path_data <-  paste0(path, "data/")
+path_csv <-  paste0(path, "mus_csv/", project, "/")
+
+path_mdb <-  "M:/02 dokumenty/03 migrace/"
+
+```
+
+
+# PRIPOJENI DATABAZE
+
+```{r SET DATABASE CONNECTION}
+
+dbname <- paste0(path_mdb, "BIO/bio_slovniky.accdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
+
+RODBC::sqlTables(con)                                            # list tables in database
+
+```
+
+\newpage
+
+
+# LOAD DB TABLES
+
+## ANIMALIA
+
+```{r READ AND MODIFY DB TABLES FOR ANIMALIA, warning = F}
+
+# read all taxons
+
+kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen")
+trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Animalia_Trida")  
+rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Animalia_Rad")  
+celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Animalia_Celed")  
+rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Animalia_Rod")  
+druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Animalia_Druh")  
+poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Animalia_Poddruh") 
+
+```
+
+
+## FUNGI
+
+```{r READ AND MODIFY DB TABLE FUNGHI, warning = F}
+
+kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Fungi_Kmen")  
+trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Fungi_Trida")  
+rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Fungi_Rad")  
+celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Fungi_Celed")  
+rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Fungi_Rod")  
+druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Fungi_Druh")  
+poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Fungi_Poddruh")      
+
+```
+
+
+## PLANTAE
+
+```{r}
+
+kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Plantae_Kmen")  
+trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Plantae_Trida")  
+rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Plantae_Rad")  
+celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Plantae_Celed")  
+rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Plantae_Rod")  
+druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Plantae_Druh")  
+poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Plantae_Poddruh") 
+
+```
+
+# CREATE SUMMARY TABLE
+
+```{r KINGDOM-SPECIFIC}
+
+# add taxon prefix to column names
+
+colnames(kmen) <- paste0("kmen_", colnames(kmen))
+colnames(trida) <- paste0("trida_", colnames(trida))
+colnames(rad) <- paste0("rad_", colnames(rad))
+colnames(celed) <- paste0("celed_", colnames(celed))
+colnames(rod) <- paste0("rod_", colnames(rod))
+colnames(druh) <- paste0("druh_", colnames(druh))
+colnames(poddruh) <- paste0("poddruh_", colnames(poddruh))
+
+# merge taxon tables one by one
+
+# ani1 <- merge(kmen, trida, by.x = "kmen_Nomen", by.y = "trida_NadNomen", all.y = T) # 98
+# ani2 <- merge(ani1, rad, by.x = "trida_Nomen", by.y = "rad_NadNomen", all.y = T) # 581
+# ani3 <- merge(ani2, celed, by.x = "rad_Nomen", by.y = "celed_NadNomen", all.y = T) # 6 515
+# ani4 <- merge(ani3, rod, by.x = "celed_Nomen", by.y = "rod_NadNomen", all.y = T) # 19 643
+# ani5 <- merge(ani4, druh, by.x = "rod_Nomen", by.y = "druh_NadNomen", all.y = T) # 103 970
+# ani6 <- merge(ani5, poddruh, by.x = "druh_Nomen", by.y = "poddruh_NadNomen", all = T) # 124 505
+
+# inner_join - wrong path
+
+# ani1 <- inner_join(kmen, trida, by = c("kmen_Nomen" = "trida_NadNomen")) # 98
+# ani2 <- inner_join(ani1, rad, by = c("trida_Nomen" = "rad_NadNomen")) # 557
+# ani3 <- inner_join(ani2, celed, by = c("rad_Nomen" = "celed_NadNomen")) # 6 153
+# ani4 <- inner_join(ani3, rod, by = c("celed_Nomen" = "rod_NadNomen")) # 18 324
+# ani5 <- inner_join(ani4, druh,by = c("rod_Nomen" = "druh_NadNomen")) # 92 791
+# ani6 <- inner_join(ani5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen")) # 25 972 
+
+# right_join - this setup gives exactely the same result as 'merge', BUT WITH ORDERED COLUMNS
+
+# ani11 <- right_join(kmen, trida, by = c("kmen_Nomen" = "trida_NadNomen"), keep = T) # 98
+# ani22 <- right_join(ani1, rad, by = c("trida_Nomen" = "rad_NadNomen"), keep = T) # 557
+# ani33 <- right_join(ani2, celed, by = c("rad_Nomen" = "celed_NadNomen"), keep = T) # 6 153
+# ani44 <- right_join(ani3, rod, by = c("celed_Nomen" = "rod_NadNomen"), keep = T) # 18 324
+# ani55 <- right_join(ani4, druh,by = c("rod_Nomen" = "druh_NadNomen"), keep = T) # 92 791
+# ani66 <- left_join(ani5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"), keep = T) # 25 972 
+
+# full_join - this setup gives full table WITH ALL and ORDERED COLUMNS
+
+join1 <- full_join(kmen, trida, by = c("kmen_Nomen" = "trida_NadNomen"), keep = T, multiple = "any") # 111
+join2 <- full_join(join1, rad, by = c("trida_Nomen" = "rad_NadNomen"), keep = T, multiple = "any") # 605
+join3 <- full_join(join2, celed, by = c("rad_Nomen" = "celed_NadNomen"), keep = T, multiple = "any") # 6 569
+join4 <- full_join(join3, rod, by = c("celed_Nomen" = "rod_NadNomen"), keep = T, multiple = "any") # 23 970
+join5 <- full_join(join4, druh,by = c("rod_Nomen" = "druh_NadNomen"), keep = T, multiple = "any") # 108 313
+join6 <- full_join(join5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"), keep = T, multiple = "any") # 128 848
+
+
+write.table(join6, paste0(path, "BioLib_KKsummary.csv"), sep = ";", row.names = F)
+
+
+#   p  i  s  k  o  v  i  s  t  e  -  ZACATEK
+
+check_kt <- join6 %>% 
+  select(kmen_Nomen, trida_NadNomen, trida_Nomen) %>% 
+  distinct()
+
+check_tr <- join6 %>% 
+  select(trida_Nomen, rad_NadNomen, rad_Nomen) %>% 
+  distinct() %>% 
+  filter(is.na(trida_Nomen))
+
+check_rc <- join6 %>% 
+  select(rad_Nomen, celed_NadNomen, celed_Nomen) %>% 
+  distinct() %>% 
+  filter(is.na(rad_Nomen))
+
+write.table(check_rc, paste0(path_csv, "check_tabs2print_rc.csv"), sep = ";", row.names = F)
+
+
+check_tab <- join6 %>% 
+  select(kmen_Nomen, trida_NadNomen, trida_Nomen, 
+         rad_NadNomen, rad_Nomen, 
+         celed_NadNomen, celed_Nomen, 
+         rod_NadNomen, rod_Nomen, 
+         druh_NadNomen, druh_Nomen, 
+         poddruh_NadNomen, poddruh_Nomen, 
+         )
+
+check_tab2 <- check_tab %>% 
+  select(-poddruh_Nomen, -poddruh_NadNomen, -druh_Nomen) %>% 
+  filter(is.na(kmen_Nomen)) %>% 
+  distinct()
+
+# write.table(check_tab2, paste0(path_csv, "check_kmeny.csv"), sep = ";")
+
+check_kmen <- check_tab %>% 
+  select(kmen_Nomen, trida_NadNomen) %>% 
+  distinct() %>% 
+  filter(is.na(trida_NadNomen))
+
+check_trida <- check_tab %>% 
+  select(trida_Nomen, rad_NadNomen) %>% 
+  distinct() 
+  filter(is.na(rad_NadNomen))
+
+check_chordata <- join6 %>% 
+  filter(rad_NadNomen %in% c("Chordata"))
+
+#   p  i  s  k  o  v  i  s  t  e  -  KONEC
+
+
+# remove prelim dfs
+
+rm(ani1)
+rm(ani2)
+rm(ani3)
+rm(ani4)
+rm(ani5)
+
+```
+

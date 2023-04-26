@@ -18,6 +18,28 @@ output:
 
 # *GENERAL*
 
+## D A T A F R A M E S
+
+### Remove columns acc to pattern
+
+```{r REMOVE COLUMN}
+
+bot <- bot %>% 
+  select(-contains("_sort"), -nvg_id)
+
+```
+
+### DF top 10 rows
+
+```{r DF TOP 10}
+
+mus_tab_cvic <- mus_tab %>% 
+  slice(1:10)
+
+
+```
+
+
 ## N U M E R I C S
 
 ### Leading zeros -add
@@ -235,6 +257,14 @@ colnames(vypis)[1] <- "path"
 *full_join()* keeps all observations in x and y.
 
 [description and parameters](https://dplyr.tidyverse.org/reference/mutate-joins.html)
+
+### Join only selected columns
+
+```{r JOIN SEL COL}
+left_join(biolib %>% dplyr::select('4nazevKategorie', '5nomen', '8nadrizenyTaxon'),
+            by = c("MNOMEN" = "5nomen"), keep = T)
+```
+
 
 \newpage
 

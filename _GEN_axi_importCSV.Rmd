@@ -100,9 +100,9 @@ mus_tab <- modify_tab %>%
     '2podsbirkaCislo'= '2podsbirkaCislo',           # !! povinne !!
     '3fondKod' = MFOND,                             # !! povinne !!
     '4nazev'= Fond_FN,                              # !! povinne !!
-    '5poznamka' = Pozn_FN, '6popisPubl'= MEMPTY,
-    '7poradi' = MEMPTY, '8oaiId'= MEMPTY,
-    '9oaiDatumHarvestingu'= MEMPTY, '10oaiDatumModifikace' = MEMPTY)
+    '5poznamka' = Pozn_FN, '6popisPubl'= X,
+    '7poradi' = X, '8oaiId'= X,
+    '9oaiDatumHarvestingu'= X, '10oaiDatumModifikace' = X)
 
 oper_fondy <- mus_tab
 imp <- "fond"
@@ -126,10 +126,10 @@ mus_tab <- modify_tab %>%
     '3fondKod' ='3fondKod',                        # !! povinne !!
     '4skupinaKod'= Skupina_S,                      # !! povinne !! max 20 znaku, zkracovat
     '5nazev' = '5nazev',                           # !! povinne !!
-    '6poznamka'= MEMPTY,
-    '7popisPubli' = MEMPTY, '8poradi'= MEMPTY,
-    '9oaiId'= MEMPTY, '10oaiDatumHarvestingu'= MEMPTY, 
-    '11oaiDatumModifikace' = MEMPTY)
+    '6poznamka'= X,
+    '7popisPubli' = X, '8poradi'= X,
+    '9oaiId'= X, '10oaiDatumHarvestingu'= X, 
+    '11oaiDatumModifikace' = X)
 
 oper_skupiny <- mus_tab
 imp <- "skupiny"
@@ -152,12 +152,12 @@ mus_tab <- modify_tab %>%
     '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
     '3fondKod' ='3fondKod',                        # !! povinne !!
     '4skupinaKod'= Skupina_S,                      # !! povinne !!
-    '5podskupina1Kod' = '5podskupina1Kod',         # !! povinne !! max 20 znaku, zkracovat
-    '6nazev'= MEMPTY,
-    '7poznamka'= MEMPTY,
-    '8popisPubli' = MEMPTY, '9poradi'= MEMPTY,
-    '10oaiId'= MEMPTY, '11oaiDatumHarvestingu'= MEMPTY, 
-    '12oaiDatumModifikace' = MEMPTY)
+    '5podskupina1Kod' = '5podskupina1Kod',         # !! povinne !! max 20 znaku, zkracovat, nesmi byt mezera
+    '6nazev'= X,
+    '7poznamka'= X,
+    '8popisPubli' = X, '9poradi'= X,
+    '10oaiId'= X, '11oaiDatumHarvestingu'= X, 
+    '12oaiDatumModifikace' = X)
 
 oper_podskupiny <- mus_tab
 imp <- "podskupiny"
@@ -177,35 +177,35 @@ imp <- "podskupiny"
 mus_tab <- modif_tab %>% 
   select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
          '2subjektKod' = '2subjektKod',         # !! povinne !!
-         '3subjektAlterKod' = MEMPTY, '4osobaJmenoPrvni'= Jmeno_A, 
-         '5osobaJmenoDruhe' = MEMPTY, 
+         '3subjektAlterKod' = X, '4osobaJmenoPrvni'= Jmeno_A, 
+         '5osobaJmenoDruhe' = X, 
          '6osobaPrijmeni' = Prijmeni_A,         # !! povinne !!
          '7osobaTitulPredJmenem' = TitPred_A, '8osobaTitulZaJmenem' = TitZa_A, 
-         '9osobaRodnePrijmeni' = MEMPTY, 
+         '9osobaRodnePrijmeni' = X, 
          '10osobaPohlavi' = '10osobaPohlavi',   # !! povinne !! "muž", "žena", "neznámé"
-         '11osobaDatumNarozeni' = MEMPTY, '12osobaMistoNarozeni' = MEMPTY,
-         '13okresNarozeniNazev' = MEMPTY, '14obecNarozeniNazev' = MEMPTY,
-         '15statNarozeniKod' = MEMPTY, '16osobaDatumUmrti' = MEMPTY,
-         '17osobaMistoUmrti' = MEMPTY, '18subjektStatKod' = '18subjektStatKod',
-         '19kontaktEmail' = MEMPTY, '20kontaktMobil' = MEMPTY,
-         '21kontaktMobil2' = MEMPTY, '22kontaktTelefon' = MEMPTY,
-         '23kontaktInternet' = MEMPTY, '24kontaktInternetoveVolani' = MEMPTY,
-         '25adresaText' = MEMPTY, '26kontaktniAdresaText' = MEMPTY,
-         '27fyzickaOsobaRodneCislo' = MEMPTY, '28subjektPoznamka' = MEMPTY,
-         '29AdresaTextoveOkres' = MEMPTY, '30AdresaTextoveObec' = MEMPTY,
-         '31AdresaTextoveCastObce' = MEMPTY, '32AdresaTextoveMestskaCast' = MEMPTY,
-         '33AdresaTextoveUlice' = MEMPTY, '34AdresaTextoveCisloOrientacni' = MEMPTY,
-         '35AdresaTextoveCislo' = MEMPTY, '36AdresaTextovePSC' = MEMPTY,
-         '37zamestnanecCislo' = MEMPTY, '38oddeleniKod' = MEMPTY,
-         '39osobnostMedailon' = MEMPTY, '40osobnostPseudonym' = MEMPTY,
-         '41okruhSubjektuNazev' = MEMPTY, '42subjektSbirka' =  MEMPTY,           
-         '43subjektPodsbirka' =  MEMPTY, '44osobaStudia' = MEMPTY,
-         '45osobaSpolky' = MEMPTY, '46osobaOsobnost' = MEMPTY,
-         '47subjektDatumOd' = MEMPTY, '48subjektDatumDo' = MEMPTY,
-         '49kontaktEmail2' = MEMPTY, 
-         '50text1' = MEMPTY, '51text2' = MEMPTY, '52text3' = MEMPTY, 
-         '53role1' = MEMPTY, '54role2' = MEMPTY, 
-         '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY,
+         '11osobaDatumNarozeni' = X, '12osobaMistoNarozeni' = X,
+         '13okresNarozeniNazev' = X, '14obecNarozeniNazev' = X,
+         '15statNarozeniKod' = X, '16osobaDatumUmrti' = X,
+         '17osobaMistoUmrti' = X, '18subjektStatKod' = '18subjektStatKod',
+         '19kontaktEmail' = X, '20kontaktMobil' = X,
+         '21kontaktMobil2' = X, '22kontaktTelefon' = X,
+         '23kontaktInternet' = X, '24kontaktInternetoveVolani' = X,
+         '25adresaText' = X, '26kontaktniAdresaText' = X,
+         '27fyzickaOsobaRodneCislo' = X, '28subjektPoznamka' = X,
+         '29AdresaTextoveOkres' = X, '30AdresaTextoveObec' = X,
+         '31AdresaTextoveCastObce' = X, '32AdresaTextoveMestskaCast' = X,
+         '33AdresaTextoveUlice' = X, '34AdresaTextoveCisloOrientacni' = X,
+         '35AdresaTextoveCislo' = X, '36AdresaTextovePSC' = X,
+         '37zamestnanecCislo' = X, '38oddeleniKod' = X,
+         '39osobnostMedailon' = X, '40osobnostPseudonym' = X,
+         '41okruhSubjektuNazev' = X, '42subjektSbirka' =  X,           
+         '43subjektPodsbirka' =  X, '44osobaStudia' = X,
+         '45osobaSpolky' = X, '46osobaOsobnost' = X,
+         '47subjektDatumOd' = X, '48subjektDatumDo' = X,
+         '49kontaktEmail2' = X, 
+         '50text1' = X, '51text2' = X, '52text3' = X, 
+         '53role1' = X, '54role2' = X, 
+         '55role3' = X, '56role4' = X, '57$role5' = X,
          rel_ZkrJm = ZkrJm_A)
 
 oper_adresar <- mus_tab %>% 
@@ -223,26 +223,26 @@ imp <- "adresar"
 mus_tab <- modif_tab %>% 
   select(
     '1subjektKod' = '1subjektKod',          # !! povinne !!
-    '2subjektAlterKod'= MEMPTY,
+    '2subjektAlterKod'= X,
     '3pravnickaOsobaNazev' = Jmeno_OS,      # !! povinne !!
-    '4pravnickaOsobaIC'= MEMPTY,
-    '5pravnickaOsobaDIC' = MEMPTY, '6pravnickaOsobaZapsan'= MEMPTY,
-    '7pravnickaOsobaFOP' = MEMPTY, '8subjektStatKod'= MEMPTY,
-    '9kontaktEmail' = MEMPTY, '10kontaktMobil'= MEMPTY,
-    '11kontaktMobil2' = MEMPTY, '12kontaktTelefon'= MEMPTY,
-    '13kontaktInternet' = MEMPTY, '14kontaktInternetoveVolani'= MEMPTY,
-    '15adresaText' = MEMPTY, '16kontaktniAdresaText'= MEMPTY,
-    '17subjektPoznamka' = MEMPTY, '18AdresaTextoveOkres'= MEMPTY,
-    '19AdresaTextoveObec' = MEMPTY, '20AdresaTextoveCastObce'= MEMPTY,
-    '21AdresaTextoveMestskaCast' = MEMPTY, '22AdresaTextoveUlice'= MEMPTY,
-    '23AdresaTextoveCisloOrientacni' = MEMPTY, '24AdresaTextoveCislo'= MEMPTY,
-    '25AdresaTextovePSC' = MEMPTY,  '26subjektSbirka'= '26subjektSbirka',           
-    '27subjektPodsbirka' = '27subjektPodsbirka', '28subjektDatumOd'= MEMPTY,
-    '29subjektDatumDo' = MEMPTY, '30subjektMedailon'= Medailon_OS,
-    '31okruhSubjektuNazev' = MEMPTY, '32kontaktEmail2'= MEMPTY,
-    '33text1' = MEMPTY, '34text2'= MEMPTY,'35text3' = MEMPTY, 
-    '36role1'= MEMPTY, '37role2' = MEMPTY, '38role3'= MEMPTY,
-    '39role4' = MEMPTY, '40role5'= MEMPTY,
+    '4pravnickaOsobaIC'= X,
+    '5pravnickaOsobaDIC' = X, '6pravnickaOsobaZapsan'= X,
+    '7pravnickaOsobaFOP' = X, '8subjektStatKod'= X,
+    '9kontaktEmail' = X, '10kontaktMobil'= X,
+    '11kontaktMobil2' = X, '12kontaktTelefon'= X,
+    '13kontaktInternet' = X, '14kontaktInternetoveVolani'= X,
+    '15adresaText' = X, '16kontaktniAdresaText'= X,
+    '17subjektPoznamka' = X, '18AdresaTextoveOkres'= X,
+    '19AdresaTextoveObec' = X, '20AdresaTextoveCastObce'= X,
+    '21AdresaTextoveMestskaCast' = X, '22AdresaTextoveUlice'= X,
+    '23AdresaTextoveCisloOrientacni' = X, '24AdresaTextoveCislo'= X,
+    '25AdresaTextovePSC' = X,  '26subjektSbirka'= '26subjektSbirka',           
+    '27subjektPodsbirka' = '27subjektPodsbirka', '28subjektDatumOd'= X,
+    '29subjektDatumDo' = X, '30subjektMedailon'= Medailon_OS,
+    '31okruhSubjektuNazev' = X, '32kontaktEmail2'= X,
+    '33text1' = X, '34text2'= X,'35text3' = X, 
+    '36role1'= X, '37role2' = X, '38role3'= X,
+    '39role4' = X, '40role5'= X,
      rel_KODOS = Jmeno_OS)
 
 oper_po <- modif_tab %>% 
@@ -272,16 +272,16 @@ imp <- "po"
 mus_tab <- modif_tab %>% 
   select(
     '1lokalitaNazev' = Lokalita_L,  # !! povinne !!
-    '2okresNazev'= MEMPTY,
-    '3statKod' = MEMPTY, '4oblastNazev'= MEMPTY,
-    '5lokalitaZeme' = MEMPTY, '6lokalitaCtverec'= MEMPTY,
-    '7lokalitaMapa' = MEMPTY, '8lokalitaZemepisnaSirka'= MEMPTY,
-    '9lokalitaZemepisnaDelka'= MEMPTY, '10lokalitaNadmorskaVyska'= MEMPTY,
-    '11lokalitaPoznamka'= MEMPTY, '12lokalitaSbirka'= MEMPTY,
-    '13lokalitaPodsbirka'= MEMPTY, '14fytochorion1'= MEMPTY,
-    '15lokalitaPublicNadNazev'= MEMPTY, '16lokalitaPublicNazev'= MEMPTY,
-    '17fytochorion2'= MEMPTY, '18fytochorion3'= MEMPTY,
-    '19fytochorion4'= MEMPTY)
+    '2okresNazev'= X,
+    '3statKod' = X, '4oblastNazev'= X,
+    '5lokalitaZeme' = X, '6lokalitaCtverec'= X,
+    '7lokalitaMapa' = X, '8lokalitaZemepisnaSirka'= X,
+    '9lokalitaZemepisnaDelka'= X, '10lokalitaNadmorskaVyska'= X,
+    '11lokalitaPoznamka'= X, '12lokalitaSbirka'= X,
+    '13lokalitaPodsbirka'= X, '14fytochorion1'= X,
+    '15lokalitaPublicNadNazev'= X, '16lokalitaPublicNazev'= X,
+    '17fytochorion2'= X, '18fytochorion3'= X,
+    '19fytochorion4'= X)
 
 oper_lokalita <- mus_tab
 imp <- "lokalita"
@@ -297,11 +297,11 @@ imp <- "lokalita"
 mus_tab <- modif_tab %>% 
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', '2podsbirkaCislo'= '2podsbirkaCislo',
-    '3materialovaSkupinaKod' = MEMPTY, 
+    '3materialovaSkupinaKod' = X, 
     '4materialNazev'= MMATERIAL,  # !! povinne !!
-    '5materialPoznamka' = Pozn_MA, '6materialPublicNadNazev'= MEMPTY,
-    '7materialPublicNazev' = MEMPTY, '8materialNazevAnglicky'= MEMPTY,
-    '9materialNazevNemecky'= MEMPTY)
+    '5materialPoznamka' = Pozn_MA, '6materialPublicNadNazev'= X,
+    '7materialPublicNazev' = X, '8materialNazevAnglicky'= X,
+    '9materialNazevNemecky'= X)
 
 oper_material <- mus_tab
 imp <- "material"
@@ -320,7 +320,7 @@ mus_tab <- modif_tab %>%
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
     '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
-    '3materialovaSkupinaKod' = MEMPTY, 
+    '3materialovaSkupinaKod' = X, 
     '4oznaceniNazev'= Nazev_NZ,                   # !! povinne !!
     '5oznaceniPoznamka' = Pozn_NZ)
 
@@ -343,7 +343,7 @@ mus_tab <- modif_tab %>%
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', 
     '2podsbirkaCislo'= '2podsbirkaCislo',          
-    '3kodOboru' = MEMPTY, 
+    '3kodOboru' = X, 
     '4nazevKategorie'= Nazev_NZ,          # !! povinne !!
     '5nomen'= Nazev_NZ,                   # !! povinne !!
     '6nazev'= Nazev_NZ,                   
@@ -369,11 +369,11 @@ SELECT "" As 1sbirkaCisloEvidInt, "" As 2podsbirkaCislo, "" As 3kodOboru, "" As 
 mus_tab <- modif_tab %>% 
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', '2podsbirkaCislo'= '2podsbirkaCislo', 
-    '3materialovaSkupinaKod' = MEMPTY, 
+    '3materialovaSkupinaKod' = X, 
     '4technikaNazev'= MTECHNIKA,  # !! povinne !!
-    '5technikaPoznamka' = Pozn_TE, '6technikaPublicNadNazev'= MEMPTY,
-    '7technikaPublicNazev' = MEMPTY, '8technikaNazevAnglicky'= MEMPTY,
-    '9technikaNazevNemecky'= MEMPTY)
+    '5technikaPoznamka' = Pozn_TE, '6technikaPublicNadNazev'= X,
+    '7technikaPublicNazev' = X, '8technikaNazevAnglicky'= X,
+    '9technikaNazevNemecky'= X)
 
 oper_technika <- mus_tab
 imp <- "technika"
@@ -415,95 +415,95 @@ mus_tab <- modif_tab %>%
     '10SPPoradoveCisloSubDo' = MSUBDO,
     
     '11SPDatumZapisu' = '11SPDatumZapisu', 
-    '12cisloCES' = MEMPTY, 
+    '12cisloCES' = X, 
     '13prirustekCislo' = '13prirustekCislo', 
-    '14ciselnaRadaPrirustkuKod' = MEMPTY, 
-    '15nabytiPrirustkuDatum' = MEMPTY, 
+    '14ciselnaRadaPrirustkuKod' = X, 
+    '15nabytiPrirustkuDatum' = X, 
     '16fondKod' = '16fondKod',
     '17skupinaKod' = Skupina_S, 
-    '18podskupina1Kod' = MEMPTY, 
-    '19podskupina2Kod' = MEMPTY,
-    '20podskupina3Kod' = MEMPTY,
+    '18podskupina1Kod' = X, 
+    '19podskupina2Kod' = X,
+    '20podskupina3Kod' = X,
     '21SPPocetKusu' = Pocet_S,                    # !! povinne !!
     '22jinaEvidence1Cislo' = JineC_S,
-    '23jinaEvidence2Cislo' = MEMPTY,
-    '24jinaEvidence3Cislo' = MEMPTY,
+    '23jinaEvidence2Cislo' = X,
+    '24jinaEvidence3Cislo' = X,
     '25SPPapirovaKarta' = '25SPPapirovaKarta',    # LOGICKE SLOUPCE
     '26SPKartaJeOpsana' = '26SPKartaJeOpsana', 
     '27archivalie' = '27archivalie',
     '28SPUIns' = Zapsal_S,  # text, nemusi byt slovnik    # ZALOZENI ZAZNAMU
     '29SPDIns' = '29SPDIns',                      
-    '30SPUUpd' = MEMPTY,                          # UPRAVA ZAZNAMU 
-    '31SPDUpd' = MEMPTY, 
-    '32stalaLokaceKod' = MEMPTY,                  # LOKACE (migruje se zvlast)
-    '33aktualniLokaceKod' = MEMPTY, 
+    '30SPUUpd' = X,                          # UPRAVA ZAZNAMU 
+    '31SPDUpd' = X, 
+    '32stalaLokaceKod' = X,                  # LOKACE (migruje se zvlast)
+    '33aktualniLokaceKod' = X, 
     '34predmetNazev' = Titul_S,                   # PREDMET
     '35oznaceni1Nazev' = Predmet_S, 
     '36odborneUrceniPopis' = Popis_S, 
-    '37odborneUrceniPopis2' = MEMPTY, 
+    '37odborneUrceniPopis2' = X, 
     '38odborneUrceniPoznamka' = Pozn_S, 
-    '39kompletnostKod' = MEMPTY,
-    '40signatura' = Sign_S, '41signatura2' = MEMPTY, '42markant' = Markant_S,
-    '43jazykSlovy' = MEMPTY,
+    '39kompletnostKod' = X,
+    '40signatura' = Sign_S, '41signatura2' = X, '42markant' = Markant_S,
+    '43jazykSlovy' = X,
     '44urcilOsobaKod' = '44urcilOsobaKod',
     '45dataceUrceniHodnota' = '45dataceUrceniHodnota', 
-    '46odborneUrceniSchvaleno' = MEMPTY,
-    '47schvalilOsobaKod' = MEMPTY,
-    '48datumSchvaleni' = MEMPTY,
-    '49SPPoznamka' = MEMPTY, 
-    '50SPKlicovaSlova' = MEMPTY,
-    '51pojistnaCena' = MEMPTY, '52pojistnaCenaMena' = MEMPTY, # POJISTENI 
-    '53pojistnaCenaDatum' = MEMPTY,'54ucetniCena' = MEMPTY,   # CENA
-    '55SPDatumPosledniManipulace' = MEMPTY,
+    '46odborneUrceniSchvaleno' = X,
+    '47schvalilOsobaKod' = X,
+    '48datumSchvaleni' = X,
+    '49SPPoznamka' = X, 
+    '50SPKlicovaSlova' = X,
+    '51pojistnaCena' = X, '52pojistnaCenaMena' = X, # POJISTENI 
+    '53pojistnaCenaDatum' = X,'54ucetniCena' = X,   # CENA
+    '55SPDatumPosledniManipulace' = X,
     
-    '56text1' = MEMPTY, '57text2' = MEMPTY, '58text3' = Plus1T_S,
-    '59text4' = Plus2T_S,'60text5' = MEMPTY, '61text6' = MEMPTY,
-    '62text7' = MEMPTY, '63text8' = MEMPTY,'64text9' = MEMPTY,
-    '65text10' = MEMPTY,'66priznak1' = MEMPTY, '67priznak2' = MEMPTY,
-    '68priznak3' = MEMPTY, '69priznak4' = MEMPTY,'70priznak5' = MEMPTY,
+    '56text1' = X, '57text2' = X, '58text3' = Plus1T_S,
+    '59text4' = Plus2T_S,'60text5' = X, '61text6' = X,
+    '62text7' = X, '63text8' = X,'64text9' = X,
+    '65text10' = X,'66priznak1' = X, '67priznak2' = X,
+    '68priznak3' = X, '69priznak4' = X,'70priznak5' = X,
     
     '71zpusobNabytiKod' = ZpAkv_AQ,               # NABYTI
     '72nabytiPredmetuDatum' = '72nabytiPredmetuDatum', 
-    '73nabytiPredmetuRokAkvizice' = MEMPTY,
+    '73nabytiPredmetuRokAkvizice' = X,
     '74nabytiPredmetuDoklad' = CDoklAkv_AQ,
-    '75nabytiCena' = MEMPTY,
-    '76nabytiMena' = MEMPTY,
+    '75nabytiCena' = X,
+    '76nabytiMena' = X,
     '77predchoziMajitelSlovy' = PredMajSlovy_AQ,
-    '78puvodniMajitelKod' = MEMPTY,
-    '79prispevatelKod' = MEMPTY,
+    '78puvodniMajitelKod' = X,
+    '79prispevatelKod' = X,
     '80nabytiPoznamka' = Okolnosti_AQ,
     '81lokalitaNalezuNazev' = Lokalita_S,
-    '82lokalitaDoplneni' = MEMPTY,
-    '83lokalitaOriginalni' = MEMPTY,
-    '84nalezKatUzemiNazev' = MEMPTY,
-    '85pozemekSlovy' = MEMPTY,
-    '86nalezPoznamka' = MEMPTY,
-    '87sGPSsirkaNS' = MEMPTY,'88sGPSsirkaStupne' = MEMPTY,
-    '89sGPSsirkaMinuty' = MEMPTY,'90sGPSsirkaVteriny' = MEMPTY,
-    '91sGPSdelkaEW' = MEMPTY,'92sGPSdelkaStupne' = MEMPTY,
-    '93sGPSdelkaMinuty' = MEMPTY,'94sGPSdelkaVteriny' = MEMPTY,
-    '95sGPSvyska' = MEMPTY,'96nalezSouradniceY' = MEMPTY,
-    '97nalezSouradniceX' = MEMPTY,'98nalezSouradniceH' = MEMPTY,
-    '99souradniceZdroj' = MEMPTY,'100souradnicePresnost' = MEMPTY,
-    '101odborneUrceniHmotnost' = MEMPTY,
+    '82lokalitaDoplneni' = X,
+    '83lokalitaOriginalni' = X,
+    '84nalezKatUzemiNazev' = X,
+    '85pozemekSlovy' = X,
+    '86nalezPoznamka' = X,
+    '87sGPSsirkaNS' = X,'88sGPSsirkaStupne' = X,
+    '89sGPSsirkaMinuty' = X,'90sGPSsirkaVteriny' = X,
+    '91sGPSdelkaEW' = X,'92sGPSdelkaStupne' = X,
+    '93sGPSdelkaMinuty' = X,'94sGPSdelkaVteriny' = X,
+    '95sGPSvyska' = X,'96nalezSouradniceY' = X,
+    '97nalezSouradniceX' = X,'98nalezSouradniceH' = X,
+    '99souradniceZdroj' = X,'100souradnicePresnost' = X,
+    '101odborneUrceniHmotnost' = X,
     
-    '102numOuHodnota' = MEMPTY,
-    '103numOudobaPlatnosti' = MEMPTY,
-    '104numOuStatKod' = MEMPTY,
-    '105numOuZeme' = MEMPTY,
-    '106numOuTyp' = MEMPTY,
-    '107numOuPopisHrana' = MEMPTY,
+    '102numOuHodnota' = X,
+    '103numOudobaPlatnosti' = X,
+    '104numOuStatKod' = X,
+    '105numOuZeme' = X,
+    '106numOuTyp' = X,
+    '107numOuPopisHrana' = X,
     
-    '108milDruh' = MEMPTY,
-    '109milVzor' = MEMPTY,
-    '110milRaze' = MEMPTY,
-    '111milVyrobniCislo' = MEMPTY,
-    '112milKategorie' = MEMPTY,
-    '113milPrukaz' = MEMPTY,
-    '114milMistoUziti' = MEMPTY,
+    '108milDruh' = X,
+    '109milVzor' = X,
+    '110milRaze' = X,
+    '111milVyrobniCislo' = X,
+    '112milKategorie' = X,
+    '113milPrukaz' = X,
+    '114milMistoUziti' = X,
     
-    '115rokPrirust' = MEMPTY,'116mnozstviSlovy' = MEMPTY,
-    '117pocetCasti' = MEMPTY,'118popisCasti' = MEMPTY)
+    '115rokPrirust' = X,'116mnozstviSlovy' = X,
+    '117pocetCasti' = X,'118popisCasti' = X)
 
 oper_obp <- mus_tab
 imp <- "obp"
@@ -526,66 +526,66 @@ mus_tab <- modif_tab %>%
     '5SPCislo' = MINVC, '6SPPoradoveCislo'= PorC_S, '7SPPoradoveCisloSub' = MSUB,
     '8SPCisloDo'= MINVCDO, '9SPPoradoveCisloDo'= HPorC_S, '10SPPoradoveCisloSubDo' = MSUBDO,
     
-    '11SPDatumZapisu' = DatZap_S, '12cisloCES' = MEMPTY,
-    '13prirustekCislo' = Plus2T_S,'14ciselnaRadaPrirustkuKod' = MEMPTY,
-    '15nabytiPrirustkuDatum' = MEMPTY,'16fondKod' = '16fondKod',
+    '11SPDatumZapisu' = DatZap_S, '12cisloCES' = X,
+    '13prirustekCislo' = Plus2T_S,'14ciselnaRadaPrirustkuKod' = X,
+    '15nabytiPrirustkuDatum' = X,'16fondKod' = '16fondKod',
     '17skupinaKod' = Skupina_S,
-    '18podskupina1Kod' = MEMPTY, '19podskupina2Kod' = MEMPTY,'20podskupina3Kod' = MEMPTY,
-    '21SPPocetKusu' = Pocet_S,'22jinaEvidence1Cislo' = MEMPTY,
-    '23jinaEvidence2Cislo' = MEMPTY,'24jinaEvidence3Cislo' = JineC_S,
+    '18podskupina1Kod' = X, '19podskupina2Kod' = X,'20podskupina3Kod' = X,
+    '21SPPocetKusu' = Pocet_S,'22jinaEvidence1Cislo' = X,
+    '23jinaEvidence2Cislo' = X,'24jinaEvidence3Cislo' = JineC_S,
     '25SPPapirovaKarta' = Karta_S,'26SPKartaJeOpsana' = Opsana_S, # LOGICKA POLE
-    '27materialovaSkupinaKod' =  MEMPTY,
+    '27materialovaSkupinaKod' =  X,
     '28SPUIns' = Zapsal_S, '29SPDIns' = DatZap_S, # ZALOZENI ZAZNAMU
-    '30SPUUpd' = MEMPTY, '31SPDUpd' = DatZm_S, # UPRAVA ZAZNAMU 
+    '30SPUUpd' = X, '31SPDUpd' = DatZm_S, # UPRAVA ZAZNAMU 
     '32stalaLokaceKod' = StLokace_S, '33aktualniLokaceKod' = AktLokace_S, # LOKACE
     '34predmetNazev' = Titul_S, '35oznaceni1Nazev' = Predmet_S, # PREDMET
     
-    '36odborneUrceniPopis' = Popis_S, '37odborneUrceniPoznamka' = MEMPTY, 
-    '38kompletnostKod' = MEMPTY, '39signatura' = MEMPTY,
-    '40markant' = Sign_S, '41jazykSlovy' = MEMPTY, '42urcilOsobaKod' = Markant_S,
-    '43dataceUrceniHodnota' = MEMPTY,'44odborneUrceniSchvaleno' = Urcil_S,
-    '45schvalilOsobaKod' = DatUrc_S, '46datumSchvaleni' = MEMPTY,
-    '47SPPoznamka' = MEMPTY,'48SPKlicovaSlova' = MEMPTY,
+    '36odborneUrceniPopis' = Popis_S, '37odborneUrceniPoznamka' = X, 
+    '38kompletnostKod' = X, '39signatura' = X,
+    '40markant' = Sign_S, '41jazykSlovy' = X, '42urcilOsobaKod' = Markant_S,
+    '43dataceUrceniHodnota' = X,'44odborneUrceniSchvaleno' = Urcil_S,
+    '45schvalilOsobaKod' = DatUrc_S, '46datumSchvaleni' = X,
+    '47SPPoznamka' = X,'48SPKlicovaSlova' = X,
     
-    '49pojistnaCena' = MEMPTY, '50pojistnaCenaMena' = MEMPTY,  # POJISTENI 
-    '51pojistnaCenaDatum' = MEMPTY, '52ucetniCena' = MEMPTY, 
-    '53SPDatumPosledniManipulace' = MEMPTY,
+    '49pojistnaCena' = X, '50pojistnaCenaMena' = X,  # POJISTENI 
+    '51pojistnaCenaDatum' = X, '52ucetniCena' = X, 
+    '53SPDatumPosledniManipulace' = X,
     
-    '54text1' = MEMPTY, '55text2' = MEMPTY, '56text3' = MEMPTY, 
-    '57text4' = MEMPTY, '58text5' = MEMPTY, '59text6' = MEMPTY,
-    '60text7' = MEMPTY, '61text8' = MEMPTY, '62text9' = MEMPTY, '63text10' = MEMPTY,
-    '64priznak1' = MEMPTY, '65priznak2' = MEMPTY,'66priznak3' = MEMPTY, 
-    '67priznak4' = MEMPTY, '68priznak5' = MEMPTY,
+    '54text1' = X, '55text2' = X, '56text3' = X, 
+    '57text4' = X, '58text5' = X, '59text6' = X,
+    '60text7' = X, '61text8' = X, '62text9' = X, '63text10' = X,
+    '64priznak1' = X, '65priznak2' = X,'66priznak3' = X, 
+    '67priznak4' = X, '68priznak5' = X,
     
-    '69zpusobNabytiKod' = MEMPTY,'70nabytiPredmetuDatum' = MEMPTY,    # NABYTI
-    '71nabytiPredmetuRokAkvizice' = MEMPTY,'72nabytiPredmetuDoklad' = MEMPTY, 
-    '73nabytiCena' = MEMPTY,'74nabytiMena' = MEMPTY,
-    '75predchoziMajitelSlovy' = MEMPTY,'76puvodniMajitelKod' = MEMPTY,
-    '77prispevatelKod' = MEMPTY,'78nabytiPoznamka' = MEMPTY,
+    '69zpusobNabytiKod' = X,'70nabytiPredmetuDatum' = X,    # NABYTI
+    '71nabytiPredmetuRokAkvizice' = X,'72nabytiPredmetuDoklad' = X, 
+    '73nabytiCena' = X,'74nabytiMena' = X,
+    '75predchoziMajitelSlovy' = X,'76puvodniMajitelKod' = X,
+    '77prispevatelKod' = X,'78nabytiPoznamka' = X,
     
-    '79lokalitaNalezuNazev' = MEMPTY,'80nalezKatUzemiNazev' = MEMPTY,   # LOKALITA
-    '81pozemekSlovy' = Lokalita_S,'82nalezPoznamka' = MEMPTY,
-    '83nalezGPSsirka' = MEMPTY,'84nalezGPSdelka' = MEMPTY,
-    '85nalezGPSvyska' = MEMPTY,'86nalezSouradniceY' = MEMPTY,
-    '87nalezSouradniceX' = MEMPTY,'88nalezSouradniceH' = MEMPTY,
-    '89souradniceZdroj' = MEMPTY,'90souradnicePresnost' = MEMPTY,
-    '91druhCislovaniParcelKod' = MEMPTY,'92pozemekKod' = MEMPTY,
+    '79lokalitaNalezuNazev' = X,'80nalezKatUzemiNazev' = X,   # LOKALITA
+    '81pozemekSlovy' = Lokalita_S,'82nalezPoznamka' = X,
+    '83nalezGPSsirka' = X,'84nalezGPSdelka' = X,
+    '85nalezGPSvyska' = X,'86nalezSouradniceY' = X,
+    '87nalezSouradniceX' = X,'88nalezSouradniceH' = X,
+    '89souradniceZdroj' = X,'90souradnicePresnost' = X,
+    '91druhCislovaniParcelKod' = X,'92pozemekKod' = X,
     
-    '93nalezArcheologieSouradniceSJTSK' = MEMPTY,'94nalezArcheologieNazevVyzkumu' = MEMPTY,
-    '95nalezArcheologieRokVyzkumu' = MEMPTY,'96nalezArcheologieFirmaVyzkumu' = MEMPTY,
-    '97nalezArcheologieVedouciVyzkumu' = MEMPTY,'98nalezCisloNalezoveZpravy' = MEMPTY,
-    '99nalezArcheologieCiziVyzkum' = MEMPTY,'100nalezMisto' = MEMPTY,
-    '101nalezKontext' = MEMPTY,'102nalezArcheologieKontext2' = MEMPTY,
-    '103nalezArcheologieKontext3' = MEMPTY,'104nalezArcheologieKomponenta' = MEMPTY,
-    '105nalezHloubka' = MEMPTY,'106nalezKraj' = MEMPTY,
-    '107nalezOkres' = MEMPTY,'108nalezObec' = MEMPTY,
-    '109nalezObecPuvodni' = MEMPTY,'110nalezCastObce' = MEMPTY,
-    '111nalezMestskaCast' = MEMPTY,'112nalezCisloPopis' = MEMPTY,
-    '113nalezUlice' = MEMPTY,'114nalezCisloOrient' = MEMPTY,
-    '115nalezPSC' = MEMPTY,'116nalezKodStatu' = MEMPTY,
+    '93nalezArcheologieSouradniceSJTSK' = X,'94nalezArcheologieNazevVyzkumu' = X,
+    '95nalezArcheologieRokVyzkumu' = X,'96nalezArcheologieFirmaVyzkumu' = X,
+    '97nalezArcheologieVedouciVyzkumu' = X,'98nalezCisloNalezoveZpravy' = X,
+    '99nalezArcheologieCiziVyzkum' = X,'100nalezMisto' = X,
+    '101nalezKontext' = X,'102nalezArcheologieKontext2' = X,
+    '103nalezArcheologieKontext3' = X,'104nalezArcheologieKomponenta' = X,
+    '105nalezHloubka' = X,'106nalezKraj' = X,
+    '107nalezOkres' = X,'108nalezObec' = X,
+    '109nalezObecPuvodni' = X,'110nalezCastObce' = X,
+    '111nalezMestskaCast' = X,'112nalezCisloPopis' = X,
+    '113nalezUlice' = X,'114nalezCisloOrient' = X,
+    '115nalezPSC' = X,'116nalezKodStatu' = X,
     
-    '117rokPrirustku' = MEMPTY,'118mnozstviSlovy' = MEMPTY, 
-    '119pocetCasti' = MEMPTY,'120popisCasti' = MEMPTY)
+    '117rokPrirustku' = X,'118mnozstviSlovy' = X, 
+    '119pocetCasti' = X,'120popisCasti' = X)
 
 oper_par <- mus_tab
 imp <- "par"
@@ -604,47 +604,47 @@ mus_tab <- modif_tab %>%
   select(
     '1sbirkaCisloEvidInt'= '1sbirkaCisloEvidInt', '2podsbirkaCislo' = '2podsbirkaCislo',
     '3ciselnaRadaKod'= Rada_S, '4SPCislo' = MINVC, 
-    '5SPcisloCES' = MEMPTY, '6SPPoradoveCislo' = MEMPTY,    
-    '7SPCisloDo' = MEMPTY, '8SPPoradoveCisloDo' = MEMPTY,    
-    '9SPPoradoveCisloSub' = MEMPTY, '10SPPoradoveCisloSubDo' = MEMPTY,    
-    '11SPDatumZapisu' = MEMPTY, '12odborneUrceniSchvaleno' = MEMPTY,    
-    '13jinaEvidence1Cislo' = MEMPTY, '14jinaEvidence2Cislo' = MEMPTY,    
-    '15jinaEvidence3Cislo' = MEMPTY, '16fondKod' = MEMPTY,    
-    '17skupinaKod' = MEMPTY, '18podskupinaKod' = MEMPTY,    
-    '19oznaceniNazev' = MEMPTY, '20SPPocetKusu' = MEMPTY, 
+    '5SPcisloCES' = X, '6SPPoradoveCislo' = X,    
+    '7SPCisloDo' = X, '8SPPoradoveCisloDo' = X,    
+    '9SPPoradoveCisloSub' = X, '10SPPoradoveCisloSubDo' = X,    
+    '11SPDatumZapisu' = X, '12odborneUrceniSchvaleno' = X,    
+    '13jinaEvidence1Cislo' = X, '14jinaEvidence2Cislo' = X,    
+    '15jinaEvidence3Cislo' = X, '16fondKod' = X,    
+    '17skupinaKod' = X, '18podskupinaKod' = X,    
+    '19oznaceniNazev' = X, '20SPPocetKusu' = X, 
     
-    '21pojistnaCena' = MEMPTY, '22pojistnaCenaMena' = MEMPTY,    
-    '23pojistneCenaDatum' = MEMPTY, '24ucetniCena' = MEMPTY, 
-    '25podskupina2Kod' = MEMPTY, '26podskupina3Kod' = MEMPTY,    
-    '27SPPapirovaKarta' = MEMPTY, '28SPKartaJeOpsana' = MEMPTY,    
-    '29urcilOsobaKod' = MEMPTY, '30dataceUrceniHodnota' = MEMPTY,    
-    '31odborneUrceniPoznamka' = MEMPTY, '32odborneUrceniPopis' = MEMPTY,    
-    '33odborneUrceniPopis2' = MEMPTY, '34lokalitaNalezuNazev' = MEMPTY,    
-    '35lokalitaDoplneni' = MEMPTY, '36rokPrirustku' = MEMPTY,    
-    '37puvodnost' = MEMPTY, '38zpusobAdjustace' = MEMPTY,    
-    '39popisAdjustace' = MEMPTY, '40signatura' = MEMPTY,    
-    '41markant' = MEMPTY, '42stupenZpracovani' = MEMPTY,    
-    '43povahaZpracovani' = MEMPTY, '44sloh' = MEMPTY,    
-    '45datumExpirace' = MEMPTY, '46stalaLokaceKod' = MEMPTY,    
-    '47aktualniLokaceKod' = MEMPTY, '48SPPoznamka' = MEMPTY,    
-    '49archivalie' = MEMPTY, '50zpusobNabytiKod' = MEMPTY,    
-    '51nabytiPredmetuDatum' = MEMPTY, '52nabytiPredmetuDoklad' = MEMPTY,    
-    '53nabytiPoznamka' = MEMPTY, '54nabytiPredchoziMajitelSlovy' = MEMPTY,    
-    '55nabytiPredmetuRokAkvizice' = MEMPTY, '56nabytiCena' = MEMPTY,    
-    '57nabytiMena' = MEMPTY, '58prirustekCislo' = MEMPTY,    
-    '59ciselnaRadaPrirustkuKod' = MEMPTY, '60nabytiPrirustkuDatum' = MEMPTY,    
-    '61schvalilOsobaKod' = MEMPTY, '62datumSchvaleni' = MEMPTY,    
-    '63volne' = MEMPTY, '64SPDatumPosledniManipulace' = MEMPTY,    
-    '65text1' = MEMPTY, '66text2' = MEMPTY, '67text3' = MEMPTY, 
-    '68text4' = MEMPTY, '69text5' = MEMPTY, 
-    '70SPpriznak1' = MEMPTY, '71SPpriznak2' = MEMPTY, 
-    '72SPUIns' = MEMPTY, '73SPDIns' = MEMPTY, 
-    '74SPUUpd' = MEMPTY,  '75SPDUpd' = MEMPTY, 
-    '76puvodniMajitelKod' = MEMPTY, '77prispevatelKod' = MEMPTY, 
-    '78text6' = MEMPTY,  '79text7' = MEMPTY, '80text8' = MEMPTY,     
-    '81text9' = MEMPTY, '82text10' = MEMPTY,     
-    '83priznak3' = MEMPTY, '84priznak4' = MEMPTY, '85priznak5' = MEMPTY, 
-    '86mnozstviSlovy' = MEMPTY, '87pocetCasti' = MEMPTY, '88popisCasti' = MEMPTY)
+    '21pojistnaCena' = X, '22pojistnaCenaMena' = X,    
+    '23pojistneCenaDatum' = X, '24ucetniCena' = X, 
+    '25podskupina2Kod' = X, '26podskupina3Kod' = X,    
+    '27SPPapirovaKarta' = X, '28SPKartaJeOpsana' = X,    
+    '29urcilOsobaKod' = X, '30dataceUrceniHodnota' = X,    
+    '31odborneUrceniPoznamka' = X, '32odborneUrceniPopis' = X,    
+    '33odborneUrceniPopis2' = X, '34lokalitaNalezuNazev' = X,    
+    '35lokalitaDoplneni' = X, '36rokPrirustku' = X,    
+    '37puvodnost' = X, '38zpusobAdjustace' = X,    
+    '39popisAdjustace' = X, '40signatura' = X,    
+    '41markant' = X, '42stupenZpracovani' = X,    
+    '43povahaZpracovani' = X, '44sloh' = X,    
+    '45datumExpirace' = X, '46stalaLokaceKod' = X,    
+    '47aktualniLokaceKod' = X, '48SPPoznamka' = X,    
+    '49archivalie' = X, '50zpusobNabytiKod' = X,    
+    '51nabytiPredmetuDatum' = X, '52nabytiPredmetuDoklad' = X,    
+    '53nabytiPoznamka' = X, '54nabytiPredchoziMajitelSlovy' = X,    
+    '55nabytiPredmetuRokAkvizice' = X, '56nabytiCena' = X,    
+    '57nabytiMena' = X, '58prirustekCislo' = X,    
+    '59ciselnaRadaPrirustkuKod' = X, '60nabytiPrirustkuDatum' = X,    
+    '61schvalilOsobaKod' = X, '62datumSchvaleni' = X,    
+    '63volne' = X, '64SPDatumPosledniManipulace' = X,    
+    '65text1' = X, '66text2' = X, '67text3' = X, 
+    '68text4' = X, '69text5' = X, 
+    '70SPpriznak1' = X, '71SPpriznak2' = X, 
+    '72SPUIns' = X, '73SPDIns' = X, 
+    '74SPUUpd' = X,  '75SPDUpd' = X, 
+    '76puvodniMajitelKod' = X, '77prispevatelKod' = X, 
+    '78text6' = X,  '79text7' = X, '80text8' = X,     
+    '81text9' = X, '82text10' = X,     
+    '83priznak3' = X, '84priznak4' = X, '85priznak5' = X, 
+    '86mnozstviSlovy' = X, '87pocetCasti' = X, '88popisCasti' = X)
 
 oper_vum <- must_tab
 imp <- "vum"
@@ -665,49 +665,49 @@ mus_tab <- modif_tab %>%
     '2podsbirkaCislo' = '2podsbirkaCislo',             # !! povinne !! ze slovniku
     '3ciselnaRadaKod'= Rada_S,                         # !! povinne !! ze slovniku
     '4SPCislo' = MINVC,                                # !! povinne !!
-    '5SPcisloCES' = MEMPTY, '6SPPoradoveCislo' = MEMPTY,    
-    '7SPCisloDo' = MEMPTY, '8SPPoradoveCisloDo' = MEMPTY,    
-    '9SPPoradoveCisloSub' = MEMPTY, '10SPPoradoveCisloSubDo' = MEMPTY,    
-    '11SPDatumZapisu' = MEMPTY, '12jinaEvidence1Cislo' = MEMPTY,    
-    '13jinaEvidence2Cislo' = MEMPTY, '14jinaEvidence3Cislo' = MEMPTY,    
-    '15fondKod' = '15fondKod', '16skupinaKod' = MEMPTY,    
-    '17oznaceniNazev' = MEMPTY, '18materialNazev' = MEMPTY,    
-    '19predmetNazev' = MEMPTY, '20SPPocetKusu' = MEMPTY, 
-    '21volne' = MEMPTY, '22SPPapirovaKarta' = MEMPTY,    
-    '23SPKartaJeOpsana' = MEMPTY, '24urcilOsobaKod' = MEMPTY, 
-    '25dataceUrceniHodnota' = MEMPTY, '26odborneUrceniPoznamka' = MEMPTY,    
-    '27odborneUrceniPopis' = MEMPTY, '28odborneUrceniPopis2' = MEMPTY,    
-    '29lokalitaVzniku' = MEMPTY, '30vznikPredmetuMisto' = MEMPTY,    
-    '31lokalitaNalezuNazev' = MEMPTY, '32rokPrirustku' = MEMPTY,    
-    '33puvodnost' = MEMPTY, '34zpusobAdjustace' = MEMPTY,    
-    '35popisAdjustace' = MEMPTY, '36signatura' = MEMPTY,    
-    '37signatura2' = MEMPTY, '38markant' = MEMPTY,    
-    '39format' = MEMPTY, '40povrch' = MEMPTY,    
-    '41barva' = MEMPTY, '42orientace' = MEMPTY,    
-    '43citelnost' = MEMPTY, '44zoom' = MEMPTY,    
-    '45stalaLokaceKod' = MEMPTY, '46aktualniLokaceKod' = MEMPTY,    
-    '47SPPoznamka' = MEMPTY, '48archivalie' = MEMPTY,    
-    '49zpusobNabytiKod' = MEMPTY, '50nabytiPredmetuDatum' = MEMPTY,    
-    '51nabytiPredmetuDoklad' = MEMPTY, '52nabytiPoznamka' = MEMPTY,    
-    '53predchoziMajitelSlovy' = MEMPTY, '54prirustekCislo' = MEMPTY,    
-    '55ciselnaRadaPrirustkuKod' = MEMPTY, '56nabytiPrirustkuDatum' = MEMPTY,    
-    '57pojistnaCena' = MEMPTY, '58pojistnaCenaMena' = MEMPTY,    
-    '59pojistnaCenaDatum' = MEMPTY, '60ucetniCena' = MEMPTY,    
-    '61text1' = MEMPTY, '62text2' = MEMPTY,    
-    '63text3' = MEMPTY, '64text4' = MEMPTY, '65text5' = MEMPTY,
-    '66SPUIns' = MEMPTY, '67SPDIns' = MEMPTY, 
-    '68SPUUpd' = MEMPTY, '69SPDUpd' = MEMPTY, 
-    '70odborneUrceniSchvaleno' = MEMPTY, '71schvalilOsobaKod' = MEMPTY, 
-    '72datumSchvaleni' = MEMPTY, '73nabytiPredmetuRokAkvizice' = MEMPTY, 
-    '74nabytiCena' = MEMPTY,  '75nabytiMena' = MEMPTY, 
-    '76puvodniMajitelKod' = MEMPTY, '77prispevatelKod' = MEMPTY, 
-    '78podskupina1Kod' = MEMPTY,  '79podskupina2Kod' = MEMPTY, '80podskupina3Kod' = MEMPTY,     
-    '81text6' = MEMPTY, '82text7' = MEMPTY,     
-    '84text9' = MEMPTY, '85text10' = MEMPTY, 
-    '85priznak5' = MEMPTY, '86priznak1' = MEMPTY, 
-    '87priznak2' = MEMPTY, '88priznak3' = MEMPTY,
-    '89priznak4' = MEMPTY, '90priznak5' = MEMPTY,
-    '91mnozstviSlovy' = MEMPTY, '92pocetCasti' = MEMPTY, '93popisCasti' = MEMPTY)
+    '5SPcisloCES' = X, '6SPPoradoveCislo' = X,    
+    '7SPCisloDo' = X, '8SPPoradoveCisloDo' = X,    
+    '9SPPoradoveCisloSub' = X, '10SPPoradoveCisloSubDo' = X,    
+    '11SPDatumZapisu' = X, '12jinaEvidence1Cislo' = X,    
+    '13jinaEvidence2Cislo' = X, '14jinaEvidence3Cislo' = X,    
+    '15fondKod' = '15fondKod', '16skupinaKod' = X,    
+    '17oznaceniNazev' = X, '18materialNazev' = X,    
+    '19predmetNazev' = X, '20SPPocetKusu' = X, 
+    '21volne' = X, '22SPPapirovaKarta' = X,    
+    '23SPKartaJeOpsana' = X, '24urcilOsobaKod' = X, 
+    '25dataceUrceniHodnota' = X, '26odborneUrceniPoznamka' = X,    
+    '27odborneUrceniPopis' = X, '28odborneUrceniPopis2' = X,    
+    '29lokalitaVzniku' = X, '30vznikPredmetuMisto' = X,    
+    '31lokalitaNalezuNazev' = X, '32rokPrirustku' = X,    
+    '33puvodnost' = X, '34zpusobAdjustace' = X,    
+    '35popisAdjustace' = X, '36signatura' = X,    
+    '37signatura2' = X, '38markant' = X,    
+    '39format' = X, '40povrch' = X,    
+    '41barva' = X, '42orientace' = X,    
+    '43citelnost' = X, '44zoom' = X,    
+    '45stalaLokaceKod' = X, '46aktualniLokaceKod' = X,    
+    '47SPPoznamka' = X, '48archivalie' = X,    
+    '49zpusobNabytiKod' = X, '50nabytiPredmetuDatum' = X,    
+    '51nabytiPredmetuDoklad' = X, '52nabytiPoznamka' = X,    
+    '53predchoziMajitelSlovy' = X, '54prirustekCislo' = X,    
+    '55ciselnaRadaPrirustkuKod' = X, '56nabytiPrirustkuDatum' = X,    
+    '57pojistnaCena' = X, '58pojistnaCenaMena' = X,    
+    '59pojistnaCenaDatum' = X, '60ucetniCena' = X,    
+    '61text1' = X, '62text2' = X,    
+    '63text3' = X, '64text4' = X, '65text5' = X,
+    '66SPUIns' = X, '67SPDIns' = X, 
+    '68SPUUpd' = X, '69SPDUpd' = X, 
+    '70odborneUrceniSchvaleno' = X, '71schvalilOsobaKod' = X, 
+    '72datumSchvaleni' = X, '73nabytiPredmetuRokAkvizice' = X, 
+    '74nabytiCena' = X,  '75nabytiMena' = X, 
+    '76puvodniMajitelKod' = X, '77prispevatelKod' = X, 
+    '78podskupina1Kod' = X,  '79podskupina2Kod' = X, '80podskupina3Kod' = X,     
+    '81text6' = X, '82text7' = X,     
+    '84text9' = X, '85text10' = X, 
+    '85priznak5' = X, '86priznak1' = X, 
+    '87priznak2' = X, '88priznak3' = X,
+    '89priznak4' = X, '90priznak5' = X,
+    '91mnozstviSlovy' = X, '92pocetCasti' = X, '93popisCasti' = X)
 
 oper_fot <- must_tab
 imp <- "fot"
@@ -738,66 +738,67 @@ mus_tab <- modif_tab %>%
     '10SPPoradoveCisloSub' = MSUBDO,
     '11SPPoradoveCisloSubDo' = DatZap_S, 
     
-    '12SPDatumZapisu' = MEMPTY, '13jinaEvidence1Cislo' = Plus2T_S,
-    '14jinaEvidence2Cislo' = MEMPTY,'15jinaEvidence3Cislo' =  MEMPTY,
+    '12SPDatumZapisu' = X, '13jinaEvidence1Cislo' = Plus2T_S,
+    '14jinaEvidence2Cislo' = X,'15jinaEvidence3Cislo' =  X,
     '16fondKod' = '16fondKod', '17skupinaKod' = Skupina_S,
-    '18materialovaSkupinaKod' = MEMPTY, '19oznaceniNazev' = MEMPTY,'20taxon' = MEMPTY,
-    '21snadTaxon' = Pocet_S, '22SPPocetKusu' = MEMPTY,
-    '23urcilOsobaKod' = MEMPTY,'24dataceUrceniHodnota' = JineC_S,
+    '18materialovaSkupinaKod' = X, '19oznaceniNazev' = X,'20taxon' = X,
+    '21snadTaxon' = Pocet_S, '22SPPocetKusu' = X,
+    '23urcilOsobaKod' = X,'24dataceUrceniHodnota' = JineC_S,
     '25odborneUrceniPoznamka' = Karta_S, '26odborneUrceniPopis' = Opsana_S, 
     
     '27lokalita' = Archiv_S,                                    # GEOGRAFIE
     '28sirkaNS' = Zapsal_S, '29sirkaStupne' = DatZap_S, 
-    '30sirkaMinuty' = MEMPTY, '31sirkaVteriny' = DatZm_S, 
+    '30sirkaMinuty' = X, '31sirkaVteriny' = DatZm_S, 
     '32delkaEW' = StLokace_S, '33delkaStupne' = AktLokace_S, 
     '34delkaMinuty' = Titul_S, '35delkaVteriny' = Predmet_S, 
-    '36vyska' = Popis_S, '37specifikaceLokality' = MEMPTY, 
-    '38mapa' = MEMPTY, '39ctverec' = MEMPTY,
+    '36vyska' = Popis_S, # neni nadmorska vyska! Nadmorska je v 42nadmorskaVyska
+    '37specifikaceLokality' = X, 
+    '38mapa' = X, '39ctverec' = X,
     
-    '40charakteristika' = Sign_S, '41puvodniPopisLokality' = MEMPTY,
-    '42nadmorskaVyska' = Markant_S, '43nalezPoznamka' = MEMPTY,
+    '40charakteristika' = Sign_S, '41puvodniPopisLokality' = X,
+    '42nadmorskaVyska' = Markant_S, '43nalezPoznamka' = X,
     '44dataceHodnota' = Urcil_S, '45datacePoznamka' = DatUrc_S, 
-    '46textEtiketa' = MEMPTY, '47typ' = MEMPTY,
-    '48cf' = MEMPTY, '49var' = MEMPTY, 
-    '50herbar' = MEMPTY, '51preparat' = MEMPTY, 
-    '52pocetSamcu' = MEMPTY, '53pocetSamic' = MEMPTY, '54pocetJuv' = MEMPTY, # CENA
-    '55collectio' = MEMPTY,
+    '46textEtiketa' = X, '47typ' = X,
+    '48cf' = X, '49var' = X, 
+    '50herbar' = X, '51preparat' = X, 
+    '52pocetSamcu' = X, '53pocetSamic' = X, '54pocetJuv' = X, # CENA
+    '55collectio' = X,
     
-    '56stalaLokaceKod' = MEMPTY, '57aktualniLokaceKod' = MEMPTY, 
+    '56stalaLokaceKod' = X, '57aktualniLokaceKod' = X, 
     
-    '58SPPoznamka' = MEMPTY,
-    '59zpusobNabytiKod' = MEMPTY,'60nabytiPredmetuDatum' = MEMPTY, 
-    '61nabytiPredmetuDoklad' = MEMPTY, '62nabytiPoznamka' = MEMPTY, 
-    '63nabytiPredchoziMajitelSlovy' = MEMPTY,'64prirustekCislo' = MEMPTY,
-    '65ciselnaRadaPrirustkuKod' = MEMPTY,'66nabytiPrirustkuDatum' = MEMPTY, 
-    '67zakladniCharakteristika' = MEMPTY, '68kodPodskupiny1' = MEMPTY, 
-    '69kodPodskupiny2' = MEMPTY,'70kodPodskupiny3' = MEMPTY,
-    '71predmetCizi' = MEMPTY,
-    '72SPPapirovaKarta' = MEMPTY, '73SPKartaJeOpsana' = MEMPTY,
-    '74text1' = MEMPTY, '75text2' = MEMPTY, '76text3' = MEMPTY,
-    '77text4' = MEMPTY ,'78text5' = MEMPTY,
-    '79SPUIns' = MEMPTY,'80SPDIns' = MEMPTY,
-    '81SPUUpd' = Lokalita_S,'82SPDUpd' = MEMPTY,
+    '58SPPoznamka' = X,
+    '59zpusobNabytiKod' = X,'60nabytiPredmetuDatum' = X, 
+    '61nabytiPredmetuDoklad' = X, '62nabytiPoznamka' = X, 
+    '63nabytiPredchoziMajitelSlovy' = X,'64prirustekCislo' = X,
+    '65ciselnaRadaPrirustkuKod' = X,'66nabytiPrirustkuDatum' = X, 
+    '67zakladniCharakteristika' = X, '68kodPodskupiny1' = X, 
+    '69kodPodskupiny2' = X,'70kodPodskupiny3' = X,
+    '71predmetCizi' = X,
+    '72SPPapirovaKarta' = X, '73SPKartaJeOpsana' = X,
+    '74text1' = X, '75text2' = X, '76text3' = X,
+    '77text4' = X ,'78text5' = X,
+    '79SPUIns' = X,'80SPDIns' = X,
+    '81SPUUpd' = Lokalita_S,'82SPDUpd' = X,
     
-    '83parageneze' = MEMPTY,'84chronostratigrafie' = MEMPTY,
-    '85litostratigrafie' = MEMPTY,'86poznamkaChrono' = MEMPTY,
-    '87poznamkaLito' = MEMPTY,'88kompletnost' = MEMPTY,
-    '89tvar' = MEMPTY,'90barva' = MEMPTY,
-    '91zrnitost' = MEMPTY,'92biozona' = MEMPTY,
-    '93fertilita' = MEMPTY,'94zpusobZachovani' = MEMPTY,
-    '95originalniJmeno' = MEMPTY,'96zoPohlavi' = MEMPTY,
-    '97zoStari' = MEMPTY,'98snadChrono' = MEMPTY,
-    '99snadLito' = MEMPTY, '100klicovaSlova' = MEMPTY,
-    '101nazevKU' = MEMPTY, '102fytochorion' = MEMPTY,
-    '103lokalitaDoplneni' = MEMPTY, '104lokalitaOriginalni' = MEMPTY,
-    '105stanoviste' = MEMPTY, '106mikroStanoviste' = MEMPTY,
-    '107biotopKod' = MEMPTY, '108zpusobZiskani' = MEMPTY,
-    '109souradniceZdroj' = MEMPTY, '110souradnicePresnost' = MEMPTY,
-    '111cisloSberu' = MEMPTY, '112rokAkvizice' = MEMPTY,
-    '113text6' = MEMPTY, '114text7' = MEMPTY,
-    '115text8' = MEMPTY, '116text9' = MEMPTY,
-    '117text10' = MEMPTY, '118rokPrirustku' = MEMPTY,
-    '119kategorieTaxonuNazev' = MEMPTY, '120nadrizenyTaxonNom' = MEMPTY)
+    '83parageneze' = X,'84chronostratigrafie' = X,
+    '85litostratigrafie' = X,'86poznamkaChrono' = X,
+    '87poznamkaLito' = X,'88kompletnost' = X,
+    '89tvar' = X,'90barva' = X,
+    '91zrnitost' = X,'92biozona' = X,
+    '93fertilita' = X,'94zpusobZachovani' = X,
+    '95originalniJmeno' = X,'96zoPohlavi' = X,
+    '97zoStari' = X,'98snadChrono' = X,
+    '99snadLito' = X, '100klicovaSlova' = X,
+    '101nazevKU' = X, '102fytochorion' = X,
+    '103lokalitaDoplneni' = X, '104lokalitaOriginalni' = X,
+    '105stanoviste' = X, '106mikroStanoviste' = X,
+    '107biotopKod' = X, '108zpusobZiskani' = X,
+    '109souradniceZdroj' = X, '110souradnicePresnost' = X,
+    '111cisloSberu' = X, '112rokAkvizice' = X,
+    '113text6' = X, '114text7' = X,
+    '115text8' = X, '116text9' = X,
+    '117text10' = X, '118rokPrirustku' = X,
+    '119kategorieTaxonuNazev' = X, '120nadrizenyTaxonNom' = X)
 
 oper_bio <- mus_tab
 imp <- "bio"
@@ -814,34 +815,34 @@ Karta pro Book Report.
 
 mus_tab <- modif_tab %>% 
   select(
-    '1typSbirkyNazev' = MEMPTY,    # !! povinne !!
-    '2isbn' = MEMPTY,              # !! povinne !!
-    '3inventarniCislo' = MEMPTY, 
-    '4predmetNazev' = MEMPTY,      # !! povinne !!
-    '5popisPredmetu' = MEMPTY,     # !! povinne !!
-    '6altNazev' = MEMPTY,
-    '7autorDila' = MEMPTY, '8editor' = MEMPTY,
-    '9ilustrator' = MEMPTY, '10fotograf' = MEMPTY,
-    '11grafik' = MEMPTY, '12sazec' = MEMPTY,
-    '13redaktor' = MEMPTY, '14nakladatelstvi' = MEMPTY,
-    '15vek30' = MEMPTY, '16datumVydani' = MEMPTY,
-    '17poradiVydani' = MEMPTY, '18pocetStran' = MEMPTY,
-    '19rozmery' = MEMPTY, '20pismo' = MEMPTY,
-    '21naklad' = MEMPTY, '22jazykDokumentu' = MEMPTY,
-    '23prodejniCena' = MEMPTY, '24tiskarna' = MEMPTY,
-    '25poznamka' = MEMPTY, '26prihlasovatel' = MEMPTY,
-    '27prihAdresaSlovy' = MEMPTY, '28prihBankSpoj' = MEMPTY,
-    '29prihPoIco' = MEMPTY, '30prihPoDic' = MEMPTY,
-    '31kontaktOsoba' = MEMPTY, '32koTelefon' = MEMPTY,
-    '33koMobil' = MEMPTY, '34koEmail' = MEMPTY,
+    '1typSbirkyNazev' = X,    # !! povinne !!
+    '2isbn' = X,              # !! povinne !!
+    '3inventarniCislo' = X, 
+    '4predmetNazev' = X,      # !! povinne !!
+    '5popisPredmetu' = X,     # !! povinne !!
+    '6altNazev' = X,
+    '7autorDila' = X, '8editor' = X,
+    '9ilustrator' = X, '10fotograf' = X,
+    '11grafik' = X, '12sazec' = X,
+    '13redaktor' = X, '14nakladatelstvi' = X,
+    '15vek30' = X, '16datumVydani' = X,
+    '17poradiVydani' = X, '18pocetStran' = X,
+    '19rozmery' = X, '20pismo' = X,
+    '21naklad' = X, '22jazykDokumentu' = X,
+    '23prodejniCena' = X, '24tiskarna' = X,
+    '25poznamka' = X, '26prihlasovatel' = X,
+    '27prihAdresaSlovy' = X, '28prihBankSpoj' = X,
+    '29prihPoIco' = X, '30prihPoDic' = X,
+    '31kontaktOsoba' = X, '32koTelefon' = X,
+    '33koMobil' = X, '34koEmail' = X,
     
-    '35vratitKnihy' = MEMPTY, '36vystavitDoklad' = MEMPTY, # LOGICKA POLE
-    '37souhlasGdpr' = MEMPTY, '38souhlasPubl' = MEMPTY,
+    '35vratitKnihy' = X, '36vystavitDoklad' = X, # LOGICKA POLE
+    '37souhlasGdpr' = X, '38souhlasPubl' = X,
     
-    '39nominaceRok' = MEMPTY, '40nominaceKategorie' = MEMPTY,
-    '41oceneniRok' = MEMPTY, '42oceneniKategorie' = MEMPTY,
-    '43oceneniMisto' = MEMPTY, '44oceneniTyp' = MEMPTY,
-    '45variantaCCLicenceOznaceni' = MEMPTY, '46seznamKontextovychDokumen' = MEMPTY)
+    '39nominaceRok' = X, '40nominaceKategorie' = X,
+    '41oceneniRok' = X, '42oceneniKategorie' = X,
+    '43oceneniMisto' = X, '44oceneniTyp' = X,
+    '45variantaCCLicenceOznaceni' = X, '46seznamKontextovychDokumen' = X)
 
 oper_br <- mus_tab
 imp <- "br"
@@ -878,29 +879,29 @@ mus_tab <- modif_tab %>%
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
     '3poradi' = MPORADI,   # !! povinne !!          
-    '4nazev' = MEMPTY,                                   
-    '5typDokumentuNazev' = MEMPTY,          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
     '6url' = '6url',    # !! povinne !!
     '7nahled' = '7nahled',       # priznak {0;1}                       
     '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
     '9tisk1' = '9tisk1',          # priznak {0;1}                     
     '10tisk2' = '10tisk2',         # priznak {0;1}                   
-    '11poznamka' = MEMPTY, 
-    '12neDigitalni' = MEMPTY, 
-    '13umisteni' = MEMPTY, 
-    '14publikace' = MEMPTY, 
-    '15literaturaNazev' = MEMPTY, 
-    '16literaturaSlovy' = MEMPTY, 
-    '17APlicenceCC' = MEMPTY, 
-    '18APvariantaCCOznaceni' = MEMPTY, 
-    '19APautorSubjektKod' = MEMPTY, 
-    '20APdrzitelSubjektKod' = MEMPTY, 
-    '21APtypLicence' = MEMPTY, 
-    '22APcasovaLicence' = MEMPTY, 
-    '23APuzemniLicence' = MEMPTY, 
-    '24APmnozstevniLicence' = MEMPTY, 
-    '25APdatumVyprseni' = MEMPTY, 
-    '26APpoznamka' = MEMPTY
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
     )                    
 
 oper_obrazky_h11t <- mus_tab
@@ -932,8 +933,8 @@ mus_tab <- modif_tab %>%
     '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
     '4poradi' = MMAT_POR,                              # !! povinne !!
     '5materialNazev' = MMATERIAL,                      # !! povinne !!
-    '6materialovaSkupina' = MEMPTY, 
-    '7materialSpecifikaceNazev' = MEMPTY, '8materialPredmetuPoznam' = MEMPTY)
+    '6materialovaSkupina' = X, 
+    '7materialSpecifikaceNazev' = X, '8materialPredmetuPoznam' = X)
 
 oper_matpred <- mus_tab
 imp <- "matPtu"
@@ -999,8 +1000,8 @@ mus_tab <- modif_tab %>%
     '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
     '4poradi' = MTECH_POR,                             # !! povinne !!
     '5technikaNazev' = MTECHNIKA,                      # !! povinne !!
-    '6materialovaSkupina' = MEMPTY, 
-    '7technikaSpecifikaceNazev' = MEMPTY, '8technikaPredmetuPoznam' = MEMPTY)
+    '6materialovaSkupina' = X, 
+    '7technikaSpecifikaceNazev' = X, '8technikaPredmetuPoznam' = X)
 
 oper_techpred <- mus_tab
 imp <- "techPtu"
@@ -1022,19 +1023,19 @@ Pokud nejsou stejne, Stala = Stala, Aktualni = Docasna
 mus_tab <- modif_tab %>% 
   select('1typKarty' = '1typKarty', # max. 1 znak, povinný, povolené hodnoty "K" a "P" (katalog / prirustek)
          '2evidencniCislo' = MINVC,
-         '3poradiPredmetuPrirustku' = MEMPTY,
-         '4poradiPredmetuPrirustkuPomocne' = MEMPTY,
-         '5konvInventarniCislo' = MEMPTY, 
-         '6konvPrirustkoveCislo' = MEMPTY, 
+         '3poradiPredmetuPrirustku' = X,
+         '4poradiPredmetuPrirustkuPomocne' = X,
+         '5konvInventarniCislo' = X, 
+         '6konvPrirustkoveCislo' = X, 
          '7staleUlozeniKod' = MSTALA,
-         '8docUlozeniDlouhodobeKod' = MEMPTY,
-         '9docUlozeniKratkodobeKod' = MEMPTY,
-         '10poznamka' = MEMPTY,
+         '8docUlozeniDlouhodobeKod' = X,
+         '9docUlozeniKratkodobeKod' = X,
+         '10poznamka' = X,
          '11text1' = MAKTUAL,
-         '12text2' = MEMPTY,
-         '13text3' = MEMPTY,
-         '14text4' = MEMPTY, 
-         '15text5' = MEMPTY)
+         '12text2' = X,
+         '13text3' = X,
+         '14text4' = X, 
+         '15text5' = X)
 
 oper_ulozeniPtu <- mus_tab
 imp <- "ulozeniPtu"
@@ -1058,20 +1059,20 @@ mus_tab <- modif_tab %>%
     '1SPCislo' = MINVC,                          # !! povinne !!
     '2poradi' = MPORADI,                         # !! povinne !!
     '3$autorSubjektKod' = '3$autorSubjektKod',             
-    '4autorSnad' = MEMPTY,                       # priznak 0 1                        
+    '4autorSnad' = X,                       # priznak 0 1                        
     '5autorRoleNazev' = '5autorRoleNazev',          
-    '6autorPoznamka' = MEMPTY, 
+    '6autorPoznamka' = X, 
     '7mistoLokalitaNazev' = MistoVz_S, 
-    '8mistoSnad' = MEMPTY,                       # priznak 0 1 
-    '9specifikaceMistaNazev' = MEMPTY, 
-    '10mistoDoplneni' = MEMPTY, 
+    '8mistoSnad' = X,                       # priznak 0 1 
+    '9specifikaceMistaNazev' = X, 
+    '10mistoDoplneni' = X, 
     '11dataceHodnota' = MDATACE_FIN, 
-    '12datacePoznamka' = MEMPTY, 
-    '13poznamka' = MEMPTY, 
-    '14kvalifikatorDatace' = MEMPTY, 
+    '12datacePoznamka' = X, 
+    '13poznamka' = X, 
+    '14kvalifikatorDatace' = X, 
     '15dataceSnad' = MSNAD,                      # priznak 0 1 
-    '16kvalifikatorDatace2' = MEMPTY,  
-    '17dataceSnad' = MEMPTY)                     # priznak 0 1  
+    '16kvalifikatorDatace2' = X,  
+    '17dataceSnad' = X)                     # priznak 0 1  
 
 oper_vznikPtu <- mus_tab
 imp <- "vznikPtu"
