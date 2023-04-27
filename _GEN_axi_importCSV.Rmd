@@ -94,15 +94,17 @@ if(file.exists(modif_save)){
 
 # C R E A T E    C S V
 
-mus_tab <- modify_tab %>% 
+mus_tab <- bot %>% 
   select(
-    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt',  # !! povinne !!
-    '2podsbirkaCislo'= '2podsbirkaCislo',           # !! povinne !!
-    '3fondKod' = MFOND,                             # !! povinne !!
-    '4nazev'= Fond_FN,                              # !! povinne !!
-    '5poznamka' = Pozn_FN, '6popisPubl'= X,
+    '1sbirkaCisloEvidInt' = MSBIRKA,    # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,          # !! povinne !!
+    '3fondKod' = MFOND,                 # !! povinne !!
+    '4nazev'= MFONDnaz,                 # !! povinne !!
+    '5poznamka' = X, '6popisPubl'= X,
     '7poradi' = X, '8oaiId'= X,
-    '9oaiDatumHarvestingu'= X, '10oaiDatumModifikace' = X)
+    '9oaiDatumHarvestingu'= X, '10oaiDatumModifikace' = X) %>% 
+  distinct()
+
 
 oper_fondy <- mus_tab
 imp <- "fond"
@@ -119,17 +121,18 @@ imp <- "fond"
 
 # C R E A T E    C S V
 
-mus_tab <- modify_tab %>% 
+mus_tab <- bot %>% 
   select(
-    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
-    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
-    '3fondKod' ='3fondKod',                        # !! povinne !!
-    '4skupinaKod'= Skupina_S,                      # !! povinne !! max 20 znaku, zkracovat
-    '5nazev' = '5nazev',                           # !! povinne !!
+    '1sbirkaCisloEvidInt' = MSBIRKA,     # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,           # !! povinne !!
+    '3fondKod' = MFOND,                  # !! povinne !!
+    '4skupinaKod'= MSKUP,                # !! povinne !! max 20 znaků
+    '5nazev' = MSKUPnaz,                 # !! povinne !!
     '6poznamka'= X,
     '7popisPubli' = X, '8poradi'= X,
     '9oaiId'= X, '10oaiDatumHarvestingu'= X, 
-    '11oaiDatumModifikace' = X)
+    '11oaiDatumModifikace' = X) %>% 
+  distinct()
 
 oper_skupiny <- mus_tab
 imp <- "skupiny"
@@ -148,11 +151,11 @@ imp <- "skupiny"
 
 mus_tab <- modify_tab %>% 
   select(
-    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
-    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
-    '3fondKod' ='3fondKod',                        # !! povinne !!
-    '4skupinaKod'= Skupina_S,                      # !! povinne !!
-    '5podskupina1Kod' = '5podskupina1Kod',         # !! povinne !! max 20 znaku, zkracovat, nesmi byt mezera
+    '1sbirkaCisloEvidInt' = MSBIRKA,              # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,                    # !! povinne !!
+    '3fondKod' = MFOND,                           # !! povinne !!
+    '4skupinaKod'= MSKUP,                         # !! povinne !!
+    '5podskupina1Kod' = '5podskupina1Kod',        # !! povinne !! max 20 znaku, zkracovat, nesmi byt mezera
     '6nazev'= X,
     '7poznamka'= X,
     '8popisPubli' = X, '9poradi'= X,
@@ -716,7 +719,7 @@ imp <- "fot"
 
 ## BIO
   
-*IMPORTNÍ ROZHRANÍ*: CSV BIO  
+*IMPORTNÍ ROZHRANÍ*: CSV_KatalogBIO
 *MUSEION*: import_bio.csv  
   
 Prirodovedna karta.    

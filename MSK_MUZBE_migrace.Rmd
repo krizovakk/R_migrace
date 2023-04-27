@@ -37,7 +37,6 @@ require(mdbr) # ::read_mdb
 require(RODBC) # ::read_mdb
 require(odbc) # ::read_mdb
 require(xlsx) # write excel in sheets
-
 ```
 
 \newpage 
@@ -46,18 +45,7 @@ require(xlsx) # write excel in sheets
 
 ```{r PROJECT SPECIFICATIONS AND PATHS}
 
-# *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
-
 projekt <- "MUZBE"
-
-
-# slovnik <- "animalia"
-# slovnik <- "ento"
-# slovnik <- "fungi"
-# slovnik <- "plantae"
-
-# *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
-
 
 path <-  "C:/Users/krizova/Documents/R/"
 
@@ -79,10 +67,7 @@ spm = systematicka evidence podsbirky Pm (mechorosty)
 cpm = ciselnik podsbirky Pm (mechorosty)  
 
 
-
 # B O T A N I K A
-
-BIO karta?  
 
 ```{r BOTANIKA}
 
@@ -91,14 +76,26 @@ BIO karta?
 # dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbeBOT_DK.accdb") 
 dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/MB_PVO_Botanika/botanika - aktuální.mdb") 
 con <- RODBC::odbcConnectAccess2007(dbname)      
+bot0 <- RODBC::sqlFetch(con, "data")   
 
-# akv <- RODBC::sqlFetch(con, "lcl_akvarely")   
-bot <- RODBC::sqlFetch(con, "data")   
-# bry <- RODBC::sqlFetch(con, "lcl_mechorosty")   
-# que <- RODBC::sqlFetch(con, "lcl_quercus")   
-
-bot <- bot %>% 
+bot1 <- bot0 %>% 
   select(-contains("_sort"), -nvg_id)
+
+
+# M U S E I O N   E V I D E N C E
+
+bot <- bot1 %>% 
+  mutate(MSBIRKA = "MUZBE",
+         MPODSB = "Pb",
+         MPODSBnaz = "botanika",
+         MFOND = "bot",
+         MFONDnaz = "botanika",
+         MSKUP = "herbT",
+         MSKUPnaz = "herbář Tracheophyta",
+         X = NA)
+
+rm(bot0)
+rm(bot1)
 
 # biolib slovnik pro botaniku
 
@@ -108,15 +105,6 @@ biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/0
 
 ## BOT slovniky
 
-*IMPORTNÍ ROZHRANÍ*: CSV Adresář osob  
-
-pole:  
-    + create_uid
-    + lastwrite_uid
-    + sberatel  (vice zaznamu)  
-    + urcil  (vice zaznamu)  
-    
-    
 ### bot fondy
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Fond
@@ -126,24 +114,17 @@ pole:
 
 # M O D I F Y
 
-modify_tab <- bot %>% 
-  mutate('1sbirkaCisloEvidInt' = "MUZBE",
-         '2podsbirkaCislo' = "Pb",
-         MFOND = "B",
-         MFONDNAZ = "Botanika", 
-         MEMPTY = "")
-
 # C R E A T E    C S V
 
-mus_tab <- modify_tab %>% 
+mus_tab <- bot %>% 
   select(
-    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt',  # !! povinne !!
-    '2podsbirkaCislo'= '2podsbirkaCislo',           # !! povinne !!
-    '3fondKod' = MFOND,                             # !! povinne !!
-    '4nazev'= MFONDNAZ,                              # !! povinne !!
-    '5poznamka' = MEMPTY, '6popisPubl'= MEMPTY,
-    '7poradi' = MEMPTY, '8oaiId'= MEMPTY,
-    '9oaiDatumHarvestingu'= MEMPTY, '10oaiDatumModifikace' = MEMPTY) %>% 
+    '1sbirkaCisloEvidInt' = MSBIRKA,    # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,          # !! povinne !!
+    '3fondKod' = MFOND,                 # !! povinne !!
+    '4nazev'= MFONDnaz,                 # !! povinne !!
+    '5poznamka' = X, '6popisPubl'= X,
+    '7poradi' = X, '8oaiId'= X,
+    '9oaiDatumHarvestingu'= X, '10oaiDatumModifikace' = X) %>% 
   distinct()
 
 oper_fondy <- mus_tab
@@ -159,30 +140,19 @@ imp <- "fond"
 
 # M O D I F Y
 
-modify_tab <- bot %>% 
-  mutate('1sbirkaCisloEvidInt' = "MUZBE",
-         '2podsbirkaCislo' = "Pb",
-         MFOND = "B",
-         MFONDNAZ = "botanika", 
-         MSKUP = skup, 
-         MSKUPNAZ = skup, 
-         MEMPTY = "")
-
-sort(unique(modify_tab$MSKUPNAZ))
-
 # C R E A T E    C S V
 
-mus_tab <- modify_tab %>% 
+mus_tab <- bot %>% 
   select(
-    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
-    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
-    '3fondKod' = MFOND,                            # !! povinne !!
-    '4skupinaKod'= MSKUP,                          # !! povinne !! max 20 znaků
-    '5nazev' = MSKUPNAZ,                           # !! povinne !!
-    '6poznamka'= MEMPTY,
-    '7popisPubli' = MEMPTY, '8poradi'= MEMPTY,
-    '9oaiId'= MEMPTY, '10oaiDatumHarvestingu'= MEMPTY, 
-    '11oaiDatumModifikace' = MEMPTY) %>% 
+    '1sbirkaCisloEvidInt' = MSBIRKA,     # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,           # !! povinne !!
+    '3fondKod' = MFOND,                  # !! povinne !!
+    '4skupinaKod'= MSKUP,                # !! povinne !! max 20 znaků
+    '5nazev' = MSKUPnaz,                 # !! povinne !!
+    '6poznamka'= X,
+    '7popisPubli' = X, '8poradi'= X,
+    '9oaiId'= X, '10oaiDatumHarvestingu'= X, 
+    '11oaiDatumModifikace' = X) %>% 
   distinct()
 
 oper_skupiny <- mus_tab
@@ -200,32 +170,25 @@ imp <- "skupiny"
 # M O D I F Y
 
 modify_tab <- bot %>% 
-  mutate('1sbirkaCisloEvidInt' = "MUZBE",
-         '2podsbirkaCislo' = "Pb",
-         MFOND = "bot",
-         MFONDNAZ = "botanika", 
-         MSKUP = "herbT", 
-         MSKUPNAZ = "herbář Tracheophyta", 
-         MPODSKUP = substr(sub("\\s", "", pskup), 1,20), # smazat mezeru, orezat na 20 znaku
+  mutate(MPODSKUP = substr(sub("\\s", "", pskup), 1,20), # smazat mezeru, orezat na 20 znaku
          # MPODSKUP = substr(pskup, 1,20), 
          Mpskp_len = nchar(pskup), 
          MPODSKUPNAZ = pskup, 
-         MEMPTY = "")
+         X = "")
 
 # C R E A T E    C S V
 
 mus_tab <- modify_tab %>% 
-  select(
-    '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', # !! povinne !!
-    '2podsbirkaCislo'= '2podsbirkaCislo',          # !! povinne !!
+  select('1sbirkaCisloEvidInt' = MSBIRKA,      # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,                 # !! povinne !!
     '3fondKod' = MFOND,                        # !! povinne !!
     '4skupinaKod'= MSKUP,                      # !! povinne !!
-    '5podskupina1Kod' = MPODSKUP,         # !! povinne !! max 20 znaku, zkracovat
+    '5podskupina1Kod' = MPODSKUP,              # !! povinne !! max 20 znaku, zkracovat
     '6nazev'= MPODSKUPNAZ,
-    '7poznamka'= MEMPTY,
-    '8popisPubli' = MEMPTY, '9poradi'= MEMPTY,
-    '10oaiId'= MEMPTY, '11oaiDatumHarvestingu'= MEMPTY, 
-    '12oaiDatumModifikace' = MEMPTY) %>% 
+    '7poznamka'= X,
+    '8popisPubli' = X, '9poradi'= X,
+    '10oaiId'= X, '11oaiDatumHarvestingu'= X, 
+    '12oaiDatumModifikace' = X) %>% 
   distinct()
 
 oper_podskupiny <- mus_tab
@@ -235,7 +198,17 @@ imp <- "podskupiny"
 
 ### bot adresar
 
-```{r BOT ADRESAR}
+*IMPORTNÍ ROZHRANÍ*: CSV Adresář osob  
+**MUSEION**: import_adresar.csv
+
+pole:  
+    + create_uid
+    + lastwrite_uid
+    + sberatel  (vice zaznamu)  
+    + urcil  (vice zaznamu)  
+    
+    
+```{r BOT MODIF ADRESAR}
 
 # M O D I F Y
 
@@ -548,7 +521,7 @@ adr <-a %>%
 # M O D I F Y
 
 modify_tab <- adr %>% 
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1typSubjektuKod' = "OO",
          subjektKod = ifelse(nchar(MKODOS)>30, str_remove_all(MKODOS, "\\set\\s|\\w\\.|,\\s|al\\.$"), MKODOS),
          subjektKod = ifelse(nchar(subjektKod)>30, str_remove_all(subjektKod, "\\s"), subjektKod),
@@ -568,41 +541,41 @@ modify_tab[modify_tab == ""] <- NA
 mus_tab <- modify_tab %>% 
   select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
          '2subjektKod' = subjektKod,         # !! povinne !!
-         '3subjektAlterKod' = MEMPTY, '4osobaJmenoPrvni'= '4osobaJmenoPrvni', 
-         '5osobaJmenoDruhe' = MEMPTY, 
+         '3subjektAlterKod' = X, '4osobaJmenoPrvni'= '4osobaJmenoPrvni', 
+         '5osobaJmenoDruhe' = X, 
          '6osobaPrijmeni' = '6osobaPrijmeni',         # !! povinne !!
-         '7osobaTitulPredJmenem' = MTIT, '8osobaTitulZaJmenem' = MEMPTY, 
-         '9osobaRodnePrijmeni' = MEMPTY, 
+         '7osobaTitulPredJmenem' = MTIT, '8osobaTitulZaJmenem' = X, 
+         '9osobaRodnePrijmeni' = X, 
          '10osobaPohlavi' = '10osobaPohlavi',   # !! povinne !! "muž", "žena", "neznámé"
          
-         '11osobaDatumNarozeni' = MEMPTY, '12osobaMistoNarozeni' = MEMPTY,
-         '13okresNarozeniNazev' = MEMPTY, '14obecNarozeniNazev' = MEMPTY,
-         '15statNarozeniKod' = MEMPTY, '16osobaDatumUmrti' = MEMPTY,
-         '17osobaMistoUmrti' = MEMPTY, 
+         '11osobaDatumNarozeni' = X, '12osobaMistoNarozeni' = X,
+         '13okresNarozeniNazev' = X, '14obecNarozeniNazev' = X,
+         '15statNarozeniKod' = X, '16osobaDatumUmrti' = X,
+         '17osobaMistoUmrti' = X, 
          
          '18subjektStatKod' = '18subjektStatKod',
-         '19kontaktEmail' = MEMPTY, '20kontaktMobil' = MEMPTY,
-         '21kontaktMobil2' = MEMPTY, '22kontaktTelefon' = MEMPTY,
-         '23kontaktInternet' = MEMPTY, '24kontaktInternetoveVolani' = MEMPTY,
-         '25adresaText' = MEMPTY, '26kontaktniAdresaText' = MEMPTY,
-         '27fyzickaOsobaRodneCislo' = MEMPTY, '28subjektPoznamka' = MEMPTY, 
+         '19kontaktEmail' = X, '20kontaktMobil' = X,
+         '21kontaktMobil2' = X, '22kontaktTelefon' = X,
+         '23kontaktInternet' = X, '24kontaktInternetoveVolani' = X,
+         '25adresaText' = X, '26kontaktniAdresaText' = X,
+         '27fyzickaOsobaRodneCislo' = X, '28subjektPoznamka' = X, 
          
-         '29AdresaTextoveOkres' = MEMPTY, '30AdresaTextoveObec' = MEMPTY,
-         '31AdresaTextoveCastObce' = MEMPTY, '32AdresaTextoveMestskaCast' = MEMPTY,
-         '33AdresaTextoveUlice' = MEMPTY, '34AdresaTextoveCisloOrientacni' = MEMPTY,
-         '35AdresaTextoveCislo' = MEMPTY, '36AdresaTextovePSC' = MEMPTY,
+         '29AdresaTextoveOkres' = X, '30AdresaTextoveObec' = X,
+         '31AdresaTextoveCastObce' = X, '32AdresaTextoveMestskaCast' = X,
+         '33AdresaTextoveUlice' = X, '34AdresaTextoveCisloOrientacni' = X,
+         '35AdresaTextoveCislo' = X, '36AdresaTextovePSC' = X,
          
-         '37zamestnanecCislo' = MEMPTY, '38oddeleniKod' = MEMPTY,
-         '39osobnostMedailon' = MEMPTY, '40osobnostPseudonym' = MEMPTY,
-         '41okruhSubjektuNazev' = MEMPTY, '42subjektSbirka' = '42subjektSbirka',           
+         '37zamestnanecCislo' = X, '38oddeleniKod' = X,
+         '39osobnostMedailon' = X, '40osobnostPseudonym' = X,
+         '41okruhSubjektuNazev' = X, '42subjektSbirka' = '42subjektSbirka',           
          '43subjektPodsbirka' = '43subjektPodsbirka', 
-         '44osobaStudia' = MEMPTY,
-         '45osobaSpolky' = MEMPTY, '46osobaOsobnost' = MEMPTY,
-         '47subjektDatumOd' = MEMPTY, '48subjektDatumDo' = MEMPTY,
-         '49kontaktEmail2' = MEMPTY, 
-         '50text1' = MEMPTY, '51text2' = MEMPTY, '52text3' = MEMPTY, 
-         '53role1' = MEMPTY, '54role2' = MEMPTY, 
-         '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY
+         '44osobaStudia' = X,
+         '45osobaSpolky' = X, '46osobaOsobnost' = X,
+         '47subjektDatumOd' = X, '48subjektDatumDo' = X,
+         '49kontaktEmail2' = X, 
+         '50text1' = X, '51text2' = X, '52text3' = X, 
+         '53role1' = X, '54role2' = X, 
+         '55role3' = X, '56role4' = X, '57$role5' = X
          # , rel_ZkrJm = puv
          )
 
@@ -617,6 +590,9 @@ imp <- "BOTadresar"
 
 ### bot lokality
 
+*IMPORTNÍ ROZHRANÍ*: CSV Lokalita  
+**MUSEION**: import_lokalita.csv
+
 * nvyska:
     + 498 m n.m.  
     + 640 - 730 m n.m.  
@@ -625,7 +601,7 @@ imp <- "BOTadresar"
     + cca 250 mnm  
     + ca 250 mnm
 
-```{r BOT LOKALITY, warning=FALSE}
+```{r BOT MODIF LOKALITY, warning=FALSE}
 
 ku <- read_excel("C:/Users/krizova/Documents/R/gen_tabdata/katastryCR_cuzk_2023.xlsx")
 fy0 <- read_excel("C:/Users/krizova/Documents/R/gen_tabdata/fytochorionyCR_csop_2023.xlsx") 
@@ -766,9 +742,6 @@ bot_lok <- bot_init %>%
 
 ```
 
-
-*IMPORTNÍ ROZHRANÍ*: CSV Lokalita  
-
 1$lokalitaNazev - P O V I N N E, *katastr*, kdyz katastr neni, tak *lokalita_geo*, jinak *oblast*
 2$okresNazev - nic
 3$statKod - vytvorit
@@ -842,7 +815,7 @@ modify_tab <- bot %>%
   mutate(Mfytoch_por = seq_along(Mfytoch_naz)) %>% 
   spread(key = "Mfytoch_por",
          value = "Mfytoch_naz") %>% 
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '12lokalitaSbirka' = "MUZBE",
          '13lokalitaPodsbirka' = "Pb") %>% 
   ungroup()
@@ -855,20 +828,20 @@ modify_tab[modify_tab == ""] <- NA
 mus_tab <- modify_tab %>% 
   select(
     '1lokalitaNazev' = MLOKALITA,  # !! povinne !!
-    '2okresNazev'= MEMPTY,
+    '2okresNazev'= X,
     '3statKod' = MSTKOD, 
     '4oblastNazev'= MOBLAST,
     '5lokalitaZeme' = MZEME, 
-    '6lokalitaCtverec'= MEMPTY,
-    '7lokalitaMapa' = MEMPTY, 
-    '8lokalitaZemepisnaSirka'= MEMPTY,
-    '9lokalitaZemepisnaDelka'= MEMPTY, 
-    '10lokalitaNadmorskaVyska'= MEMPTY,
-    '11lokalitaPoznamka'= MEMPTY, 
+    '6lokalitaCtverec'= X,
+    '7lokalitaMapa' = X, 
+    '8lokalitaZemepisnaSirka'= X,
+    '9lokalitaZemepisnaDelka'= X, 
+    '10lokalitaNadmorskaVyska'= X,
+    '11lokalitaPoznamka'= X, 
     '12lokalitaSbirka'= '12lokalitaSbirka',
     '13lokalitaPodsbirka'= '13lokalitaPodsbirka',
     '14fytochorion1'= '1',
-    '15lokalitaPublicNadNazev'= MEMPTY, '16lokalitaPublicNazev'= MEMPTY,
+    '15lokalitaPublicNadNazev'= X, '16lokalitaPublicNazev'= X,
     '17fytochorion2'= '2', '18fytochorion3'= '3',
     '19fytochorion4'='4') %>% 
   drop_na('1lokalitaNazev') %>% 
@@ -976,94 +949,95 @@ base <- bot %>%
   relocate(MPRIRC, .after = prirc) %>% 
   select(-Mpodsb, -Mprir, -Mrok)
   
-  # sber a revize
+  # sber a revize -> nakonec nebyl potreba
   
-sber <- base %>%  
-  mutate(
-         Msberatel = ifelse(sberatel == "D. Hlisnikovskýet al.", "D. Hlisnikovský et al.", sberatel),
-         Msberatel = ifelse(sberatel == "E.  Burša", "E. Burša", Msberatel),
-         Mforma = ifelse(str_detect(Msberatel, "rev\\.|rev\\s"), "revize", 
-                                    ifelse(str_detect(Msberatel, " et | & "), "kolektiv", "")),
-         MID = seq_along(sberatel)) %>% 
-  relocate(Msberatel, .after = "sberatel") %>% 
-  relocate(Mforma, .before = "sberatel") %>% 
-  separate(Msberatel, into=c("M", "MR_sbe") , 
-           sep="rev\\s|,\\srev\\s|,\\srev\\.|,\\s\\srev\\.|,\\s\\srev\\s|;\\srev\\.|\\srev\\.|rev\\.", # oddeleni revizi do samost. sloupce
-           remove = F, extra = "merge") %>% 
-
-  mutate(MR_sbe = str_trim(MR_sbe), # oriznout whitespace
-         M = str_trim(M), # TRIM !!!
-         
-         MRforma = ifelse(str_detect(MR_sbe, " et | & "), "kolektiv", "revize")) %>%   
-  relocate(MRforma, .before = "MR_sbe") %>%
-
-  separate(M, into=c("M1", "M2", "M3") , sep=",| et | a(?! J.)| &", remove = F, extra = "merge") %>% 
-  pivot_longer(
-    cols = c(
-      M1, M2, M3,
-    ),
-    names_to = "source", # poradi techniky
-    values_to = "Mnames",
-    values_drop_na = TRUE) %>%  
-  mutate(
-    Mnames = str_trim(Mnames),
-    MPJM = case_when(
-                     str_detect(Mnames, "^\\w+$") ~ str_extract(Mnames, "^\\w+$"), # Vrubel
-                     str_detect(Mnames, "^\\w\\.\\w+$") ~ str_extract(Mnames, "\\b\\w+$"), # A.Hájková
-                     str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\.$"), # D., al.
-                     # str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R. J. Vašut
-                     # str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R.J. Vašut
-                     str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # Miroslava Bilkova
-                     # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "\\w+\\s\\w+\\.$"), # J. Chrtek jun.
-                     # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+\\s\\w+$"), # J. Chrtek jun
-                     # str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "\\w+\\s\\(\\w+\\)"), # O. Rotreklová (BRNU)
-                     # str_detect(Mnames, "^[:upper:]{3}$") ~ str_extract(Mnames, "^[:upper:]{3}$"), # PVO
-                     # str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 1), # "Ekrt L."
-                     TRUE ~ word(Mnames, 2)),
-    MJM = case_when(str_detect(Mnames, "^\\w+\\.\\s+\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  	# V. Dvořák
-                    str_detect(Mnames, "^\\w+\\.\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  # 	J.Danihelka
-                    # str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\s\\w\\."),  # R. J. Vašut
-                    # str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\w\\."),  # R.J. Vašut 
-                    str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"),  # Miroslava Bilkova
-                    # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\."), # J. Chrtek jun.
-                    # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"), # J. Chrtek jun
-                    # str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "^\\w+\\."), # O. Rotreklová (BRNU)
-                    # str_detect(Mnames, "^\\w\\.\\sa\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\sa\\s\\w\\."), # L. a J. Reitmyerovi
-                    # str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 2), # "Ekrt L."
-                    # str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, ""), # al.
-                    TRUE ~ "")) %>% 
-    # MTIT = case_when(str_detect(MJM, "doc.|Ing.") ~ str_extract(Mnames, "doc.|Ing."), TRUE ~ ""),
-    # MJM = case_when(str_detect(MJM, "doc.|Ing.") ~  str_remove(MJM, "doc.|Ing."), TRUE ~ MJM)) %>% 
-  replace(is.na(.), "") %>% 
-    mutate(MKODOS = paste(MPJM, MJM)) %>% 
-  group_by(MID) %>% 
-  pivot_wider(names_from = source, values_from = c(MPJM, MJM, MKODOS)) %>%  # back to wide
-  select(-Mnames) %>% 
-  # mutate_all(~na_if(., '')) %>%
-  fill(MPJM_M1, .direction = "down") %>% 
-  fill(MPJM_M2, .direction = "down") %>% 
-  fill(MPJM_M2, .direction = "up") %>% 
-  fill(MPJM_M3, .direction = "up") %>% 
-  fill(MJM_M1, .direction = "down") %>% 
-  fill(MJM_M2, .direction = "down") %>% 
-  fill(MJM_M2, .direction = "up") %>% 
-  fill(MJM_M3, .direction = "up") %>% 
-  fill(MKODOS_M1, .direction = "down") %>% 
-  fill(MKODOS_M2, .direction = "down") %>% 
-  fill(MKODOS_M2, .direction = "up") %>% 
-  fill(MKODOS_M3, .direction = "up") %>% 
-  distinct() %>% 
-  ungroup() %>% 
-  unite(MKODOS_sbe, c("MKODOS_M1", "MKODOS_M2", "MKODOS_M3"), sep = ", ", na.rm = T, remove = FALSE) %>% 
-  relocate(MKODOS_sbe, .after = "Msberatel") %>% 
-  mutate(MKODOS_sbe = case_when(Mforma == "kolektiv" ~ sub(",([^,]*)$", " et\\1", MKODOS_sbe),
-                             TRUE ~ MKODOS_sbe)) %>% 
-  # select(-(last_col(offset = 10):last_col())) %>%                                    # pozor pri zmene poradi sekci !!!!
-  select(-Mforma, -Msberatel, -M, -MRforma, -contains(c("M1", "M2", "M3")))
-  
+# sber <- base %>%  
+#   mutate(
+#          Msberatel = ifelse(sberatel == "D. Hlisnikovskýet al.", "D. Hlisnikovský et al.", sberatel),
+#          Msberatel = ifelse(sberatel == "E.  Burša", "E. Burša", Msberatel),
+#          Mforma = ifelse(str_detect(Msberatel, "rev\\.|rev\\s"), "revize", 
+#                                     ifelse(str_detect(Msberatel, " et | & "), "kolektiv", "")),
+#          MID = seq_along(sberatel)) %>% 
+#   relocate(Msberatel, .after = "sberatel") %>% 
+#   relocate(Mforma, .before = "sberatel") %>% 
+#   separate(Msberatel, into=c("M", "MR_sbe") , 
+#            sep="rev\\s|,\\srev\\s|,\\srev\\.|,\\s\\srev\\.|,\\s\\srev\\s|;\\srev\\.|\\srev\\.|rev\\.", # oddeleni revizi do samost. sloupce
+#            remove = F, extra = "merge") %>% 
+# 
+#   mutate(MR_sbe = str_trim(MR_sbe), # oriznout whitespace
+#          M = str_trim(M), # TRIM !!!
+#          
+#          MRforma = ifelse(str_detect(MR_sbe, " et | & "), "kolektiv", "revize")) %>%   
+#   relocate(MRforma, .before = "MR_sbe") %>%
+# 
+#   separate(M, into=c("M1", "M2", "M3") , sep=",| et | a(?! J.)| &", remove = F, extra = "merge") %>% 
+#   pivot_longer(
+#     cols = c(
+#       M1, M2, M3,
+#     ),
+#     names_to = "source", # poradi techniky
+#     values_to = "Mnames",
+#     values_drop_na = TRUE) %>%  
+#   mutate(
+#     Mnames = str_trim(Mnames),
+#     MPJM = case_when(
+#                      str_detect(Mnames, "^\\w+$") ~ str_extract(Mnames, "^\\w+$"), # Vrubel
+#                      str_detect(Mnames, "^\\w\\.\\w+$") ~ str_extract(Mnames, "\\b\\w+$"), # A.Hájková
+#                      str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\.$"), # D., al.
+#                      # str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R. J. Vašut
+#                      # str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R.J. Vašut
+#                      str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # Miroslava Bilkova
+#                      # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "\\w+\\s\\w+\\.$"), # J. Chrtek jun.
+#                      # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+\\s\\w+$"), # J. Chrtek jun
+#                      # str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "\\w+\\s\\(\\w+\\)"), # O. Rotreklová (BRNU)
+#                      # str_detect(Mnames, "^[:upper:]{3}$") ~ str_extract(Mnames, "^[:upper:]{3}$"), # PVO
+#                      # str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 1), # "Ekrt L."
+#                      TRUE ~ word(Mnames, 2)),
+#     MJM = case_when(str_detect(Mnames, "^\\w+\\.\\s+\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  	# V. Dvořák
+#                     str_detect(Mnames, "^\\w+\\.\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  # 	J.Danihelka
+#                     # str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\s\\w\\."),  # R. J. Vašut
+#                     # str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\w\\."),  # R.J. Vašut 
+#                     str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"),  # Miroslava Bilkova
+#                     # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\."), # J. Chrtek jun.
+#                     # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"), # J. Chrtek jun
+#                     # str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "^\\w+\\."), # O. Rotreklová (BRNU)
+#                     # str_detect(Mnames, "^\\w\\.\\sa\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\sa\\s\\w\\."), # L. a J. Reitmyerovi
+#                     # str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 2), # "Ekrt L."
+#                     # str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, ""), # al.
+#                     TRUE ~ "")) %>% 
+#     # MTIT = case_when(str_detect(MJM, "doc.|Ing.") ~ str_extract(Mnames, "doc.|Ing."), TRUE ~ ""),
+#     # MJM = case_when(str_detect(MJM, "doc.|Ing.") ~  str_remove(MJM, "doc.|Ing."), TRUE ~ MJM)) %>% 
+#   replace(is.na(.), "") %>% 
+#     mutate(MKODOS = paste(MPJM, MJM)) %>% 
+#   group_by(MID) %>% 
+#   pivot_wider(names_from = source, values_from = c(MPJM, MJM, MKODOS)) %>%  # back to wide
+#   select(-Mnames) %>% 
+#   # mutate_all(~na_if(., '')) %>%
+#   fill(MPJM_M1, .direction = "down") %>% 
+#   fill(MPJM_M2, .direction = "down") %>% 
+#   fill(MPJM_M2, .direction = "up") %>% 
+#   fill(MPJM_M3, .direction = "up") %>% 
+#   fill(MJM_M1, .direction = "down") %>% 
+#   fill(MJM_M2, .direction = "down") %>% 
+#   fill(MJM_M2, .direction = "up") %>% 
+#   fill(MJM_M3, .direction = "up") %>% 
+#   fill(MKODOS_M1, .direction = "down") %>% 
+#   fill(MKODOS_M2, .direction = "down") %>% 
+#   fill(MKODOS_M2, .direction = "up") %>% 
+#   fill(MKODOS_M3, .direction = "up") %>% 
+#   distinct() %>% 
+#   ungroup() %>% 
+#   unite(MKODOS_sbe, c("MKODOS_M1", "MKODOS_M2", "MKODOS_M3"), sep = ", ", na.rm = T, remove = FALSE) %>% 
+#   relocate(MKODOS_sbe, .after = "Msberatel") %>% 
+#   mutate(MKODOS_sbe = case_when(Mforma == "kolektiv" ~ sub(",([^,]*)$", " et\\1", MKODOS_sbe),
+#                              TRUE ~ MKODOS_sbe)) %>% 
+#   # select(-(last_col(offset = 10):last_col())) %>%                                    # pozor pri zmene poradi sekci !!!!
+#   select(-Mforma, -Msberatel, -M, -MRforma, -contains(c("M1", "M2", "M3")))
+#   
   # urcil a revize
   
-urcil <- sber %>% 
+# urcil <- sber %>% 
+urcil <- base %>% 
 
   mutate(urcil = ifelse(urcil == "E. Burša,, rev. J. Chrtek Jun.", "E. Burša, rev. J. Chrtek Jun.", urcil),
          urcil = ifelse(urcil == "D. Hlisnikovskýet al.", "D. Hlisnikovský et al.", urcil),
@@ -1184,8 +1158,7 @@ geo <- urcil %>%
          MN = gsub("' |´", "'", MN),  
          ME = str_trim(ME),
          ME = gsub("´", "'", ME)) %>% 
-  mutate(MSIRKA = "N",
-         MDELKA = "E",
+  mutate(
          MNst = str_extract(MN, "[^°]+"),        # N N N N N N N N N 
          MNmin = gsub("^.*°", "", MN),
          MNmin = gsub("'.*$", "", MNmin),
@@ -1196,6 +1169,10 @@ geo <- urcil %>%
          MEmin = gsub("'.*$", "", MEmin),
          MEvte = str_remove(ME, "[^']+"),
          MEvte = gsub("'|''|°", "", MEvte),
+         
+         MSIRKA = ifelse(str_detect(MNst, "[:digit:]+"), "N", NA),
+         MDELKA = ifelse(str_detect(MEst, "[:digit:]+"), "E", NA),
+         
          MN_temp = MNst,
          ME_temp = MEst,
          MNst = ifelse(MN_temp == "432342,4", "43", MNst),  # uprava dvou spec pripadu
@@ -1258,10 +1235,12 @@ taxon <- geo %>%
   relocate(MNOMEN, .after = druh) %>% 
   relocate('8nadrizenyTaxon', .after = var) %>% 
   relocate('5nomen', .after = var) %>% 
-  relocate('4nazevKategorie', .after = var) %>% 
-  rename(BLnomen = '5nomen') %>% 
-  mutate(MTAXON = ifelse(is.na(BLnomen), MNOMEN, BLnomen)) %>% 
-  relocate(MTAXON, .after = MNOMEN) 
+  rename(BLnomen = '5nomen',
+         BLnazkat = '4nazevKategorie') %>% 
+  mutate(MTAXON = ifelse(is.na(BLnomen), MNOMEN, BLnomen),
+         MTAXKATEG = ifelse(is.na(BLnazkat), "druh", BLnazkat)) %>% 
+  relocate(MTAXON, .after = MNOMEN) %>% 
+  relocate(MTAXKATEG, .after = MTAXON) 
 
 # nesp <- porovnani %>% 
 #   filter(is.na(stromKat)) %>% # 1509
@@ -1269,16 +1248,20 @@ taxon <- geo %>%
   
   # odborne urceni pozn
 
+taxon[taxon == ""] <- NA
 ou <- taxon %>%
-  mutate(MPOZN_OU = case_when(!is.na(MPOZN_urc) ~ paste0(MPOZN_urc, "\n" , reviz),
-                              !is.na(reviz) ~ paste0(reviz),
-                              TRUE ~ "")) %>% 
+  # mutate(pozn = gsub("\\s+", "", pozn)) %>% 
+  # mutate(reviz = gsub("^\\s+$", "", reviz)) %>% 
+  # mutate(MPOZN_OU = case_when(!is.na(MPOZN_urc) ~ paste0(MPOZN_urc, "\n" , reviz),
+  #                             !is.na(reviz) ~ paste0(reviz),
+  #                             TRUE ~ "")) %>% 
+  unite(MPOZN_OU, c("MPOZN_urc", "reviz", "pozn"), sep = "\n", na.rm = T, remove = FALSE) %>% 
   relocate(MPOZN_OU, .after = urcil_d) %>% 
   relocate(reviz, .after = urcil_d) 
 
   # set samostatnych poli
 
-modif_tab <- ou %>% 
+modify_tab <- ou %>% 
   mutate(X = NA,
          '1typPredmetuKod' = "BO", 
          '2sbirkaCisloEvidInt' = projekt,
@@ -1291,15 +1274,26 @@ modif_tab <- ou %>%
          MNABYTI = case_when(nabyti == "dar" ~ "D",
                              nabyti %in% c("nákup", "Nákup", "nákup ", "nkup") ~ "K",
                              nabyti %in% c("sběr", "sběr ", "svěr") ~ "V"),
-         MPODSKUP = substr(sub("\\s", "", pskup), 1,20)) # smazat mezeru, orezat na 20 znaku)
-
+         MPODSKUP = substr(sub("\\s", "", pskup), 1,20),  # smazat mezeru, orezat na 20 znaku)
+         MSTAV = case_when(str_detect(stav, "Inventarizace|Inventarizace\\s|Invenatrizace\\s|Inevntarizace\\s|Invetarizace\\s|Inventrizace\\s") 
+                           ~ gsub("Inventarizace|Inventarizace\\s|Invenatrizace\\s|Inevntarizace\\s|Invetarizace\\s|Inventrizace\\s", "", stav),
+                           str_detect(stav, "Inv.\\s") ~ gsub("Inv.\\s", "", stav),
+                           str_detect(stav, "I|I\\s") ~ gsub("I|I\\s", "", stav),
+                           TRUE ~ stav)) %>% 
+  relocate(MSTAV, .after = stav)
+           
+# rm(base)
+# rm(sber)
+# rm(urcil)
+# rm(geo)
+# rm(taxon)
+# rm(ou)
 
 ```
 
-
 ### bot CSV biokarta
 
-*IMPORTNÍ ROZHRANÍ*: CSV BIO  
+*IMPORTNÍ ROZHRANÍ*: CSV_KatalogBIO  
 *MUSEION*: import_bio.csv  
   
 Prirodovedna karta.    
@@ -1309,7 +1303,7 @@ Prirodovedna karta.
 # ------------------------------------- P O K R A C U J   Z D E !!! 
 # ------------------------------------- D O P L N I T !!!
 
-mus_tab <- modif_tab %>% 
+mus_tab <- modify_tab %>% 
   select(
     '1typPredmetuKod' = '1typPredmetuKod',        # !! povinne !! (BI, BO, ZO, EN, GE nebo PL)
     '2sbirkaCisloEvidInt'= '2sbirkaCisloEvidInt', # !! povinne !! ze slovniku
@@ -1323,7 +1317,7 @@ mus_tab <- modif_tab %>%
     '9SPPoradoveCisloDo'= X, 
     '10SPPoradoveCisloSub' = X,
     '11SPPoradoveCisloSubDo' = X, 
-    
+# evidence    
     '12SPDatumZapisu' = create_date, 
     '13jinaEvidence1Cislo' = X, # samost import
     '14jinaEvidence2Cislo' = X,
@@ -1338,8 +1332,8 @@ mus_tab <- modif_tab %>%
     '23urcilOsobaKod' = MKODOS_urc,
     '24dataceUrceniHodnota' = X,
     '25odborneUrceniPoznamka' = MPOZN_OU, 
-    '26odborneUrceniPopis' = X, 
-    
+    '26odborneUrceniPopis' = popis, 
+# lokalita, geo    
     '27lokalita' = MLOKALITA,      
     '28sirkaNS' = MSIRKA, 
     '29sirkaStupne' = MNst, 
@@ -1351,25 +1345,25 @@ mus_tab <- modif_tab %>%
     '35delkaVteriny' = MEvte, 
     '36vyska' = X, '37specifikaceLokality' = X, 
     '38mapa' = MMAPA, '39ctverec' = ctverec,
-    
-    '40charakteristika' = X, 
+    '40charakteristika' = lokalita_ekol, 
     '41puvodniPopisLokality' = X,
     '42nadmorskaVyska' = MMNM, '43nalezPoznamka' = X,
     '44dataceHodnota' = X, '45datacePoznamka' = X, 
+# etikety
     '46textEtiketa' = X, '47typ' = X,
     '48cf' = X, '49var' = var, 
     '50herbar' = X, '51preparat' = X, 
     '52pocetSamcu' = X, '53pocetSamic' = X, '54pocetJuv' = X, 
     '55collectio' = X,
-    
+# lokace    
     '56stalaLokaceKod' = X, '57aktualniLokaceKod' = X, # samost import
-    
-    '58SPPoznamka' = X,
+# nabyti a zalozeni zaznamu    
+    '58SPPoznamka' = odpis_duvod,
     '59zpusobNabytiKod' = MNABYTI,
     '60nabytiPredmetuDatum' = nabyti_d, 
     '61nabytiPredmetuDoklad' = X, '62nabytiPoznamka' = X, 
     '63nabytiPredchoziMajitelSlovy' = X,'64prirustekCislo' = MPRIRC,
-    '65ciselnaRadaPrirustkuKod' = X,   # ------------------------------------- D O P L N I T !!!
+    '65ciselnaRadaPrirustkuKod' = X,   # nevy
     '66nabytiPrirustkuDatum' = X, 
     '67zakladniCharakteristika' = X, 
     '68kodPodskupiny1' = MPODSKUP, 
@@ -1378,11 +1372,12 @@ mus_tab <- modif_tab %>%
     '74text1' = X, 
     '75text2' = negat, 
     '76text3' = zapis_ces,
-    '77text4' = stav ,
+    '77text4' = MSTAV,
     '78text5' = X,
-    '79SPUIns' = X,'80SPDIns' = create_date, # ------------------------------------- D O P L N I T !!!
-    '81SPUUpd' = X,'82SPDUpd' = X, # ------------------------------------- D O P L N I T !!!
-    
+    '79SPUIns' = create_uid, # neni slovnikovane, netreba upravovat
+    '80SPDIns' = create_date, 
+    '81SPUUpd' = X,'82SPDUpd' = X, # nemusi byt nic, stejne se prepise importem
+# ?    
     '83parageneze' = X,'84chronostratigrafie' = X,
     '85litostratigrafie' = X,'86poznamkaChrono' = X,
     '87poznamkaLito' = X,'88kompletnost' = X,
@@ -1394,7 +1389,7 @@ mus_tab <- modif_tab %>%
     '97zoStari' = X,'98snadChrono' = X,
     '99snadLito' = X, '100klicovaSlova' = syn,
     '101nazevKU' = X, '102fytochorion' = X,
-    '103lokalitaDoplneni' = lokalita_ekol, '104lokalitaOriginalni' = X,
+    '103lokalitaDoplneni' = lokalita_geo, '104lokalitaOriginalni' = X,
     '105stanoviste' = X, '106mikroStanoviste' = X,
     '107biotopKod' = X, '108zpusobZiskani' = X,
     '109souradniceZdroj' = X, '110souradnicePresnost' = X,
@@ -1402,18 +1397,29 @@ mus_tab <- modif_tab %>%
     '113text6' = X, '114text7' = X,
     '115text8' = dostal_rc, '116text9' = dostal_dc,
     '117text10' = X, '118rokPrirustku' = X,
-    '119kategorieTaxonuNazev' = '4nazevKategorie', # povinne
+    '119kategorieTaxonuNazev' = MTAXKATEG, # povinne
     '120nadrizenyTaxonNom' = '8nadrizenyTaxon')
 
 oper_bio <- mus_tab
 imp <- "bio"
 
-mus_tab10 <- mus_tab %>% slice(1:10)
-imp <- "bio10"
+# T O P   10   F O R   I M P O R T   C H E C K
 
+# mus_tab10 <- mus_tab %>% slice(1:10)
+# imp <- "bio10"
+# 
+# save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
+# 
+# if(file.exists(save)){
+#   print("You've been here before!")
+# } else {
+#   write.table(mus_tab10, file = save, # mus_tab10
+#             quote = T, row.names = F,
+#             sep = ";", dec = ",",
+#             na = "", fileEncoding="cp1250")
+#   print("Import csv  W R I T T E N  !")
+#   }
 ```
-
-
 
 # A K V A R E L Y
 
@@ -2075,7 +2081,7 @@ sum(is.na(check))
 # M O D I F Y
 
 modify_tab <- df %>% 
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1typSubjektuKod' = "OO",
          '10osobaPohlavi' = "neznámé",  # povinne: "muž", "žena", "neznámé"
          '18subjektStatKod' = "CZ") %>% 
@@ -2097,40 +2103,40 @@ if(file.exists(modif_save)){
 mus_tab <- modify_tab %>% 
   select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
          '2subjektKod' = '2subjektKod',         # !! povinne !!
-         '3subjektAlterKod' = MEMPTY, '4osobaJmenoPrvni'= MJM, 
-         '5osobaJmenoDruhe' = MEMPTY, 
+         '3subjektAlterKod' = X, '4osobaJmenoPrvni'= MJM, 
+         '5osobaJmenoDruhe' = X, 
          '6osobaPrijmeni' = MPRIJM,         # !! povinne !!
-         '7osobaTitulPredJmenem' = MTIT, '8osobaTitulZaJmenem' = MEMPTY, 
-         '9osobaRodnePrijmeni' = MEMPTY, 
+         '7osobaTitulPredJmenem' = MTIT, '8osobaTitulZaJmenem' = X, 
+         '9osobaRodnePrijmeni' = X, 
          '10osobaPohlavi' = '10osobaPohlavi',   # !! povinne !! "muž", "žena", "neznámé"
          
-         '11osobaDatumNarozeni' = MEMPTY, '12osobaMistoNarozeni' =MEMPTY,
-         '13okresNarozeniNazev' = MEMPTY, '14obecNarozeniNazev' = MEMPTY,
-         '15statNarozeniKod' = MEMPTY, '16osobaDatumUmrti' = MEMPTY,
-         '17osobaMistoUmrti' = MEMPTY, 
+         '11osobaDatumNarozeni' = X, '12osobaMistoNarozeni' =X,
+         '13okresNarozeniNazev' = X, '14obecNarozeniNazev' = X,
+         '15statNarozeniKod' = X, '16osobaDatumUmrti' = X,
+         '17osobaMistoUmrti' = X, 
          
          '18subjektStatKod' = '18subjektStatKod',
-         '19kontaktEmail' = MEMPTY, '20kontaktMobil' = MEMPTY,
-         '21kontaktMobil2' = MEMPTY, '22kontaktTelefon' = MEMPTY,
-         '23kontaktInternet' = MEMPTY, '24kontaktInternetoveVolani' = MEMPTY,
-         '25adresaText' = MEMPTY, '26kontaktniAdresaText' = MEMPTY,
-         '27fyzickaOsobaRodneCislo' = MEMPTY, '28subjektPoznamka' = poznamka, # kam MPOZN ???
+         '19kontaktEmail' = X, '20kontaktMobil' = X,
+         '21kontaktMobil2' = X, '22kontaktTelefon' = X,
+         '23kontaktInternet' = X, '24kontaktInternetoveVolani' = X,
+         '25adresaText' = X, '26kontaktniAdresaText' = X,
+         '27fyzickaOsobaRodneCislo' = X, '28subjektPoznamka' = poznamka, # kam MPOZN ???
          
-         '29AdresaTextoveOkres' = MEMPTY, '30AdresaTextoveObec' = mesto,
-         '31AdresaTextoveCastObce' = MEMPTY, '32AdresaTextoveMestskaCast' = MEMPTY,
+         '29AdresaTextoveOkres' = X, '30AdresaTextoveObec' = mesto,
+         '31AdresaTextoveCastObce' = X, '32AdresaTextoveMestskaCast' = X,
          '33AdresaTextoveUlice' = ulice, '34AdresaTextoveCisloOrientacni' = cp,
-         '35AdresaTextoveCislo' = MEMPTY, '36AdresaTextovePSC' = psc,
+         '35AdresaTextoveCislo' = X, '36AdresaTextovePSC' = psc,
          
-         '37zamestnanecCislo' = MEMPTY, '38oddeleniKod' = MEMPTY,
-         '39osobnostMedailon' = MEMPTY, '40osobnostPseudonym' = MEMPTY,
-         '41okruhSubjektuNazev' = MEMPTY, '42subjektSbirka' =  MEMPTY,           
-         '43subjektPodsbirka' =  MEMPTY, '44osobaStudia' = MEMPTY,
-         '45osobaSpolky' = MEMPTY, '46osobaOsobnost' = MEMPTY,
-         '47subjektDatumOd' = MEMPTY, '48subjektDatumDo' = MEMPTY,
-         '49kontaktEmail2' = MEMPTY, 
-         '50text1' = MEMPTY, '51text2' = MEMPTY, '52text3' = MEMPTY, 
-         '53role1' = MEMPTY, '54role2' = MEMPTY, 
-         '55role3' = MEMPTY, '56role4' = MEMPTY, '57$role5' = MEMPTY,
+         '37zamestnanecCislo' = X, '38oddeleniKod' = X,
+         '39osobnostMedailon' = X, '40osobnostPseudonym' = X,
+         '41okruhSubjektuNazev' = X, '42subjektSbirka' =  X,           
+         '43subjektPodsbirka' =  X, '44osobaStudia' = X,
+         '45osobaSpolky' = X, '46osobaOsobnost' = X,
+         '47subjektDatumOd' = X, '48subjektDatumDo' = X,
+         '49kontaktEmail2' = X, 
+         '50text1' = X, '51text2' = X, '52text3' = X, 
+         '53role1' = X, '54role2' = X, 
+         '55role3' = X, '56role4' = X, '57$role5' = X,
          rel_ZkrJm = symbol)
 
 oper_MECHadresar <- mus_tab %>% 
@@ -2140,7 +2146,7 @@ imp <-"MECHadresar"
 ```
 
 
-# O B R A Z K Y
+# ~ O B R A Z K Y ~
 
 **DEMUS**: (slozka s obrazky)
 **MUSEION**: import_obrazky.csv (muze byt vice slozek)
@@ -2156,16 +2162,16 @@ V MUSEIONU: Další agendy -> Multimédia/přílohy -> Import souborových pří
 
 *MUZBE ACCDB:*
 
-Diapozitivy  
-Foto  
-Lesnicka sbirka  
-MB_PVO  
-Negativy  
-Obecne sbirky 1  
-Obecne sbirky 2  
-Obecne sbirkyy - 4 slozky (?)  
-Prirustkova kniha  
-Rukopisy
+Diapozitivy - HOT   
+Foto - HOT   
+Lesnicka sbirka - HOT    
+MB_PVO  (?)   
+Negativy  - IP
+Obecne sbirky 1  (?) - NEMIG  
+Obecne sbirky 2  (?)  - NEMIG  
+Obecne sbirkyy - 4 slozky - IP @EVA
+Prirustkova kniha  (?) 
+Rukopisy (?)   
 
 ```{r OBRAZKY PRIPOJENI DATABAZE}
 
@@ -2261,7 +2267,7 @@ modify_tab <- relace %>%
   group_by(MINVC) %>% 
   mutate(MPORADI = seq_along(MINVC)) %>% 
   ungroup() %>%
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1uloha' = "PREDMET_PRIVATE",
          '6url' = MFN,
          '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
@@ -2290,29 +2296,29 @@ mus_tab <- modify_tab %>%
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
     '3poradi' = MPORADI,   # !! povinne !!          
-    '4nazev' = MEMPTY,                                   
-    '5typDokumentuNazev' = MEMPTY,          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
     '6url' = '6url',    # !! povinne !!
     '7nahled' = '7nahled',       # priznak {0;1}                       
     '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
     '9tisk1' = '9tisk1',          # priznak {0;1}                     
     '10tisk2' = '10tisk2',         # priznak {0;1}                   
-    '11poznamka' = MEMPTY, 
-    '12neDigitalni' = MEMPTY, 
-    '13umisteni' = MEMPTY, 
-    '14publikace' = MEMPTY, 
-    '15literaturaNazev' = MEMPTY, 
-    '16literaturaSlovy' = MEMPTY, 
-    '17APlicenceCC' = MEMPTY, 
-    '18APvariantaCCOznaceni' = MEMPTY, 
-    '19APautorSubjektKod' = MEMPTY, 
-    '20APdrzitelSubjektKod' = MEMPTY, 
-    '21APtypLicence' = MEMPTY, 
-    '22APcasovaLicence' = MEMPTY, 
-    '23APuzemniLicence' = MEMPTY, 
-    '24APmnozstevniLicence' = MEMPTY, 
-    '25APdatumVyprseni' = MEMPTY, 
-    '26APpoznamka' = MEMPTY
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
     )                    
 
 oper_obrazky_diap <- mus_tab  #  s w i t c h !!!
@@ -2422,7 +2428,7 @@ modify_tab <- relace %>%
   group_by(MINVC) %>% 
   mutate(MPORADI = seq_along(MINVC)) %>% 
   ungroup() %>%
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1uloha' = "PREDMET_PRIVATE",
          '6url' = MFN,
          '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
@@ -2451,29 +2457,29 @@ mus_tab <- modify_tab %>%
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
     '3poradi' = MPORADI,   # !! povinne !!          
-    '4nazev' = MEMPTY,                                   
-    '5typDokumentuNazev' = MEMPTY,          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
     '6url' = '6url',    # !! povinne !!
     '7nahled' = '7nahled',       # priznak {0;1}                       
     '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
     '9tisk1' = '9tisk1',          # priznak {0;1}                     
     '10tisk2' = '10tisk2',         # priznak {0;1}                   
-    '11poznamka' = MEMPTY, 
-    '12neDigitalni' = MEMPTY, 
-    '13umisteni' = MEMPTY, 
-    '14publikace' = MEMPTY, 
-    '15literaturaNazev' = MEMPTY, 
-    '16literaturaSlovy' = MEMPTY, 
-    '17APlicenceCC' = MEMPTY, 
-    '18APvariantaCCOznaceni' = MEMPTY, 
-    '19APautorSubjektKod' = MEMPTY, 
-    '20APdrzitelSubjektKod' = MEMPTY, 
-    '21APtypLicence' = MEMPTY, 
-    '22APcasovaLicence' = MEMPTY, 
-    '23APuzemniLicence' = MEMPTY, 
-    '24APmnozstevniLicence' = MEMPTY, 
-    '25APdatumVyprseni' = MEMPTY, 
-    '26APpoznamka' = MEMPTY
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
     )                    
 
 oper_obrazky_foto <- mus_tab  
@@ -2579,7 +2585,7 @@ modify_tab <- relace %>%
   group_by(MINVC) %>% 
   mutate(MPORADI = seq_along(MINVC)) %>% 
   ungroup() %>%
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1uloha' = "PREDMET_PRIVATE",
          '6url' = MFN,
          '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
@@ -2608,29 +2614,29 @@ mus_tab <- modify_tab %>%
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
     '3poradi' = MPORADI,   # !! povinne !!          
-    '4nazev' = MEMPTY,                                   
-    '5typDokumentuNazev' = MEMPTY,          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
     '6url' = '6url',    # !! povinne !!
     '7nahled' = '7nahled',       # priznak {0;1}                       
     '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
     '9tisk1' = '9tisk1',          # priznak {0;1}                     
     '10tisk2' = '10tisk2',         # priznak {0;1}                   
-    '11poznamka' = MEMPTY, 
-    '12neDigitalni' = MEMPTY, 
-    '13umisteni' = MEMPTY, 
-    '14publikace' = MEMPTY, 
-    '15literaturaNazev' = MEMPTY, 
-    '16literaturaSlovy' = MEMPTY, 
-    '17APlicenceCC' = MEMPTY, 
-    '18APvariantaCCOznaceni' = MEMPTY, 
-    '19APautorSubjektKod' = MEMPTY, 
-    '20APdrzitelSubjektKod' = MEMPTY, 
-    '21APtypLicence' = MEMPTY, 
-    '22APcasovaLicence' = MEMPTY, 
-    '23APuzemniLicence' = MEMPTY, 
-    '24APmnozstevniLicence' = MEMPTY, 
-    '25APdatumVyprseni' = MEMPTY, 
-    '26APpoznamka' = MEMPTY
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
     )                    
 
 oper_obrazky_foto <- mus_tab  #  s w i t c h !!!
@@ -2720,7 +2726,7 @@ modify_tab <- relace %>%
   group_by(MINVC) %>% 
   mutate(MPORADI = seq_along(MINVC)) %>% 
   ungroup() %>%
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1uloha' = "PREDMET_PRIVATE",
          '6url' = MFN,
          '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
@@ -2749,29 +2755,29 @@ mus_tab <- modify_tab %>%
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
     '3poradi' = MPORADI,   # !! povinne !!          
-    '4nazev' = MEMPTY,                                   
-    '5typDokumentuNazev' = MEMPTY,          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
     '6url' = '6url',    # !! povinne !!
     '7nahled' = '7nahled',       # priznak {0;1}                       
     '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
     '9tisk1' = '9tisk1',          # priznak {0;1}                     
     '10tisk2' = '10tisk2',         # priznak {0;1}                   
-    '11poznamka' = MEMPTY, 
-    '12neDigitalni' = MEMPTY, 
-    '13umisteni' = MEMPTY, 
-    '14publikace' = MEMPTY, 
-    '15literaturaNazev' = MEMPTY, 
-    '16literaturaSlovy' = MEMPTY, 
-    '17APlicenceCC' = MEMPTY, 
-    '18APvariantaCCOznaceni' = MEMPTY, 
-    '19APautorSubjektKod' = MEMPTY, 
-    '20APdrzitelSubjektKod' = MEMPTY, 
-    '21APtypLicence' = MEMPTY, 
-    '22APcasovaLicence' = MEMPTY, 
-    '23APuzemniLicence' = MEMPTY, 
-    '24APmnozstevniLicence' = MEMPTY, 
-    '25APdatumVyprseni' = MEMPTY, 
-    '26APpoznamka' = MEMPTY
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
     )                    
 
 oper_obrazky_neg <- mus_tab 
@@ -2863,9 +2869,9 @@ write.table(nesparovane2, file = paste0(path_kd, projekt, "_vypis_nesparovane_",
 modify_tab <- sparovane2 %>%
   select(MFN, MINVC) %>% 
   group_by(MINVC) %>% 
-  mutate(MPORADI = seq_along(MINVC)) %>% 
+  mutate(MPORADI = seq_along(MINVC)+1) %>% # nutne zacit od 2, protoze poradi=1 uz se zapsalo v prvnim kole importu !!!
   ungroup() %>%
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1uloha' = "PREDMET_PRIVATE",
          '6url' = MFN,
          '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
@@ -2894,29 +2900,29 @@ mus_tab <- modify_tab %>%
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
     '3poradi' = MPORADI,   # !! povinne !!          
-    '4nazev' = MEMPTY,                                   
-    '5typDokumentuNazev' = MEMPTY,          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
     '6url' = '6url',    # !! povinne !!
     '7nahled' = '7nahled',       # priznak {0;1}                       
     '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
     '9tisk1' = '9tisk1',          # priznak {0;1}                     
     '10tisk2' = '10tisk2',         # priznak {0;1}                   
-    '11poznamka' = MEMPTY, 
-    '12neDigitalni' = MEMPTY, 
-    '13umisteni' = MEMPTY, 
-    '14publikace' = MEMPTY, 
-    '15literaturaNazev' = MEMPTY, 
-    '16literaturaSlovy' = MEMPTY, 
-    '17APlicenceCC' = MEMPTY, 
-    '18APvariantaCCOznaceni' = MEMPTY, 
-    '19APautorSubjektKod' = MEMPTY, 
-    '20APdrzitelSubjektKod' = MEMPTY, 
-    '21APtypLicence' = MEMPTY, 
-    '22APcasovaLicence' = MEMPTY, 
-    '23APuzemniLicence' = MEMPTY, 
-    '24APmnozstevniLicence' = MEMPTY, 
-    '25APdatumVyprseni' = MEMPTY, 
-    '26APpoznamka' = MEMPTY
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
     )                    
 
 oper_obrazky_neg <- mus_tab 
@@ -2935,7 +2941,7 @@ if(file.exists(save)){
   }
 ```
 
-## Obecne sbirky ---pripravujuIMP
+## Obecne sbirky ---prevz EVA
 
 
 ```{r OBR OB}
@@ -3047,7 +3053,7 @@ modify_tab <- opr_vypis %>%
   group_by(MINVC) %>% 
   mutate(MPORADI = seq_along(MINVC)) %>% 
   ungroup() %>%
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1uloha' = "PREDMET_PRIVATE",
          '6url' = MFN,
          '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
@@ -3076,29 +3082,29 @@ mus_tab <- modify_tab %>%
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
     '3poradi' = MPORADI,   # !! povinne !!          
-    '4nazev' = MEMPTY,                                   
-    '5typDokumentuNazev' = MEMPTY,          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
     '6url' = '6url',    # !! povinne !!
     '7nahled' = '7nahled',       # priznak {0;1}                       
     '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
     '9tisk1' = '9tisk1',          # priznak {0;1}                     
     '10tisk2' = '10tisk2',         # priznak {0;1}                   
-    '11poznamka' = MEMPTY, 
-    '12neDigitalni' = MEMPTY, 
-    '13umisteni' = MEMPTY, 
-    '14publikace' = MEMPTY, 
-    '15literaturaNazev' = MEMPTY, 
-    '16literaturaSlovy' = MEMPTY, 
-    '17APlicenceCC' = MEMPTY, 
-    '18APvariantaCCOznaceni' = MEMPTY, 
-    '19APautorSubjektKod' = MEMPTY, 
-    '20APdrzitelSubjektKod' = MEMPTY, 
-    '21APtypLicence' = MEMPTY, 
-    '22APcasovaLicence' = MEMPTY, 
-    '23APuzemniLicence' = MEMPTY, 
-    '24APmnozstevniLicence' = MEMPTY, 
-    '25APdatumVyprseni' = MEMPTY, 
-    '26APpoznamka' = MEMPTY
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
     )                    
 
 # oper_obrazky_obs1 <- mus_tab 
@@ -3211,7 +3217,7 @@ modify_tab <- relace %>%
   group_by(MINVC) %>% 
   mutate(MPORADI = seq_along(MINVC)) %>% 
   ungroup() %>%
-  mutate(MEMPTY = "",
+  mutate(X = "",
          '1uloha' = "PREDMET_PRIVATE",
          '6url' = MFN,
          '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
@@ -3240,29 +3246,29 @@ mus_tab <- modify_tab %>%
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
     '3poradi' = MPORADI,   # !! povinne !!          
-    '4nazev' = MEMPTY,                                   
-    '5typDokumentuNazev' = MEMPTY,          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
     '6url' = '6url',    # !! povinne !!
     '7nahled' = '7nahled',       # priznak {0;1}                       
     '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
     '9tisk1' = '9tisk1',          # priznak {0;1}                     
     '10tisk2' = '10tisk2',         # priznak {0;1}                   
-    '11poznamka' = MEMPTY, 
-    '12neDigitalni' = MEMPTY, 
-    '13umisteni' = MEMPTY, 
-    '14publikace' = MEMPTY, 
-    '15literaturaNazev' = MEMPTY, 
-    '16literaturaSlovy' = MEMPTY, 
-    '17APlicenceCC' = MEMPTY, 
-    '18APvariantaCCOznaceni' = MEMPTY, 
-    '19APautorSubjektKod' = MEMPTY, 
-    '20APdrzitelSubjektKod' = MEMPTY, 
-    '21APtypLicence' = MEMPTY, 
-    '22APcasovaLicence' = MEMPTY, 
-    '23APuzemniLicence' = MEMPTY, 
-    '24APmnozstevniLicence' = MEMPTY, 
-    '25APdatumVyprseni' = MEMPTY, 
-    '26APpoznamka' = MEMPTY
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
     )                    
 
 oper_obrazky_foto <- mus_tab  
@@ -3307,18 +3313,16 @@ fin_imp <- left_join(vypis_list, mus_list, keep = T) %>%
 ```
 
 
-
-
-## O B R  -  C H E C K
+## ~ O B R  -  C H E C K ~ 
 
 ```{r OBR CHECK IMPORT}
 
 # I N V   R A D A
 
-v <- "diap"
+# v <- "diap"
 # v <- "foto"
 # v <- "les"
-# v <- "neg"
+v <- "neg"
 # v <- "obs"
 
 # V Y P I S   O B R A Z K U
@@ -3332,20 +3336,35 @@ count(jpg_vypis)
 
 # M U S E I O N   I M P
 
-jpg_museion <- read_excel(paste0(path_kd, v, "/KontextovyDokument_export.xlsx")) %>% 
+mus_imp <- read_excel(paste0(path_kd, v, "/KontextovyDokument_export.xlsx")) %>% 
   select(Číslo, URL) %>% 
   mutate(MFN = sub("_original", "", URL))
- 
-count(jpg_musion)
 
 # C H E C K 
 
+if(v == "neg"){
+  csv1 <- read.csv(paste0(path_kd, v, "/MUZBE_import_obrazky_", v, ".csv"), sep = ";")
+  csv2 <- read.csv(paste0(path_kd, v, "/MUZBE_import_obrazky_", v, "_2.csv"), sep = ";")
+  csv_imp <- rbind(csv1, csv2)
+} else {
+  csv_imp <- read.csv(paste0(path_kd, v, "/MUZBE_import_obrazky_", v, ".csv"), sep = ";") 
+}
 
+imp_check <- left_join(csv_imp, mus_imp, by = c("X6url" = "MFN"), keep = T) %>% 
+  filter(is.na(Číslo))
+
+# aftermath # neni to totez jako uz mam vyse? Ja myslim, ze jo ! :D
+
+vypis_list <- select(vypis, MFN) # soupis dodanych obrazku
+mus_list <- select(mus_imp, MFN) # co je fyzicky v MUSEIONU
+
+fin_imp <- left_join(vypis_list, mus_list, keep = T) %>% 
+  filter(is.na(MFN.y))
 
 ```
 
 
-# ! ! !   E X P O R T Y  C S V   ! ! !
+# ! ! !   E X P O R T Y    C S V   ! ! !
 
 
 ```{r EXPORT CSV}
@@ -3357,7 +3376,7 @@ save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
 if(file.exists(save)){
   print("You've been here before!")
 } else {
-  write.table(mus_tab, file = save, 
+  write.table(mus_tab, file = save, # mus_tab10
             quote = T, row.names = F, 
             sep = ";", dec = ",", 
             na = "", fileEncoding="cp1250")

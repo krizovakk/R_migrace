@@ -14,6 +14,10 @@ output:
 
 ---
 
+```{r include = F}
+knitr::opts_chunk$set(echo = F, eval = F)
+```
+
 \newpage 
 
 # *GENERAL*
@@ -26,7 +30,6 @@ output:
 
 bot <- bot %>% 
   select(-contains("_sort"), -nvg_id)
-
 ```
 
 ### DF top 10 rows
@@ -35,9 +38,36 @@ bot <- bot %>%
 
 mus_tab_cvic <- mus_tab %>% 
   slice(1:10)
-
-
 ```
+
+### Replace NA with ""
+
+s pipe jsem zatim cestu nenasla
+
+```{r REPLACE NA}
+
+taxon[taxon == ""] <- NA
+```
+
+### Replace "" with NA
+
+```{r REPLACE "" WITH NA}
+
+ou <- taxon %>%
+  replace(is.na(.), "")
+
+ou <- taxon %>%
+  mutate_all(~na_if(., ''))
+```
+
+### Drop NA rows in spec col
+
+```{r DROP NA IN COL}
+
+sez_int <- sez %>% 
+  drop_na(MINVChorni)  
+```
+
 
 
 ## N U M E R I C S
@@ -51,7 +81,6 @@ require(stringr) # ::str_pad
 
 # command
 mutate(MPORC = str_pad(PorC_S, 6, pad = "0"))
-
 ```
 
 mutate = create a new column  
@@ -68,6 +97,16 @@ pad = "0" = empty places fill with "0"
 mutate(Mcislo = sub("^0+", "", Mcislo))
 ```
 
+### ID and sequence along
+
+```{r PORADI}
+
+v <- c("raz", "dva", "tři", "čtyři", "pět") 
+v <- as.data.frame(v) %>% 
+  mutate(por = seq_along(v),
+         porplus = seq_along(v)+1)
+```
+
 
 ## T E X T 
 
@@ -76,7 +115,6 @@ mutate(Mcislo = sub("^0+", "", Mcislo))
 ```{r}
 
 mutate(Mpskp_len = nchar(pskup)) 
-
 ```
 
 ### String detect case INsensitive
@@ -84,7 +122,6 @@ mutate(Mpskp_len = nchar(pskup))
 ```{r}
 
 str_detect(MFN, regex("^FM\\s\\d+\\.jpg$", ignore_case = T))
-
 ```
 
 ### Split string
@@ -102,7 +139,6 @@ separate(trida,into=c("trida_CZ", "trida_LAT") , sep=" ")
 separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge") # at first whitespace
 
 separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge", remove = F) # ponecha puvodni sloupec
-
 ```
 
 ### Keep text before specific sign
@@ -122,7 +158,6 @@ mutate(boMROD = word(druh, 1)) # vezmi 1. slovo ze sloupce druh
 ```{r}
 
 mutate(celed_LAT = gsub("[()]", "", celed_LAT))
-       
 ```
 
 ### Remove whitespace
@@ -181,7 +216,6 @@ data %>%
   filter(n() != 1)
 ```
 
-
 ### Merge two collums with not complete information
 
 column 1 has some NAs  
@@ -194,7 +228,6 @@ require(dplyr) # part of tidyverse
 
 # command
 mutate(kmen = coalesce(kmen_Nomen, trida_NadNomen))
-       
 ```
 
 coalesce = [function](https://www.rdocumentation.org/packages/dplyr/versions/1.0.10/topics/coalesce)
@@ -223,7 +256,6 @@ con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
 RODBC::sqlTables(con)                          # list tables in database
 
 kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen") # read specified table
-
 ```
 
 *.mdb = old MS ACCESS  
@@ -245,7 +277,6 @@ vypis <- as.data.frame(list.files(c("D:/MUZBE/Obecné sbírky-4složky obrázků
                                   pattern = "jpg$|JPG$", full.names = T)) 
 
 colnames(vypis)[1] <- "path"
-
 ```
 
 
@@ -261,6 +292,7 @@ colnames(vypis)[1] <- "path"
 ### Join only selected columns
 
 ```{r JOIN SEL COL}
+
 left_join(biolib %>% dplyr::select('4nazevKategorie', '5nomen', '8nadrizenyTaxon'),
             by = c("MNOMEN" = "5nomen"), keep = T)
 ```
@@ -270,7 +302,43 @@ left_join(biolib %>% dplyr::select('4nazevKategorie', '5nomen', '8nadrizenyTaxon
 
 # *REAL TASKS*
 
-## D A T A C E / upravit
+## Save modify_tab a mus_tab
+
+imp = importni rozhrani  
+
+```{r SAVE CSV AND OPER FILE}
+
+# finalni csv
+
+save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, # mus_tab10
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+# upravena tabulka
+
+modif_save <- paste0(path_csv, projekt, "_modif_", imp, ".csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",",              # desetinny oddelovac musi byt carka
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+```
+
+
+## Uprava dataci
 
 ```{r DERIVE VZNIKPTU FROM SBIRKY, warning = F, eval = F}
 
@@ -319,11 +387,9 @@ dopr_tab <- sbirky %>%
   # DATACE FINAL
   mutate(MDATACE_FIN = coalesce(MDAT_Y, MDAT_YM, MDAT_YMD, MDAT_LETA, MDAT_2, MDAT_3r)) %>% 
   mutate(MDATACE_FIN = coalesce(MDATACE_FIN, MDATACE))
-  
-
 ```
 
-## TVORBA INVENTARNIHO CISLA
+## Tvorba inventarniho cisla
 
 ```{r MINVC}
 
@@ -342,9 +408,7 @@ sbirky <- read_excel(paste0(path_data, "/Sbirky.xlsx")) %>%
   # select(-MPORC, -MPORCDO) %>%
   relocate(MINVC, .before = JineC_S) %>% 
   relocate(MINVCDO, .after = MINVC) 
-
 ```
-
 
 
 \newpage
