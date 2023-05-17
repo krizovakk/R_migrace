@@ -1,0 +1,1177 @@
+---
+title: "Univerzalni RMD pro migraci dat"
+subtitle: "Migrace dat"
+author: "Katerina Krizova"
+date: "2023-02-08"
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+\newpage 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("stringi")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+# install.packages("xlsx")
+require(tidyverse)
+require(readxl)
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+require(xlsx) # write excel in sheets
+```
+
+\newpage 
+
+# P O Z N A M K Y 
+
+! zkontroluj duplicity puvodnich inventarnich cisel !!  
+! taxon ve formatu: r o d   d r u h   *s u b s p.*  p o d d r u h !!
+! vse, co se nesparuje nechat pouze v 
+ 
+\newpage 
+
+# PROJEKT A CESTY
+
+```{r PROJECT SPECIFICATIONS AND PATHS}
+
+projekt <- ""
+
+path <-  "C:/Users/krizova/Documents/R/"
+
+path_data <-  paste0(path, "data/")
+path_csv <-  paste0(path, "mus_csv/", projekt, "/")
+
+path_muzbe <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/" # databaze
+
+path_kd <- paste0(path_csv, "KD/") # kontextove dokumenty
+```
+
+
+
+# B A C H
+
+## load bach table
+
+```{r LOAD AND INIT MODIF}
+
+# L O A D
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/MB_PVO_Botanika/botanika - aktuální.mdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+bach0 <- RODBC::sqlFetch(con, "data")   
+
+
+# M U S E I O N   E V I D E N C E
+
+bach <- bach0 %>% 
+  mutate(MSBIRKA = "MUZBE",
+         MPODSB = "Pb",
+         MPODSBnaz = "botanika",
+         MFOND = "bot",
+         MFONDnaz = "botanika",
+         MSKUP = "herbT",
+         MSKUPnaz = "herbář Tracheophyta",
+         X = NA)
+
+rm(bach0)
+
+```
+
+## biolib
+
+```{r BIOLIB}
+
+# B I O L I B   S L O V N I K
+
+biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
+```
+
+
+## slovniky
+
+### fondy
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Fond
+**MUSEION**: import_fond.csv
+
+```{r FONDY}
+
+# M O D I F Y
+
+# C R E A T E    C S V
+
+mus_tab <- bach %>% 
+  select(
+    '1sbirkaCisloEvidInt' = MSBIRKA,    # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,          # !! povinne !!
+    '3fondKod' = MFOND,                 # !! povinne !!
+    '4nazev'= MFONDnaz,                 # !! povinne !!
+    '5poznamka' = X, '6popisPubl'= X,
+    '7poradi' = X, '8oaiId'= X,
+    '9oaiDatumHarvestingu'= X, '10oaiDatumModifikace' = X) %>% 
+  distinct()
+
+oper_fondy <- mus_tab
+imp <- "fond"
+```
+
+### skupiny
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Skupiny
+**MUSEION**: import_skupiny.csv
+
+```{r SKUPINY}
+
+# M O D I F Y
+
+# C R E A T E    C S V
+
+mus_tab <- bach %>% 
+  select(
+    '1sbirkaCisloEvidInt' = MSBIRKA,     # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,           # !! povinne !!
+    '3fondKod' = MFOND,                  # !! povinne !!
+    '4skupinaKod'= MSKUP,                # !! povinne !! max 20 znaků
+    '5nazev' = MSKUPnaz,                 # !! povinne !!
+    '6poznamka'= X,
+    '7popisPubli' = X, '8poradi'= X,
+    '9oaiId'= X, '10oaiDatumHarvestingu'= X, 
+    '11oaiDatumModifikace' = X) %>% 
+  distinct()
+
+oper_skupiny <- mus_tab
+imp <- "skupiny"
+
+```
+
+### podskupiny
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Podskupiny
+**MUSEION**: import_podskupiny.csv
+
+```{r PODSKUPINY}
+
+# M O D I F Y
+
+modify_tab <- bach %>% 
+  mutate(MPODSKUP = substr(sub("\\s", "", pskup), 1,20), # smazat mezeru, orezat na 20 znaku
+         # MPODSKUP = substr(pskup, 1,20), 
+         Mpskp_len = nchar(pskup), 
+         MPODSKUPNAZ = pskup, 
+         X = "")
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select('1sbirkaCisloEvidInt' = MSBIRKA,      # !! povinne !!
+    '2podsbirkaCislo'= MPODSB,                 # !! povinne !!
+    '3fondKod' = MFOND,                        # !! povinne !!
+    '4skupinaKod'= MSKUP,                      # !! povinne !!
+    '5podskupina1Kod' = MPODSKUP,              # !! povinne !! max 20 znaku, zkracovat
+    '6nazev'= MPODSKUPNAZ,
+    '7poznamka'= X,
+    '8popisPubli' = X, '9poradi'= X,
+    '10oaiId'= X, '11oaiDatumHarvestingu'= X, 
+    '12oaiDatumModifikace' = X) %>% 
+  distinct()
+
+oper_podskupiny <- mus_tab
+imp <- "podskupiny"
+
+```
+
+### adresar
+
+*IMPORTNÍ ROZHRANÍ*: CSV Adresář osob  
+**MUSEION**: import_adresar.csv
+    
+    
+```{r MODIF ADRESAR}
+
+# M O D I F Y
+
+# install.packages("randomNames")
+require(randomNames)
+
+```
+
+```{r CSV ADRESAR}
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>% 
+  select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
+         '2subjektKod' = subjektKod,         # !! povinne !!
+         '3subjektAlterKod' = X, '4osobaJmenoPrvni'= '4osobaJmenoPrvni', 
+         '5osobaJmenoDruhe' = X, 
+         '6osobaPrijmeni' = '6osobaPrijmeni',         # !! povinne !!
+         '7osobaTitulPredJmenem' = MTIT, '8osobaTitulZaJmenem' = X, 
+         '9osobaRodnePrijmeni' = X, 
+         '10osobaPohlavi' = '10osobaPohlavi',   # !! povinne !! "muž", "žena", "neznámé"
+         
+         '11osobaDatumNarozeni' = X, '12osobaMistoNarozeni' = X,
+         '13okresNarozeniNazev' = X, '14obecNarozeniNazev' = X,
+         '15statNarozeniKod' = X, '16osobaDatumUmrti' = X,
+         '17osobaMistoUmrti' = X, 
+         
+         '18subjektStatKod' = '18subjektStatKod',
+         '19kontaktEmail' = X, '20kontaktMobil' = X,
+         '21kontaktMobil2' = X, '22kontaktTelefon' = X,
+         '23kontaktInternet' = X, '24kontaktInternetoveVolani' = X,
+         '25adresaText' = X, '26kontaktniAdresaText' = X,
+         '27fyzickaOsobaRodneCislo' = X, '28subjektPoznamka' = X, 
+         
+         '29AdresaTextoveOkres' = X, '30AdresaTextoveObec' = X,
+         '31AdresaTextoveCastObce' = X, '32AdresaTextoveMestskaCast' = X,
+         '33AdresaTextoveUlice' = X, '34AdresaTextoveCisloOrientacni' = X,
+         '35AdresaTextoveCislo' = X, '36AdresaTextovePSC' = X,
+         
+         '37zamestnanecCislo' = X, '38oddeleniKod' = X,
+         '39osobnostMedailon' = X, '40osobnostPseudonym' = X,
+         '41okruhSubjektuNazev' = X, '42subjektSbirka' = '42subjektSbirka',           
+         '43subjektPodsbirka' = '43subjektPodsbirka', 
+         '44osobaStudia' = X,
+         '45osobaSpolky' = X, '46osobaOsobnost' = X,
+         '47subjektDatumOd' = X, '48subjektDatumDo' = X,
+         '49kontaktEmail2' = X, 
+         '50text1' = X, '51text2' = X, '52text3' = X, 
+         '53role1' = X, '54role2' = X, 
+         '55role3' = X, '56role4' = X, '57$role5' = X
+         # , rel_ZkrJm = puv
+         )
+
+# oper_BOTadresar <- mus_tab %>% 
+#   select(rel_ZkrJm, '1typSubjektuKod', '2subjektKod', '4osobaJmenoPrvni', '6osobaPrijmeni')
+
+imp <- "BOTadresar"
+
+# pokracuj k ulozeni do sekce: # ! ! !   E X P O R T Y  C S V   ! ! !
+
+```
+
+### lokality
+
+*IMPORTNÍ ROZHRANÍ*: CSV Lokalita  
+**MUSEION**: import_lokalita.csv
+
+
+```{r MODIF LOKALITY, warning=FALSE}
+
+modify_tab <- bot %>% 
+  select(oblast, katastr, lokalita_geo) %>%  
+  mutate(across(everything(), ~gsub("\\s{2}", " ", .)),
+         oblast = str_trim(oblast)) %>% 
+  
+  # fytochorion
+  
+  mutate(Mkod = ifelse(str_detect(oblast, "^\\d+"), sub("\\s.*", "", oblast), NA),
+         MNAZ = ifelse(str_detect(oblast, "^\\d+"), sub("^[:alnum:]+\\s", "", oblast), NA),
+         Mfyt = ifelse(oblast %in% fy$Název|oblast %in% fy$Mkodnaz, oblast, NA),
+         Mfyt_naz = ifelse(str_detect(Mfyt, "^[:alpha:]+"), Mfyt, NA)) %>%  
+  left_join(fy, by = c("Mfyt_naz" = "Název"), keep = T) %>% 
+  mutate(MFYTOCH = ifelse(str_detect(Mfyt, "^\\d+"), sub("\\s.*", "", Mfyt), Kód)) %>% 
+  
+  # oblast
+  mutate(MZEME = case_when(str_detect(oblast, "^Polsko") ~ "Polsko",
+                           str_detect(oblast, "^Slovensko") ~ "Slovensko", 
+                           str_detect(oblast, "^Andorra") ~ "Andorra", 
+                           str_detect(oblast, "^Francie") ~ "Francie", 
+                           str_detect(oblast, "^Rumunsko") ~ "Rumunsko", 
+                           TRUE ~ "Česko"),
+         MSTKOD = case_when(str_detect(oblast, "^Polsko") ~ "PL",
+                           str_detect(oblast, "^Slovensko") ~ "SK", 
+                           str_detect(oblast, "^Andorra") ~ "AD", 
+                           str_detect(oblast, "^Francie") ~ "FR", 
+                           str_detect(oblast, "^Rumunsko") ~ "RO", 
+                           TRUE ~ "CZ"),
+         
+         # Mkat_anone = ifelse(katastr %in% ku$ku_name, "katastr", "nekatastr"), 
+         # MKATASTR = ifelse(katastr %in% ku$ku_name, katastr, NA), 
+         MOBLAST = ifelse(is.na(MFYTOCH), oblast, "")) %>% 
+  mutate_all(~na_if(., '')) %>% 
+  mutate(MLOKALITA = ifelse(is.na(katastr), lokalita_geo, katastr),
+         MLOKALITA = ifelse(is.na(MLOKALITA), oblast, MLOKALITA),
+         MLOKALITA = str_trim(MLOKALITA)) %>% 
+  
+  select(MLOKALITA, MFYTOCH, MZEME, MSTKOD, MOBLAST) %>% 
+  pivot_longer(cols = c(MFYTOCH),
+               names_to = "Mfytoch_por",
+               values_to = "Mfytoch_naz") %>% 
+  distinct() %>% 
+  group_by(MLOKALITA) %>% 
+  mutate(Mfytoch_por = seq_along(Mfytoch_naz)) %>% 
+  spread(key = "Mfytoch_por",
+         value = "Mfytoch_naz") %>% 
+  mutate(X = "",
+         '12lokalitaSbirka' = "MUZBE",
+         '13lokalitaPodsbirka' = "Pb") %>% 
+  ungroup()
+  
+ 
+modify_tab[modify_tab == ""] <- NA  
+
+```
+
+```{r CSV LOKALITY}
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1lokalitaNazev' = MLOKALITA,  # !! povinne !!
+    '2okresNazev'= X,
+    '3statKod' = MSTKOD, 
+    '4oblastNazev'= MOBLAST,
+    '5lokalitaZeme' = MZEME, 
+    '6lokalitaCtverec'= X,
+    '7lokalitaMapa' = X, 
+    '8lokalitaZemepisnaSirka'= X,
+    '9lokalitaZemepisnaDelka'= X, 
+    '10lokalitaNadmorskaVyska'= X,
+    '11lokalitaPoznamka'= X, 
+    '12lokalitaSbirka'= '12lokalitaSbirka',
+    '13lokalitaPodsbirka'= '13lokalitaPodsbirka',
+    '14fytochorion1'= '1',
+    '15lokalitaPublicNadNazev'= X, '16lokalitaPublicNazev'= X,
+    '17fytochorion2'= '2', '18fytochorion3'= '3',
+    '19fytochorion4'='4') %>% 
+  drop_na('1lokalitaNazev') %>% 
+  distinct()
+
+oper_lokalita <- mus_tab
+imp <- "lokalita"
+
+
+# rm(fy)
+# rm(fy0)
+# rm(ku)
+
+```
+
+## MUS karta
+
+*P O S T U P*
+
+**PREMODIF:**   
+- zkousej zpracovat jednotlive kroky  
+
+**MODIF:**  
+- uspesne kusy kodu skladej za sebe a upravuj pracovni tabulku  
+
+**CSV:**  
+- vytvor importni csv soubor pro finalni mograci
+
+
+
+*MINVC*
+maska:  \{S\}\{#####\}\/\{a\}  
+
+invc = puvodni -> rozdelit na radu a cislo (Mrada a Minvc)
+MPORC = pridani vedoucich nul k Minvc
+MINVC = finalni cislo <- kombinace Mrada a MPORCS dle masky inv.cisla
+
+*PRIRC*
+maska:  \{S\}\{####\}\/\{YYYY\}  
+
+
+### pracovni tabulka
+
+```{r PREMODIF}
+
+prac_bot <- bach %>% 
+  
+  # TAXON
+  
+  select(celed, druh, syn, var) %>% 
+  mutate(
+    
+    # celed
+    MceledLAT = word(celed, 1),
+         MceledCZ = gsub("\\(|\\)", "", word(celed, 2)),
+    # nomen
+    Mrod = word(druh, 1),
+    Mdruh = ifelse(str_detect(druh, "^\\w+\\sx\\s"), word(druh, 3), word(druh, 2)),
+    MNOMEN = paste(Mrod, Mdruh),
+    Mautor = ifelse(str_detect(druh, "^\\w+\\sx\\s"), 
+                    str_remove(druh, "^\\w+\\sx\\s\\w+\\s"),
+                               str_remove(druh, "^\\w+\\s\\w+\\s"))
+         )
+ 
+biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
+
+porovnani <- left_join(prac_bot, biolib, by = c("MNOMEN" = "5nomen"), keep = T)
+
+nesp <- porovnani %>% 
+  filter(is.na(stromKat)) %>% # 1509
+  distinct() # 499
+
+
+# oprava taxonu
+
+opr_tax <- prac_bot %>% 
+  filter(str_detect(druh, "\\ssubsp.|\\sssp.|\\svar\\s|\\svar\\.")) %>% 
+  mutate(MSSP = str_extract(druh, "subsp..*|ssp..*|var..*"),
+         MSSP = sub("\\(.*", "", MSSP),
+         MSSP = case_when(str_detect(MSSP, "Meyerii") ~ "var. meyerii", TRUE ~ MSSP),
+         MSSP2 = sub("[A-Z].*", "", MSSP),
+         MSSP2 = sub("\\s&", "", MSSP2))
+
+```
+
+### modif karta
+
+```{r MODIF}
+
+base <- bach %>% 
+  
+  mutate(dostal_dc = as.character(dostal_rc),
+         dostal_rc = as.character(dostal_rc)) %>% 
+  
+  # inventarni cislo
+  mutate(MRADA = "B", 
+         MPORCIS = str_extract(invc, "[:digit:]+"),
+         MPORCIS = str_pad(MPORCIS, 5, pad = "0"),
+         MSUBCIS = str_extract(invc, "[:alpha:]$")) %>% 
+  unite(MPORSUB, c("MPORCIS", "MSUBCIS"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  mutate(MINVC = paste0(MRADA, MPORSUB)) %>% 
+  relocate(MINVC, .after = invc) %>% 
+  relocate(MSUBCIS, .after = invc) %>% 
+  
+  # prirustkove cislo - maska:  \{S\}\{####\}\/\{YYYY\}  
+  separate(prirc, into=c("Mprir", "Mrok") , sep="/", extra = "merge", remove = FALSE) %>% 
+  mutate(Mpodsb = "Pb",
+         Mprir0 = str_pad(Mprir, 4, pad = "0")) %>% 
+  relocate(Mpodsb, .before = "Mprir") %>% 
+  mutate(MPRIRC = paste0(Mpodsb, Mprir0, "/", Mrok)) %>% 
+  relocate(MPRIRC, .after = prirc) %>% 
+  select(-Mpodsb, -Mprir, -Mrok)
+  
+
+```
+
+### CSV karta
+
+*IMPORTNÍ ROZHRANÍ*: CSV_Katalog... **(dle typu karty)**  
+*MUSEION*: import_....csv  **(dle typu karty)**  
+  
+Zkopiruj prislusnou importni branu z _GEN_axi_importCSV.Rmd  
+
+
+```{r CSV}
+
+# ------------------------------------- P O K R A C U J   Z D E !!! 
+# ------------------------------------- D O P L N I T !!!
+
+
+# T O P   10   F O R   I M P O R T   C H E C K
+
+# mus_tab10 <- mus_tab %>% slice(1:10)
+# imp <- "bio10"
+# 
+# save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
+# 
+# if(file.exists(save)){
+#   print("You've been here before!")
+# } else {
+#   write.table(mus_tab10, file = save, # mus_tab10
+#             quote = T, row.names = F,
+#             sep = ";", dec = ",",
+#             na = "", fileEncoding="cp1250")
+#   print("Import csv  W R I T T E N  !")
+#   }
+```
+
+## kontrola importu csv
+
+```{r IMPORT CHECK}
+
+# mus_imp <- read_excel(paste0(path_csv, "/SbirkovyPredmetPodsbirka_export.xlsx")) %>% 
+mus_imp <- read_excel(paste0(path_csv, "/SbirkovyPredmet_export.xlsx")) %>% 
+  select(mus_invc = 'Inventární číslo')
+
+check_imp <- left_join(mus_tab, mus_imp, by = c("5SPCislo" = "mus_invc"), keep = T) %>% 
+  relocate(mus_invc, .after = "5SPCislo")
+  # filter(is.na(mus_invc))
+
+check_imp[check_imp == ""] <- NA
+
+# u p r a v y
+
+sort(unique(check_imp$'60nabytiPredmetuDatum'))
+
+# spatny format data nabyti
+check_imp$'60nabytiPredmetuDatum' <- sub("\\s|52/2005", NA, check_imp$'60nabytiPredmetuDatum')
+
+# poradove cislo -> upraveno v puvodni modify_tab
+
+# inv <- check_imp %>% 
+#   select(cis = '5SPCislo') %>% 
+#   mutate(exc = ifelse(str_detect(cis, "[:alpha:]$"), 1, 0),
+#          MRADA = "B", 
+#          MPORCISLO = str_extract(cis, "[:digit:]+"),
+#          MSUBCISLO = str_extract(cis, "[:alpha:]$"))
+
+# cisla <- check_imp %>% 
+#   rename(sub = '10SPPoradoveCisloSub') %>% filter(!is.na(sub))
+
+
+# ososba urcil NA neznama
+check_imp$'23urcilOsobaKod' <- sub("NA", NA, check_imp$'23urcilOsobaKod')
+
+# ososba urcil NA neznama
+check_imp$'35delkaVteriny' <- sub("\\s|\\|\"", "", check_imp$'35delkaVteriny')
+check_imp$'35delkaVteriny' <- sub("\"", "", check_imp$'35delkaVteriny')
+check_imp$'35delkaVteriny' <- sub(",,", ",", check_imp$'35delkaVteriny')
+
+# ctverec too long 20
+check_imp$'39ctverec' <- sub("\\s+", "", check_imp$'39ctverec')
+ctver <- check_imp %>% select(ctv = '39ctverec') %>% mutate(len = nchar(ctv)) # ok
+
+# nadmvyska too long 100 (?)
+check_imp$'42nadmorskaVyska' <- sub(",0", "", check_imp$'42nadmorskaVyska')
+ctver <- check_imp %>% select(ctv = '42nadmorskaVyska') %>% mutate(len = nchar(ctv)) # ok
+
+# str_trim nakonec
+check_imp <- check_imp %>% 
+  select(-mus_invc) %>% 
+  mutate(across(where(is.character), str_trim))
+
+rm(ctver)
+
+# s a v e   i m p o r t   f i l e 2
+
+check_save <- paste0(path_csv, projekt, "_import_", imp, "2.csv")
+
+if(file.exists(check_save)){
+  print("You've been here before!")
+} else {
+  write.table(check_imp, file = check_save, # mus_tab10
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+
+# s p a r o v a n i    t a x o n u   ->   i m p o r t   f i l e 3
+
+mus_imp <- read_excel(paste0(path_csv, "/PrenosDatZaznam_export.xlsx")) 
+
+sort(unique(mus_imp$'Údaj 20'))
+
+tax <- mus_imp %>% 
+  filter(Pořadí != 1) %>% 
+  select(nomen = 'Údaj 20', orig = 'Údaj 95') %>% distinct() %>% #  'Údaj 49', 'Údaj 100'
+  mutate(MSBIRKA = "MUZBE",
+         MPODSB = "Pb",
+         MPODSBnaz = "botanika",
+         MFOND = "bot",
+         MFONDnaz = "botanika",
+         MSKUP = "herbT",
+         MSKUPnaz = "herbář Tracheophyta",
+         X = NA,
+         MOBOR = 5,
+         MTAXKATnaz = "druh",
+         MAUTOR = ifelse(str_detect(orig, "^\\w+\\sx\\s"), 
+                         str_remove(orig, "^\\w+\\sx\\s\\w+\\s"),
+                               str_remove(orig, "^\\w+\\s\\w+\\s")),
+         MNADRTAXkat = "rod",
+         MROD = word(nomen, 1))
+
+
+
+mus_tab <- tax %>% 
+  select(
+    '1sbirkaCisloEvidInt' = MSBIRKA,  
+    '2podsbirkaCislo'= 'MPODSB',          
+    '3kodOboru' = MOBOR, 
+    '4nazevKategorie'= MTAXKATnaz,     # !! povinne !!
+    '5nomen'= nomen,                   # !! povinne !!
+    '6nazev'= X,                   
+    '7autor'= MAUTOR,                  
+    '8nadrizenyTaxon'= MROD,                   
+    '9preferovanyTaxon'= X,                   
+    '10Poznamka'= X,                   
+    '11nazevKategorieNadrizenehoTaxonu' = MNADRTAXkat) %>% 
+  distinct()
+
+oper_taxon <- mus_tab
+imp <- "taxon"
+
+```
+## doprovodne
+
+### sberatele
+
+*IMPORTNÍ ROZHRANÍ*: CSV Sberatele Predmetu 
+*MUSEION*: import_sberPtu.csv  
+
+```{r SBERATELE}
+
+# M O D I F Y
+
+doplsber <- MUZBE_modif_bio %>% 
+  select(MINVC, sberatel)
+
+
+doplsber[doplsber == ""] <- NA
+
+modify_tab <- doplsber %>% 
+  mutate(Msberatel = ifelse(sberatel == "D. Hlisnikovskýet al.", "D. Hlisnikovský et al.", sberatel),
+         Msberatel = ifelse(sberatel == "E.  Burša", "E. Burša", Msberatel),
+         Mforma = ifelse(str_detect(Msberatel, "rev\\.|rev\\s"), "revize",
+                                    ifelse(str_detect(Msberatel, " et | & "), "kolektiv", "")),
+         MID = seq_along(sberatel)) %>%
+  relocate(Msberatel, .after = "sberatel") %>%
+  relocate(Mforma, .before = "sberatel") %>%
+  separate(Msberatel, into=c("M", "MR_sbe") ,
+           sep="rev\\s|,\\srev\\s|,\\srev\\.|,\\s\\srev\\.|,\\s\\srev\\s|;\\srev\\.|\\srev\\.|rev\\.", # oddeleni revizi do samost. sloupce
+           remove = F, extra = "merge") %>%
+
+  mutate(MR_sbe = str_trim(MR_sbe), # oriznout whitespace
+         M = str_trim(M), # TRIM !!!
+
+         MRforma = ifelse(str_detect(MR_sbe, " et | & "), "kolektiv", "revize")) %>%
+  relocate(MRforma, .before = "MR_sbe") %>%
+
+  separate(M, into=c("M1", "M2", "M3") , sep=",| et | a(?! J.)| &", remove = F, extra = "merge") %>%
+  pivot_longer(
+    cols = c(
+      M1, M2, M3,
+    ),
+    names_to = "source", # poradi techniky
+    values_to = "Mnames",
+    values_drop_na = TRUE) %>%
+  mutate(
+    Mnames = str_trim(Mnames),
+    MPJM = case_when(
+                     str_detect(Mnames, "^\\w+$") ~ str_extract(Mnames, "^\\w+$"), # Vrubel
+                     str_detect(Mnames, "^\\w\\.\\w+$") ~ str_extract(Mnames, "\\b\\w+$"), # A.Hájková
+                     str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\.$"), # D., al.
+                     # str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R. J. Vašut
+                     # str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # R.J. Vašut
+                     str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+$"),  # Miroslava Bilkova
+                     # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "\\w+\\s\\w+\\.$"), # J. Chrtek jun.
+                     # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "\\w+\\s\\w+$"), # J. Chrtek jun
+                     # str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "\\w+\\s\\(\\w+\\)"), # O. Rotreklová (BRNU)
+                     # str_detect(Mnames, "^[:upper:]{3}$") ~ str_extract(Mnames, "^[:upper:]{3}$"), # PVO
+                     # str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 1), # "Ekrt L."
+                     TRUE ~ word(Mnames, 2)),
+    MJM = case_when(str_detect(Mnames, "^\\w+\\.\\s+\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  	# V. Dvořák
+                    str_detect(Mnames, "^\\w+\\.\\w+$") ~ str_extract(Mnames, "^\\w+\\."),  # 	J.Danihelka
+                    # str_detect(Mnames, "^\\w\\.\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\s\\w\\."),  # R. J. Vašut
+                    # str_detect(Mnames, "^\\w\\.\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\w\\."),  # R.J. Vašut
+                    str_detect(Mnames, "^\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"),  # Miroslava Bilkova
+                    # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+\\.$") ~ str_extract(Mnames, "^\\w+\\."), # J. Chrtek jun.
+                    # str_detect(Mnames, "^\\w\\.\\s\\w+\\s\\w+$") ~ str_extract(Mnames, "^\\w+"), # J. Chrtek jun
+                    # str_detect(Mnames, "\\)$") ~ str_extract(Mnames, "^\\w+\\."), # O. Rotreklová (BRNU)
+                    # str_detect(Mnames, "^\\w\\.\\sa\\s\\w\\.\\s\\w+$") ~ str_extract(Mnames, "\\w\\.\\sa\\s\\w\\."), # L. a J. Reitmyerovi
+                    # str_detect(Mnames, "Ekrt L.|Hrabovský S.|Štech M.|Chytil P.|Danihelka J.") ~ word(Mnames, 2), # "Ekrt L."
+                    # str_detect(Mnames, "^\\w+\\.$") ~ str_extract(Mnames, ""), # al.
+                    TRUE ~ "")) %>%
+    # MTIT = case_when(str_detect(MJM, "doc.|Ing.") ~ str_extract(Mnames, "doc.|Ing."), TRUE ~ ""),
+    # MJM = case_when(str_detect(MJM, "doc.|Ing.") ~  str_remove(MJM, "doc.|Ing."), TRUE ~ MJM)) %>%
+  replace(is.na(.), "") %>%
+    mutate(MKODOS = paste(MPJM, MJM)) %>%
+  group_by(MID) %>%
+  pivot_wider(names_from = source, values_from = c(MPJM, MJM, MKODOS)) %>%  # back to wide
+  select(-Mnames) %>%
+  # mutate_all(~na_if(., '')) %>%
+  fill(MPJM_M1, .direction = "down") %>%
+  fill(MPJM_M2, .direction = "down") %>%
+  fill(MPJM_M2, .direction = "up") %>%
+  fill(MPJM_M3, .direction = "up") %>%
+  fill(MJM_M1, .direction = "down") %>%
+  fill(MJM_M2, .direction = "down") %>%
+  fill(MJM_M2, .direction = "up") %>%
+  fill(MJM_M3, .direction = "up") %>%
+  fill(MKODOS_M1, .direction = "down") %>%
+  fill(MKODOS_M2, .direction = "down") %>%
+  fill(MKODOS_M2, .direction = "up") %>%
+  fill(MKODOS_M3, .direction = "up") %>%
+  distinct() %>%
+  ungroup() %>%
+  unite(MKODOS_sbe, c("MKODOS_M1", "MKODOS_M2", "MKODOS_M3"), sep = ", ", na.rm = T, remove = FALSE) %>%
+  relocate(MKODOS_sbe, .after = "Msberatel") %>%
+  mutate(MKODOS_sbe = case_when(Mforma == "kolektiv" ~ sub(",([^,]*)$", " et\\1", MKODOS_sbe),
+                             TRUE ~ MKODOS_sbe)) %>%
+  # select(-(last_col(offset = 10):last_col())) %>%                                    # pozor pri zmene poradi sekci !!!!
+  select(-Mforma, -Msberatel, -M, -MRforma, -contains(c("M1", "M2", "M3"))) %>% 
+  mutate(MREV_POZN = ifelse(str_detect(MR_sbe, "J. Danihelka"), 
+                            paste("Revize", MR_sbe), NA),
+         MPORADI = "1", 
+         MSBIRKA = "MUZBE",
+         MPODSB = "Pb",
+         MPODSBnaz = "botanika",
+         MFOND = "bot",
+         MFONDnaz = "botanika",
+         MSKUP = "herbT",
+         MSKUPnaz = "herbář Tracheophyta",
+         X = NA) 
+
+h <- modify_tab %>% 
+  group_by(MINVC) %>% 
+  filter(n() != 1)# filter(n()==1)
+
+
+# C S V
+
+mus_tab <- modify_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                     # !! povinne !!
+    '2sbirkaCisloEvidInt' = MSBIRKA,        # !! povinne !!
+    '3podsbirkaCislo' = MPODSB,             # !! povinne !!
+    '4poradi' = MPORADI,                    # !! povinne !!
+    '5sberatelPredmetu' = MKODOS_sbe,       # !! povinne !!
+    '6poznamka' = MREV_POZN)
+
+oper_sberpred <- mus_tab
+imp <- "sberPtu"
+
+```
+
+
+## obrazky 
+
+**DEMUS**: (slozka s obrazky)
+**MUSEION**: import_obrazky.csv (muze byt vice slozek)
+
+**IMPORTNÍ ROZHRANNÍ**: CSV Import souborových příloh 
+
+- udelat vypis souboru v cmd  
+- seznam cest k souborum  
+- naparovat s MINVC
+
+V MUSEIONU: Další agendy -> Multimédia/přílohy -> Import souborových příloh
+
+
+```{r OBRAZKY PRIPOJENI DATABAZE}
+
+# L O A D
+
+dbname <- paste0(path_muzbe, "02 muzBE konverze/SVO/MUZBE-SVO.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+
+RODBC::sqlTables(con)
+
+v <- "neg"
+sez <- RODBC::sqlFetch(con, "negativy")
+
+```
+
+### negativy 
+
+```{r OBR NEG}
+
+# DATABASE CONNECTION
+
+v <- "neg"
+sez <- RODBC::sqlFetch(con, "negativy")
+
+# LIST OF KD
+
+vypis <- as.data.frame(list.files("D:/MUZBE/Negativy_IP/Image", full.names = T, pattern = "\\.jpg$")) 
+colnames(vypis)[1] <- "path"
+
+vypis <- vypis %>% 
+  separate(path, into = c("disc", "project", "subject", "image", "file", "ext"), 
+           sep = "\\/|\\.", extra = "merge", remove = FALSE) %>% 
+  mutate(MFN = paste0(file, ".", ext),
+         Mrada = substr(file, 1, 1),
+         Mcislo = sub("N-a", "N", file),
+         Mcislo = sub("N", "", Mcislo), 
+         Mcislo = sub("^0+", "", Mcislo),
+         MFC = paste0(Mrada, Mcislo)) %>% 
+  separate(MFC, into = c("MFC", "multi"), sep = "\\s|-", extra = "merge", remove = FALSE) %>% 
+  mutate(multi = ifelse(str_detect(multi, "A|-A|B|-B|C|-C"), sub("A|-A|B|-B|C|-C", "", multi), multi),
+         multi = gsub("^0+", "", multi), # 020 (2) -> 20 (2)
+         MFC = ifelse(str_detect(MFC, "[:alpha:]$"), sub("[:alpha:]$", "", MFC), MFC),
+         MFC = ifelse(MFC == "N37542", paste0(MFC, "/", multi), MFC), # N37542-20 (2)
+         MFC = sub("\\s\\(2\\)", "", MFC), # N37542-20 (2) -> N37542-20
+         MFC = ifelse(str_detect(MFC, "a|b|c|A|B|C$"), sub("a|b|c|A|B|C$", "", MFC), MFC)) %>% # N37542-051A -> N37542-051
+  select(MFN, MFC, file, multi, ext)
+         
+         
+  
+# SEZNAM INVC
+
+sez <- sez %>% 
+  select(invc, MINVC, MINVChorni) %>% 
+  
+  mutate(cislo = substr(MINVC, 2, 6),
+         rada = "N",
+         Mcislo = sub("^0+", "", cislo), 
+         MFC = paste0(rada, Mcislo),
+         MFC = ifelse(MFC == "N37542", MINVC, MFC), 
+         MFC = ifelse(str_detect(MFC, "AB|A-C|A-D"), gsub("AB|A-C|A-D", "", MFC), MFC))
+   
+  
+# R E L A T E 
+
+relace <- left_join(vypis, sez, by = c("MFC" = "MFC"), keep = T) 
+
+# N E S P A R O V A N E
+
+nesparovane <- relace %>% 
+  filter(is.na(MINVC)) 
+
+# write.table(nesparovane, file = paste0(path_kd, projekt, "_vypis_nesparovane_", v, ".csv"), 
+#             sep = ";", quote = T, row.names = F, col.names = F, 
+#             na = "", fileEncoding="cp1250")
+
+
+# M O D I F Y
+
+modify_tab <- relace %>%
+  select(MFN, MINVC) %>% 
+  group_by(MINVC) %>% 
+  mutate(MPORADI = seq_along(MINVC)) %>% 
+  ungroup() %>%
+  mutate(X = "",
+         '1uloha' = "PREDMET_PRIVATE",
+         '6url' = MFN,
+         '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
+         # '7nahled' = case_when('3poradi' == 1 ~ "1", 
+         #                       TRUE ~ "0"),       # priznak {0;1}                       
+         '8vodoznak' = 0,      # priznak {0;1}                  
+         '9tisk1' = 0,          # priznak {0;1}                     
+         '10tisk2' = 0)  %>%        # priznak {0;1}     ) %>% 
+  filter(!is.na(MINVC)) # odfiltrovat nesparovane   # H 11 U : 452a ; 452b
+
+modif_save <- paste0(path_kd, projekt, "_modif_obrazky_", v, ".csv")  
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>%  
+  select(
+    '1uloha' = '1uloha',   # !! povinne !!                            
+    '2cislo' = MINVC,   # !! povinne !!     
+    '3poradi' = MPORADI,   # !! povinne !!          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
+    '6url' = '6url',    # !! povinne !!
+    '7nahled' = '7nahled',       # priznak {0;1}                       
+    '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
+    '9tisk1' = '9tisk1',          # priznak {0;1}                     
+    '10tisk2' = '10tisk2',         # priznak {0;1}                   
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
+    )                    
+
+oper_obrazky_neg <- mus_tab 
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_kd, projekt, "_import_obrazky_", v, ".csv")  
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+# I M P O R T   C H E C K 
+
+mus_imp <- read_excel(paste0(path_kd, "neg/KontextovyDokument_export (2).xlsx")) %>%  #  s w i t c h !!!
+  select(Číslo, URL) %>% 
+  mutate(MFN = sub("_original", "", URL))
+
+csv_imp <- read.csv(paste0(path_kd, "neg/MUZBE_import_obrazky_neg.csv"), sep = ";") %>%  #  s w i t c h !!!
+  mutate(Murl = sub("JPG", "jpg", X6url))
+  # select(X2cislo, X6url)
+
+imp_check <- left_join(csv_imp, mus_imp, by = c("Murl" = "MFN"), keep = T) %>% 
+  filter(is.na(Číslo))
+
+# aftermath
+
+mus_list <- select(mus_imp, MFN)
+vypis_list <- select(vypis, MFN) 
+
+
+fin_imp <- left_join(vypis_list, mus_list, keep = T) %>% 
+  filter(is.na(MFN.y))
+
+
+```
+
+Nektere obrazky nebyly prirazeny, protoze spadaji do intervalu daneho puvodnim invenarnim cislem.  
+Nutne priradit obrazky ke spravnemu spodnimu MINVC.  
+
+```{r OBR NEGATIVY 2KOLO INTERVALY}
+
+# sez_int <- sez %>% 
+#   filter(str_detect(invc, "N\\s\\d+-\\d{5}")) %>% 
+#   mutate(Minterv = str_extract(invc, "\\d{5}-\\d+")) %>% 
+#   separate(Minterv, into = c("dolni", "horni"), 
+#            sep = "-", extra = "merge", remove = FALSE) %>% 
+#   mutate(dolni = as.numeric(dolni),
+#          horni = as.numeric(horni))
+
+sez_int <- sez %>% 
+  drop_na(MINVChorni) %>% 
+  mutate(dolni = sub("N", "", MINVC),
+         horni = sub("N", "", MINVChorni))
+
+nesp_int <- nesparovane %>% 
+  select(MFN, MFC.x) %>% 
+  mutate(Mcislo = gsub("A|B|N", "", MFC.x),
+         Mcislo = as.numeric(Mcislo)) 
+
+# install.packages("fuzzyjoin")
+require(fuzzyjoin)
+
+fuzzy_relace <- fuzzy_left_join(nesp_int, sez_int, 
+                                by = c("Mcislo" = "dolni", "Mcislo" = "horni"), 
+                                match_fun = list(`>=`, `<=`))       # W O R K S !!!!
+ 
+ruc_fuzzy_relace <- fuzzy_relace %>% 
+  mutate(MINVC = case_when(Mcislo.x >= 17881 & Mcislo.x <= 17902 ~ "N17880/-902,CH890",
+                           Mcislo.x >= 19859 & Mcislo.x <= 19951 ~ "N19858/-951,CH911",
+                           Mcislo.x >= 30212 & Mcislo.x <= 30262 ~ "N30212/-262,CH212",
+                           Mcislo.x >= 36427 & Mcislo.x <= 36435 ~ "N36427/-435,C28-9",
+                           Mcislo.x >= 37747 & Mcislo.x <= 37805 ~ "N37747/A-805",
+                           Mcislo.x >= 44331 & Mcislo.x <= 44342 ~ "N44331/-342,CH330",
+                           TRUE ~ MINVC))
+
+sparovane2 <- ruc_fuzzy_relace %>% drop_na(MINVC)
+nesparovane2 <- ruc_fuzzy_relace %>% filter(is.na(MINVC)) # -> rucne doplnit intervaly u MINVC v nestandartním formatu
+
+write.table(nesparovane2, file = paste0(path_kd, projekt, "_vypis_nesparovane_", v, ".csv"),
+            sep = ";", quote = T, row.names = F, col.names = F,
+            na = "", fileEncoding="cp1250")
+
+modify_tab <- sparovane2 %>%
+  select(MFN, MINVC) %>% 
+  group_by(MINVC) %>% 
+  mutate(MPORADI = seq_along(MINVC)+1) %>% # nutne zacit od 2, protoze poradi=1 uz se zapsalo v prvnim kole importu !!!
+  ungroup() %>%
+  mutate(X = "",
+         '1uloha' = "PREDMET_PRIVATE",
+         '6url' = MFN,
+         '7nahled' = ifelse(MPORADI == 1, "1", "0"),       # priznak {0;1}                       
+         # '7nahled' = case_when('3poradi' == 1 ~ "1", 
+         #                       TRUE ~ "0"),       # priznak {0;1}                       
+         '8vodoznak' = 0,      # priznak {0;1}                  
+         '9tisk1' = 0,          # priznak {0;1}                     
+         '10tisk2' = 0)  %>%        # priznak {0;1}     ) %>% 
+  filter(!is.na(MINVC)) # odfiltrovat nesparovane   # H 11 U : 452a ; 452b
+
+modif_save <- paste0(path_kd, projekt, "_modif_obrazky_", v, "_2.csv")  
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+# C R E A T E    C S V
+
+mus_tab <- modify_tab %>%  
+  select(
+    '1uloha' = '1uloha',   # !! povinne !!                            
+    '2cislo' = MINVC,   # !! povinne !!     
+    '3poradi' = MPORADI,   # !! povinne !!          
+    '4nazev' = X,                                   
+    '5typDokumentuNazev' = X,          
+    '6url' = '6url',    # !! povinne !!
+    '7nahled' = '7nahled',       # priznak {0;1}                       
+    '8vodoznak' = '8vodoznak',      # priznak {0;1}                  
+    '9tisk1' = '9tisk1',          # priznak {0;1}                     
+    '10tisk2' = '10tisk2',         # priznak {0;1}                   
+    '11poznamka' = X, 
+    '12neDigitalni' = X, 
+    '13umisteni' = X, 
+    '14publikace' = X, 
+    '15literaturaNazev' = X, 
+    '16literaturaSlovy' = X, 
+    '17APlicenceCC' = X, 
+    '18APvariantaCCOznaceni' = X, 
+    '19APautorSubjektKod' = X, 
+    '20APdrzitelSubjektKod' = X, 
+    '21APtypLicence' = X, 
+    '22APcasovaLicence' = X, 
+    '23APuzemniLicence' = X, 
+    '24APmnozstevniLicence' = X, 
+    '25APdatumVyprseni' = X, 
+    '26APpoznamka' = X
+    )                    
+
+oper_obrazky_neg <- mus_tab 
+
+# S A V E   I M P O R T   C S V
+
+save <- paste0(path_kd, projekt, "_import_obrazky_", v, "_2.csv")  
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+```
+
+### kontrola importu obr
+
+```{r OBR CHECK IMPORT}
+
+# I N V   R A D A
+
+# v <- "diap"
+# v <- "foto"
+# v <- "les"
+v <- "neg"
+# v <- "obs"
+
+# V Y P I S   O B R A Z K U
+
+# jpg_vypis <- as.data.frame(list.files("D:/MUZBE/Diapozitivy/Image", full.names = T)) #  s w i t c h !!!
+# jpg_vypis <- as.data.frame(list.files("D:/MUZBE/Foto/Image", full.names = T)) #  s w i t c h !!!
+# jpg_vypis <- as.data.frame(list.files("D:/MUZBE/Lesnická sbírka/Image", full.names = T)) #  s w i t c h !!!
+jpg_vypis <- as.data.frame(list.files("D:/MUZBE/Negativy/Image", full.names = T)) #  s w i t c h !!!
+colnames(jpg_vypis)[1] <- "path"
+count(jpg_vypis)
+
+# M U S E I O N   I M P
+
+mus_imp <- read_excel(paste0(path_kd, v, "/KontextovyDokument_export.xlsx")) %>% 
+  select(Číslo, URL) %>% 
+  mutate(MFN = sub("_original", "", URL))
+
+# C H E C K 
+
+if(v == "neg"){
+  csv1 <- read.csv(paste0(path_kd, v, "/MUZBE_import_obrazky_", v, ".csv"), sep = ";")
+  csv2 <- read.csv(paste0(path_kd, v, "/MUZBE_import_obrazky_", v, "_2.csv"), sep = ";")
+  csv_imp <- rbind(csv1, csv2)
+} else {
+  csv_imp <- read.csv(paste0(path_kd, v, "/MUZBE_import_obrazky_", v, ".csv"), sep = ";") 
+}
+
+imp_check <- left_join(csv_imp, mus_imp, by = c("X6url" = "MFN"), keep = T) %>% 
+  filter(is.na(Číslo))
+
+# aftermath # neni to totez jako uz mam vyse? Ja myslim, ze jo ! :D
+
+vypis_list <- select(vypis, MFN) # soupis dodanych obrazku
+mus_list <- select(mus_imp, MFN) # co je fyzicky v MUSEIONU
+
+fin_imp <- left_join(vypis_list, mus_list, keep = T) %>% 
+  filter(is.na(MFN.y))
+
+```
+
+
+# D E M U S
+
+(in progress)
+
+
+# ! ! !   E X P O R T Y    C S V   ! ! !
+
+
+```{r FIXED EXPORT CSV}
+
+# f i n a l n i   c s v
+
+save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, # mus_tab10
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+# u p r a v e n a   t a b u l k a 
+
+modif_save <- paste0(path_csv, projekt, "_modif_", imp, ".csv")
+
+if(file.exists(modif_save)){
+  print("You've been here before!")
+} else {
+  write.table(modify_tab, file = modif_save, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",",              # desetinny oddelovac musi byt carka
+            na = "", fileEncoding="cp1250")
+  print("Operational file  S A V E D  !")
+  }
+
+# s a v e   i m p o r t   f i l e 2
+
+check_save <- paste0(path_csv, projekt, "_import_", imp, "2.csv")
+
+if(file.exists(check_save)){
+  print("You've been here before!")
+} else {
+  write.table(check_imp, file = check_save, # mus_tab10
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+}
+
+rm(save)
+rm(modif_save)
+rm(check_save)
+```
+
+
+# KONFLIKTY PRI MIGRACI DAT
+
+Report pro klienta.  
+Nesrovnalosti v datech, vyjimky, apod.  
+
+## pis zde:
+

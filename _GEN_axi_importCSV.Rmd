@@ -982,7 +982,26 @@ oper_rozmPtu <- mus_tab
 imp <- "rozmPtu"
 ```
 
-## CSV Sběratelé Předmětů  
+## CSV Sběratelé Předmětů 
+
+*IMPORTNÍ ROZHRANÍ*: CSV Sberatele Predmetu 
+*MUSEION*: import_sberPtu.csv  
+  
+```{r SBERATELE PREDMETU}
+
+mus_tab <- modif_tab %>% 
+  select(
+    '1SPCislo' = MINVC,                                # !! povinne !!
+    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
+    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
+    '4poradi' = MTECH_POR,                             # !! povinne !!
+    '5sberatelPredmetu' = MTECHNIKA,                   # !! povinne !!
+    '6poznamka' = X)
+
+oper_sberpred <- mus_tab
+imp <- "sberPtu"
+```
+
 ## CSV Smlouva licenční  
 ## CSV Smlouva nabývací  
 ## CSV Smlouva výpůjční  

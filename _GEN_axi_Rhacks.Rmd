@@ -22,6 +22,39 @@ knitr::opts_chunk$set(echo = F, eval = F)
 
 # *GENERAL*
 
+## I M P O R T / E X P O R T
+
+### Read txt
+
+read.table  
+
+```{r READ TABLE}
+df <- read.table("D:/VURV/R_hacks/data/simple_table_4read.txt", header = TRUE, sep = ";")
+```
+
+
+### Read csv
+
+read.csv : sep is always "," 
+
+```{r READ CSV}
+df <- read.csv("D:/VURV/R_hacks/data/simple_table_4read.csv", header = TRUE, sep = ";")
+```
+
+
+### Read excel
+
+```{r READ EXCEL}
+
+library("readxl")
+df <- read_excel("D:/VURV/R_hacks/data/simple_table_4read.xlsx" , sheet = 2, header = TRUE)
+```
+
+
+ISSUE: 'Warning: Expecting numeric in E1251 / R1251C5: got '41 (cm)'  
+
+SOLUTION: df <- read_excel(paste0(path_snd, "muzbe_rozmery_ptaci.xlsx"), sheet = 1, **col_types="text"**)
+
 ## D A T A F R A M E S
 
 ### Remove columns acc to pattern
@@ -31,6 +64,14 @@ knitr::opts_chunk$set(echo = F, eval = F)
 bot <- bot %>% 
   select(-contains("_sort"), -nvg_id)
 ```
+
+### Remove last 35 columns
+
+```{r DROP LAST X COLUMNS}
+
+select(-mus_invc, -(last_col(offset = 34):last_col()))
+```
+
 
 ### DF top 10 rows
 
@@ -58,6 +99,14 @@ ou <- taxon %>%
 
 ou <- taxon %>%
   mutate_all(~na_if(., ''))
+```
+
+### str_trim pro cely df
+
+```{r STR_TRIM DF}
+
+df %>% 
+  mutate(across(where(is.character), str_trim))
 ```
 
 ### Drop NA rows in spec col
@@ -173,7 +222,9 @@ mutate(MMATERIAL = str_trim(MMAT_AGG))
 
 str_trim = [function](https://stringr.tidyverse.org/reference/str_trim.html)
 
-### Create a string of multiple column values with NAs
+### Unite
+
+Creates a string of multiple column values with NAs.
 
 ```{r}
 
@@ -249,13 +300,21 @@ relocate(MINVCDO, .after = MINVC)
 # package 
 require(RODBC)
 
-# commands
+# general
+
+dbname <- paste0("---cesta+jmeno-databaze.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+RODBC::sqlTables(con)
+tab <- RODBC::sqlFetch(con, "---jmeno-tabulky---")
+
+# old func example
 dbname <- paste0(path_mdb, "bio_slovniky.accdb") # path to database
 con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
 
 RODBC::sqlTables(con)                          # list tables in database
 
 kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen") # read specified table
+
 ```
 
 *.mdb = old MS ACCESS  

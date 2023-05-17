@@ -16,16 +16,18 @@ output:
 
 ```{r}
 require(tidyverse)
+
+path_snd <- "C:/Users/krizova/Documents/R/data/_piskoviste/"
 ```
 
 
 \newpage 
 
-# *GENERAL*
 
-## X M L
 
-### import
+# X M L
+
+## import
 
 PACKAGES: "XML", "xml2", "methods", "tibble"
 ARTICLES: https://appsilon.com/r-xml/  ;  https://www.w3schools.com/xml/schema_howto.asp
@@ -153,7 +155,7 @@ fxdf <- xml_to_df("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml")
 
 ```
 
-## D E M Z
+# D E M Z
 
 ```{r PACKAGES}
 
@@ -219,6 +221,79 @@ for (i in Lxml_boj) {
 }
 
 
+
+```
+
+
+# ROZMERY PTACI
+
+MUZBE  
+Pro Danu wide -> long format + poznamky.  
+
+```{r ROZMERY PTACI}
+
+library("tidyverse")
+library("readxl")
+
+# kolo 1
+
+df <- read_excel(paste0(path_snd, "muzbe_rozmery_ptaci.xlsx"), sheet = 1, col_types="text")
+
+install.packages("reshape2")
+require(reshape2)
+
+df_long <- melt(df, id.vars = c("MU_INVC", "měřil", "vážil"))
+
+sort(unique(df_long$variable))
+
+rozm_sna <- df_long %>% 
+  group_by(MU_INVC) %>% 
+  mutate(poradi = seq_along(value))
+
+rozm_bezna <- rozm_sna %>% 
+  drop_na(value) %>% 
+  mutate(
+    pozn = case_when(str_detect(variable, "Hmotnost|váha", negate = T)&!is.na(měřil) ~ paste("Měřil/a:", měřil),
+                     str_detect(variable, "Hmotnost|váha")&!is.na(vážil) ~ paste("Vážil/a:", vážil),
+                     TRUE ~ ""))
+
+write.table(rozm_bezna, file = paste0(path_snd, "MUZBE_rozmery_ptaci_UPR.csv"),
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+
+# desetinna cisla issue
+
+dc <- rozm_bezna %>% 
+  filter(str_detect(value, "\\...........*|,..........*"))
+
+# kolo 2 - uspesne
+
+df <- read.table(paste0(path_snd, "Pz_ZOO_Rozmery_Ptaci.txt"), header = T, sep = ";", check.names = F, fileEncoding="cp1250") %>%
+  mutate(InvC = str_pad(InvC, 5, pad = "0"),
+         MU_INVC = paste0("FM", InvC, "/Z")) %>% 
+  relocate(MU_INVC, .after = InvC) %>% 
+  select(-InvC, -Druh_CZ)
+
+require(reshape2)
+
+df_long <- melt(df, id.vars = c("MU_INVC", "id_meril", "id_vazil"))
+
+sort(unique(df_long$variable))
+df_long[df_long == ""] <- NA
+
+rozm_bezna <- df_long %>% 
+  drop_na(value) %>% 
+  mutate(
+    pozn = case_when(str_detect(variable, "vaha", negate = T)&!is.na(id_meril) ~ paste("Měřil/a:", id_meril),
+                     str_detect(variable, "vaha")&!is.na(id_vazil) ~ paste("Vážil/a:", id_vazil),
+                     TRUE ~ "")) %>% 
+  filter(!value == "0")
+
+write.table(rozm_bezna, file = paste0(path_snd, "MUZBE_rozmery_ptaci_UPR2.csv"),
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
 
 ```
 

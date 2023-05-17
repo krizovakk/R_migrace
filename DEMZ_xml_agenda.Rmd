@@ -329,6 +329,44 @@ muzos <- xml_text(xml_find_all(xa, ".//e4g:NadobOsoby/e4g:Rola/e4g:name")) # 1:n
 
 muz <- tibble(evidc = muzec, name = muzname, id = muzid) # !!!! FUNKCNI !!!!
 
+```
+
+
+```{r ZKUS TO JESTE JEDNOU}
+
+x <- xml2::read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml")
+xp <- XML::xmlParse(xml2::read_xml("P:/w4dz/migrace/new-xml/e4g/stm/16788817.xml"))
+
+class(x)  # "xml_document" "xml_node"    
+class(xp) # "XMLInternalDocument" "XMLAbstractDocument"
+
+xmlRoot(x) #Error in UseMethod("xmlRoot") : no applicable method for 'xmlRoot' applied to an object of class "c('xml_document', 'xml_node')"
+xroot <- xmlRoot(xp) # ok
+print(xroot) # ok
+
+struct <- xml_structure(x) # tiskne, ale ulozi prazdny vektor
+
+#find all str nodes
+xml2::xml_find_all(x, ".//property[@name='verRealUser']/display") # nefunguje ! Prazdny xml_nodeset..
+xml2::xml_find_all(x, ".//LASTMODDATE") # nefunguje ! Prazdny xml_nodeset..
+xml2::xml_find_all(x, ".//objectInfo/createDT") # nefunguje ! Prazdny xml_nodeset..
+xml2::xml_find_all(x, ".//esez/objectInfo") # nefunguje ! Prazdny xml_nodeset..
+xml2::xml_find_all(x, ".//e4gNazov") # nefunguje ! Prazdny xml_nodeset..
+xml2::xml_find_all(x, ".//property name=\"owner\"") # nefunguje ! Prazdny xml_nodeset..
+
+xml2::xml_attr(x, objectInfo) 
+
+# SEKVENCNI CTENI
+
+x <- xml2::read_xml(paste0(path_sndb, "16788817.xml"))
+xp <- XML::xmlParse(xml2::read_xml(paste0(path_sndb, "16788817.xml")))
+
+class(x)  # "xml_document" "xml_node"    
+class(xp) # "XMLInternalDocument" "XMLAbstractDocument"
+
+xroot <- xmlRoot(xp) # ok
+print(xroot) # ok
+
 
 
 ```
@@ -366,8 +404,6 @@ for (i in Lxml_boj) {
   s <- c[1]
   infoex <- rbind(infoex, s)
 }
-
-
 
 ```
 
