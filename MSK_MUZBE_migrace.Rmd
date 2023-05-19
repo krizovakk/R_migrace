@@ -99,8 +99,7 @@ rm(bot1)
 
 # biolib slovnik pro botaniku
 
-biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/
-                     02 muzBE konverze/BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
+biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
 
 ```
 
@@ -909,7 +908,7 @@ prac_bot <- bot %>%
   
   # TAXON
   
-  select(MINVC, celed, druh, syn, var) %>% 
+  select(MINVC, celed, druh, syn, var, publikace) %>% 
   mutate(
     
     # celed
@@ -1870,6 +1869,19 @@ m <- fk_mus %>% filter(!is.na(MMNM))
 # ctverec
 p <- fk_puv %>% filter(str_detect(mapa, "WGS|°|,")) #1534
 m <- fk_mus %>% filter(!is.na(MMNM)) 
+
+# datace urceni
+
+daturc <- modify_tab %>% 
+  select(MINVC, urcil_d) %>% 
+  drop_na(urcil_d) %>% #duplicity nejsou
+  filter(str_detect(urcil_d, "rev|kusů", negate = T))
+  # filter(str_detect(urcil_d, "kusů")) # pro zjisteni minvc, kde neni datace, ale kusy
+
+# write.table(daturc, file = paste0(path_muzbe, "02 muzBE konverze/BIO/muzbe_datace_urceni.csv"), 
+#             quote = T, row.names = F, 
+#             sep = ";", dec = ",", 
+#             na = "", fileEncoding="cp1250")
 
 ```
 
@@ -3944,62 +3956,99 @@ DUPLICITINI ZAZNAMY V PUVODNI DATABAZI
 
 # O H R O Z E N I
 
+Tabulka taxonu z MUSEIONU.  
+
+id = MUSEION id taxonu  
+nomen = lat nazev taxonu
+nazev = ces nazev taxonu
+autor
+cislo = kod podsbirky  
+nazev_1 = nazev kategorie  
+nadtaxon  
+uroven  
+poznamka = url z biolibu
+
+* nomaut = vytvorene policko nomen+autor pro potreby parovani
+
+```{r MUZBE TAXONY MUSEION}
+
+mtax <- read_excel(paste0(path_csv, "muzbe_taxony_MUSEION.xlsx"))
+
+pb <- mtax %>% 
+  filter(cislo == "Pb") %>% 
+  unite(nomaut, c("nomen", "autor"), sep = " ", na.rm = T, remove = FALSE) %>% 
+  select(id, nazev_1, nomen, autor, nomaut)
+
+```
+
+
 ## Botanika
 
 ```{r BOT OHROZENI}
 
 # fetch tab 'prac_bot' (actualized TAXON NOMEN)
 
-bot_ohr <- prac_bot %>% select(MINVC, MNOMEN)
+ohr <- prac_bot %>% 
+  select(MINVC, MNOMEN, MAUT, publikace) %>% 
+  mutate(MAUT = ifelse(str_detect(MAUT, "Arctostaphylos uva-ursi "), str_remove(MAUT, "Arctostaphylos uva-ursi "), MAUT)) %>% 
+  mutate(MAUT = ifelse(str_detect(MAUT, "Hydrocharis morsus-ranae "), str_remove(MAUT, "Hydrocharis morsus-ranae "), MAUT)) %>% 
+  mutate(MAUT = ifelse(str_detect(MAUT, "Chenopodium bonus-henricus "), str_remove(MAUT, "Chenopodium bonus-henricus "), MAUT)) %>% 
+  mutate(MAUT = ifelse(str_detect(MAUT, "Neottia nidus-avis "), str_remove(MAUT, "Neottia nidus-avis "), MAUT)) %>% 
+  mutate(MAUT = ifelse(str_detect(MAUT, "Rubus portae-moravicae "), str_remove(MAUT, "Rubus portae-moravicae "), MAUT)) %>% 
+  unite(nomaut, c("MNOMEN", "MAUT"), sep = " ", na.rm = T, remove = FALSE) %>% 
+  # drop_na(publikace) %>% 
+  # filter(str_detect(publikace, "taxon")) %>% 
+  select(MINVC, MNOMEN, MAUT, nomaut, MOHR = publikace) %>% 
+  mutate(MOHR = ifelse(str_detect(MOHR, "taxon", negate = T), "", MOHR)) 
+  
 
-# BACH
-ohr <- modify_tab %>% 
-  select(MINVC, publikace)
 ohr[ohr == ""] <- NA
 ohr[ohr == " "] <- NA
 
-ohr_bach <- ohr %>% 
-  drop_na(publikace) %>% 
-  filter(str_detect(publikace, "taxon")) %>% 
-  select(MINVC, MOHR = publikace)
 
-sort(unique(ohr$publikace))
+sort(unique(ohr$MOHR))
 
-# REJSTRIK-SYSTEM !!! Tahle tabulka ma jenom mechy, zivocichy a houby !!!
-
-dbname <- paste0("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/muzbePVO_DK.accdb") 
-con <- RODBC::odbcConnectAccess2007(dbname)      
-RODBC::sqlTables(con)
-
-tab <- RODBC::sqlFetch(con, "Rejstřík_Systém") # !!! Tahle tabulka ma jenom mechy, zivocichy a houby !!!
-
-ohr <- tab %>% 
-  select(MPODSBIRKA, celed, druh_L, ochrana) %>% 
-  drop_na(ochrana)
-
-ohr_rej <- left_join(bot_ohr, ohr, by = c("MNOMEN" = "druh_L"), keep = T) %>% 
-  select(MINVC, MOHR = publikace)
+# # REJSTRIK-SYSTEM !!! Tahle tabulka ma jenom mechy, zivocichy a houby !!!
+# 
+# dbname <- paste0("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/muzbePVO_DK.accdb") 
+# con <- RODBC::odbcConnectAccess2007(dbname)      
+# RODBC::sqlTables(con)
+# 
+# tab <- RODBC::sqlFetch(con, "Rejstřík_Systém") # !!! Tahle tabulka ma jenom mechy, zivocichy a houby !!!
+# 
+# ohr <- tab %>% 
+#   select(MPODSBIRKA, celed, druh_L, ochrana) %>% 
+#   drop_na(ochrana)
+# 
+# ohr_rej <- left_join(bot_ohr, ohr, by = c("MNOMEN" = "druh_L"), keep = T) %>% 
+#   select(MINVC, MOHR = publikace)
 
 # AOPK
 
 aopk <- read_excel(paste0(path_data, "/_gen_tab/cervene_seznamy_AOPK.xlsx")) %>% 
-  select(id_tax, ved_jm, kat_ohr_iucn)
+  select(id_tax, ved_jm, autor_pop, kat_ohr_iucn) %>% 
+  unite(nomaut, c("ved_jm", "autor_pop"), sep = " ", na.rm = T, remove = FALSE) 
 
-ohr_aopk <- left_join(bot_ohr, aopk, by = c("MNOMEN" = "ved_jm"), keep = T) %>% 
-  drop_na(kat_ohr_iucn) %>% 
-  select(MINVC, MOHR = kat_ohr_iucn)
+ohr_aopk <- left_join(ohr, aopk, by = c("MNOMEN" = "ved_jm"), keep = T) %>% 
+  rename(BACH_NOMAUT = nomaut.x,
+         AOPK_NOMAUT = nomaut.y,
+         BACH_MOHR = MOHR,
+         AOPK_MOHR = kat_ohr_iucn)
 
-# COMBINE BACH+AOPK
+ohr_bl <- left_join(ohr_aopk, pb, by = c("MNOMEN" = "nomen"), keep = T)
+# ohr_bl <- left_join(ohr_aopk, pb, by = c("BACH_NOMAUT" = "nomaut"), keep = T)
 
-# combine
-ohr_comb <- rbind(ohr_bach, ohr_aopk)
-# find duplicates
-ohr_comb_dupl <- ohr_comb %>%   
-  group_by(MINVC) %>% 
-  filter(n() != 1)
-# remove duplicated MINVC
-ohr_comb <- rbind(ohr_bach, ohr_aopk) %>% 
-  filter(!duplicated(MINVC)|n()==2)
+ohr_fin <- ohr_bl %>% 
+  select(MINVC, MNOMEN, BACH_NOMAUT, AOPK_NOMAUT, BL_NOMAUT = nomaut, BACH_MOHR, AOPK_MOHR, MUS_ID = id) %>% 
+  filter(!is.na(BACH_MOHR)|!is.na(AOPK_MOHR)) %>% 
+  select(MINVC, MNOMEN, BACH_MOHR, AOPK_MOHR, MUS_ID)
+
+write.table(ohr_fin, file = paste0(path_muzbe, "02 muzBE konverze/BIO/muzbe_Pb_ohrozeni.csv"),
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            na = "", fileEncoding="cp1250")
+
+
 
 ```
 
@@ -4007,17 +4056,118 @@ ohr_comb <- rbind(ohr_bach, ohr_aopk) %>%
 
 ```{r MECH OHROZENI}
 
+dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/mechorosty_Vrána.mdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
+m_data <- RODBC::sqlFetch(con, "data")             # read specific table
+
 dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/ciselnik_taxonu.mdb") # path to database
 con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
-cis <- RODBC::sqlFetch(con, "data")              # read specific table
+m_cis <- RODBC::sqlFetch(con, "data")              # read specific table
 
 dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbePVO_DK.accdb") # path to database
 con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
-rej <- RODBC::sqlFetch(con, "Rejstřík_Systém")   # read specific table
+m_rej <- RODBC::sqlFetch(con, "Rejstřík_Systém")   # read specific table
 
-dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/mechorosty_Vrána.mdb") # path to database
-con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
-data <- RODBC::sqlFetch(con, "data")             # read specific table
+# museion taxon
+
+mtax <- read_excel(paste0(path_csv, "muzbe_taxony_MUSEION.xlsx"))
+
+m_pm <- mtax %>% filter(cislo == "Pm") %>% 
+  mutate(nomaut = paste(nomen, autor))
+
+# m_pm_dupl <- m_pm %>% 
+#   group_by(nomen) %>% 
+#   filter(n() != 1)
+# 
+# m_pm <- m_pm %>% 
+#   filter(!id %in% c(18588344, 20063902))
 
 ```
 
+```{r MECH OHROZENI DATA}
+
+# vytvorit MINVC
+
+ohr_m_data <- m_data %>% 
+  select(invc, taxon, ohrozeni) %>% 
+  mutate(invc = sub("M", "", invc),
+    MINVC = paste0("M", str_pad(invc, 5, pad = "0"))) %>% 
+  separate(taxon, into=c("Mrod", "Mdruh", "Mautor") , sep=" ", extra = "merge", remove = F) %>% 
+  unite(MNOMEN, c("Mrod", "Mdruh"), sep = " ", na.rm = T, remove = FALSE) %>%
+  select(MINVC, taxon, MNOMEN, ohrozeni)
+
+# ohr_m_data$taxon <- str_trim(ohr_m_data$taxon)
+
+# MUSEION id
+
+ohr_m_mus <- ohr_m_data %>%
+  # left_join(m_pm, by = c("taxon" = "nomaut")) 
+  left_join(m_pm, by = c("MNOMEN" = "nomen")) %>% 
+  mutate(id = case_when(taxon == "Chiloscyphus profundus (Nees) J. J. Engel & R. M. Schust." ~ 18588339,
+                        taxon == "Chiloscyphus coadunatus (Sw.) J. J. Engel & R. M. Schust." ~ 18588336,
+                        taxon == "Chiloscyphus cuspidatus (Nees) J. J. Engel & R. M. Schust." ~ 118588337,
+                        taxon == "Chiloscyphus minor (Nees) J. J. Engel & R. M. Schust." ~ 18588338,
+                        taxon == "Orthotrichum" ~ 13530622,
+                        taxon == "Orthotrichum " ~ 13530622,
+                        taxon == "Sphagnum" ~ NA,
+                        taxon == "Sphagnum cf. capillifolium (Ehrh.) Hedw." ~ 18588358,
+                        TRUE ~ id))
+
+ch <- sample_n(ohr_m_mus, 10)
+
+```
+
+```{r MECH OHROZENI CISELNIK}
+
+# nema moc smysl, kategorie ohrozeni stejna, jako v datech
+
+ohr_m_cis <- m_cis %>% 
+  select(taxon, ohrozeni) %>% 
+  separate(taxon, into=c("Mrod", "Mdruh", "Mautor") , sep=" ", extra = "merge", remove = F) %>% 
+  mutate(MNOMEN = paste(Mrod, Mdruh)) %>%
+  select(taxon, MNOMEN, ohrozeni) %>% 
+  distinct()
+
+```
+
+```{r MECH OHROZENI AOPK}
+
+ohr_m_aopk <- read_excel(paste0(path_data, "/_gen_tab/cervene_seznamy_AOPK.xlsx")) %>% 
+  select(id_tax, ved_jm, autor_pop, kat_ohr_iucn) %>% 
+  unite(nomaut, c("ved_jm", "autor_pop"), sep = " ", na.rm = T, remove = FALSE) 
+
+```
+
+```{r MECH OHROZENI COMB}
+
+# vytvorit MINVC
+
+ohr_m_1 <- left_join(ohr_m_mus, ohr_m_aopk, by = c("taxon" = "nomaut"), keep = T) 
+ohr_m_2 <- left_join(ohr_m_1, ohr_m_aopk, by = c("MNOMEN" = "ved_jm"), keep = T) 
+
+
+ohr_m_fin <- ohr_m_2 %>%
+  select(MINVC, taxon, MNOMEN, 
+         DATA_ohrozeni = ohrozeni,
+         AOPK_ohrozeni1 = kat_ohr_iucn.x,
+         AOPK_ohrozeni2 = kat_ohr_iucn.y,
+         MUS_ID = id,
+         nomaut.y) 
+
+m_pm_dupl <- ohr_m_fin %>%
+  group_by(MINVC) %>%
+  filter(n() != 1)
+
+sub1 <- subset(ohr_m_fin, MINVC != "M01521"|MUS_ID != 13539014)
+sub2 <- subset(sub1, MINVC != "M01179"|MUS_ID != 13539014)
+sub3 <- subset(sub2, MINVC != "M02140"|MUS_ID != 18588344)
+sub4 <- subset(sub3, MINVC != "M02051"|MUS_ID != 18588403)
+sub5 <- subset(sub4, MINVC != "M01268"|MUS_ID != 13539014) %>% select(-nomaut.y, -AOPK_ohrozeni1)
+  
+write.table(sub5, file = paste0(path_muzbe, "02 muzBE konverze/BIO/muzbe_Pm_ohrozeni.csv"),
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            na = "", fileEncoding="cp1250")  
+
+
+```

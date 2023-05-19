@@ -1,0 +1,34 @@
+---
+title: "RMD for notes"
+subtitle: ""
+author: "Katerina Krizova"
+date:  "`r Sys.Date()`"
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+\newpage 
+
+# R general tips
+
+- pojmenovavej df s prefixem, at se hezky radi v environmentu
+
+# MIG tips
+
+## naming conventions
+
+- Mname = name of working column 
+- MNAME = final name of column
+
+## process
+
+- *wip_tab* = work-in-progress tab (try everything out here)
+- *mod_tab* = result of modifications, source for building od a mus_tab
+- *mus_tab* = final CSV for import

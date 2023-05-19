@@ -45,7 +45,11 @@ require(xlsx) # write excel in sheets
 
 ! zkontroluj duplicity puvodnich inventarnich cisel !!  
 ! taxon ve formatu: r o d   d r u h   *s u b s p.*  p o d d r u h !!
-! vse, co se nesparuje nechat pouze v 
+! vse, co se nesparuje nechat pouze v 'originalni jmeno'
+! sepis si podrobnou migracni matici
+! pis poznamky do notes
+! slovniky - karta - doprovodne
+! kontrola: policko po policku, zda zadna informace nechybi
  
 \newpage 
 
@@ -172,7 +176,7 @@ imp <- "skupiny"
 
 # M O D I F Y
 
-modify_tab <- bach %>% 
+mod_tab <- bach %>% 
   mutate(MPODSKUP = substr(sub("\\s", "", pskup), 1,20), # smazat mezeru, orezat na 20 znaku
          # MPODSKUP = substr(pskup, 1,20), 
          Mpskp_len = nchar(pskup), 
@@ -181,7 +185,7 @@ modify_tab <- bach %>%
 
 # C R E A T E    C S V
 
-mus_tab <- modify_tab %>% 
+mus_tab <- mod_tab %>% 
   select('1sbirkaCisloEvidInt' = MSBIRKA,      # !! povinne !!
     '2podsbirkaCislo'= MPODSB,                 # !! povinne !!
     '3fondKod' = MFOND,                        # !! povinne !!
@@ -218,7 +222,7 @@ require(randomNames)
 
 # C R E A T E    C S V
 
-mus_tab <- modify_tab %>% 
+mus_tab <- mod_tab %>% 
   select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
          '2subjektKod' = subjektKod,         # !! povinne !!
          '3subjektAlterKod' = X, '4osobaJmenoPrvni'= '4osobaJmenoPrvni', 
@@ -276,7 +280,7 @@ imp <- "BOTadresar"
 
 ```{r MODIF LOKALITY, warning=FALSE}
 
-modify_tab <- bot %>% 
+mod_tab <- bot %>% 
   select(oblast, katastr, lokalita_geo) %>%  
   mutate(across(everything(), ~gsub("\\s{2}", " ", .)),
          oblast = str_trim(oblast)) %>% 
@@ -327,13 +331,13 @@ modify_tab <- bot %>%
   ungroup()
   
  
-modify_tab[modify_tab == ""] <- NA  
+mod_tab[mod_tab == ""] <- NA  
 
 ```
 
 ```{r CSV LOKALITY}
 
-mus_tab <- modify_tab %>% 
+mus_tab <- mod_tab %>% 
   select(
     '1lokalitaNazev' = MLOKALITA,  # !! povinne !!
     '2okresNazev'= X,
@@ -519,7 +523,7 @@ sort(unique(check_imp$'60nabytiPredmetuDatum'))
 # spatny format data nabyti
 check_imp$'60nabytiPredmetuDatum' <- sub("\\s|52/2005", NA, check_imp$'60nabytiPredmetuDatum')
 
-# poradove cislo -> upraveno v puvodni modify_tab
+# poradove cislo -> upraveno v puvodni mod_tab
 
 # inv <- check_imp %>% 
 #   select(cis = '5SPCislo') %>% 
@@ -633,7 +637,7 @@ doplsber <- MUZBE_modif_bio %>%
 
 doplsber[doplsber == ""] <- NA
 
-modify_tab <- doplsber %>% 
+mod_tab <- doplsber %>% 
   mutate(Msberatel = ifelse(sberatel == "D. Hlisnikovskýet al.", "D. Hlisnikovský et al.", sberatel),
          Msberatel = ifelse(sberatel == "E.  Burša", "E. Burša", Msberatel),
          Mforma = ifelse(str_detect(Msberatel, "rev\\.|rev\\s"), "revize",
@@ -726,14 +730,14 @@ modify_tab <- doplsber %>%
          MSKUPnaz = "herbář Tracheophyta",
          X = NA) 
 
-h <- modify_tab %>% 
+h <- mod_tab %>% 
   group_by(MINVC) %>% 
   filter(n() != 1)# filter(n()==1)
 
 
 # C S V
 
-mus_tab <- modify_tab %>% 
+mus_tab <- mod_tab %>% 
   select(
     '1SPCislo' = MINVC,                     # !! povinne !!
     '2sbirkaCisloEvidInt' = MSBIRKA,        # !! povinne !!
@@ -839,7 +843,7 @@ nesparovane <- relace %>%
 
 # M O D I F Y
 
-modify_tab <- relace %>%
+mod_tab <- relace %>%
   select(MFN, MINVC) %>% 
   group_by(MINVC) %>% 
   mutate(MPORADI = seq_along(MINVC)) %>% 
@@ -860,7 +864,7 @@ modif_save <- paste0(path_kd, projekt, "_modif_obrazky_", v, ".csv")
 if(file.exists(modif_save)){
   print("You've been here before!")
 } else {
-  write.table(modify_tab, file = modif_save, 
+  write.table(mod_tab, file = modif_save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
   print("Operational file  S A V E D  !")
@@ -868,7 +872,7 @@ if(file.exists(modif_save)){
 
 # C R E A T E    C S V
 
-mus_tab <- modify_tab %>%  
+mus_tab <- mod_tab %>%  
   select(
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
@@ -984,7 +988,7 @@ write.table(nesparovane2, file = paste0(path_kd, projekt, "_vypis_nesparovane_",
             sep = ";", quote = T, row.names = F, col.names = F,
             na = "", fileEncoding="cp1250")
 
-modify_tab <- sparovane2 %>%
+mod_tab <- sparovane2 %>%
   select(MFN, MINVC) %>% 
   group_by(MINVC) %>% 
   mutate(MPORADI = seq_along(MINVC)+1) %>% # nutne zacit od 2, protoze poradi=1 uz se zapsalo v prvnim kole importu !!!
@@ -1005,7 +1009,7 @@ modif_save <- paste0(path_kd, projekt, "_modif_obrazky_", v, "_2.csv")
 if(file.exists(modif_save)){
   print("You've been here before!")
 } else {
-  write.table(modify_tab, file = modif_save, 
+  write.table(mod_tab, file = modif_save, 
             sep = ";", quote = T, row.names = F, 
             na = "", fileEncoding="cp1250")
   print("Operational file  S A V E D  !")
@@ -1013,7 +1017,7 @@ if(file.exists(modif_save)){
 
 # C R E A T E    C S V
 
-mus_tab <- modify_tab %>%  
+mus_tab <- mod_tab %>%  
   select(
     '1uloha' = '1uloha',   # !! povinne !!                            
     '2cislo' = MINVC,   # !! povinne !!     
@@ -1141,7 +1145,7 @@ modif_save <- paste0(path_csv, projekt, "_modif_", imp, ".csv")
 if(file.exists(modif_save)){
   print("You've been here before!")
 } else {
-  write.table(modify_tab, file = modif_save, 
+  write.table(mod_tab, file = modif_save, 
             quote = T, row.names = F, 
             sep = ";", dec = ",",              # desetinny oddelovac musi byt carka
             na = "", fileEncoding="cp1250")

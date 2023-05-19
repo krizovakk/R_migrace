@@ -81,6 +81,13 @@ mus_tab_cvic <- mus_tab %>%
   slice(1:10)
 ```
 
+### Random sample of n
+
+```{r RNDM SAMPLE}
+
+ch <- sample_n(df, 10) # n=10
+```
+
 ### Replace NA with ""
 
 s pipe jsem zatim cestu nenasla
@@ -468,6 +475,14 @@ sbirky <- read_excel(paste0(path_data, "/Sbirky.xlsx")) %>%
   relocate(MINVC, .before = JineC_S) %>% 
   relocate(MINVCDO, .after = MINVC) 
 ```
+
+## Taxon -> rod, druh, autor
+
+```{r SPLIT TAXON}
+
+separate(taxon, into=c("Mrod", "Mdruh", "Mautor") , sep=" ", extra = "merge", remove = F)
+```
+
 
 
 \newpage
