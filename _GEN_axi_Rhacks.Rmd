@@ -2,7 +2,7 @@
 title: "AXIELL R HACKS"
 subtitle: "Uzitecne prikazy a funkce pro migrace dat"
 author: "Kateřina Křížová"
-date: "2023-01-26"
+date: "`r Sys.Date()`"
 output:
   pdf_document:
     toc: true
@@ -88,18 +88,18 @@ mus_tab_cvic <- mus_tab %>%
 ch <- sample_n(df, 10) # n=10
 ```
 
-### Replace NA with ""
+### Replace "" with NA
 
 s pipe jsem zatim cestu nenasla
 
-```{r REPLACE NA}
+```{r REPLACE "" WITH NA}
 
 taxon[taxon == ""] <- NA
 ```
 
-### Replace "" with NA
+### Replace NA with ""
 
-```{r REPLACE "" WITH NA}
+```{r REPLACE NA WITH ""}
 
 ou <- taxon %>%
   replace(is.na(.), "")
@@ -124,6 +124,15 @@ sez_int <- sez %>%
   drop_na(MINVChorni)  
 ```
 
+### Copy rows / multiply
+
+1:nrow(df) = vsechny radky
+, 1), ]) = jednou (tzn. ve vysledku dostaneme kazdy radek dvakrat)
+
+```{r MULTIPLY ROWS}
+
+df <- rbind(df, df[rep(1:nrow(df), 1), ])
+```
 
 
 ## N U M E R I C S
@@ -168,14 +177,29 @@ v <- as.data.frame(v) %>%
 
 ### String length
 
-```{r}
+```{r STRING LENGTH}
 
 mutate(Mpskp_len = nchar(pskup)) 
 ```
 
+
+### String similarity
+
+install.packages("RecordLinkage")
+require("RecordLinkage")
+
+levenshteinSim = funkce
+autor_MUS, autor_AOPK = sloupce, ktere chci porovnat
+
+```{r STRING SIMILARITY}
+
+df %>%mutate(sim = levenshteinSim(autor_MUS, autor_AOPK))
+```
+
+
 ### String detect case INsensitive
 
-```{r}
+```{r STRING CASE SENS}
 
 str_detect(MFN, regex("^FM\\s\\d+\\.jpg$", ignore_case = T))
 ```
@@ -474,6 +498,11 @@ sbirky <- read_excel(paste0(path_data, "/Sbirky.xlsx")) %>%
   # select(-MPORC, -MPORCDO) %>%
   relocate(MINVC, .before = JineC_S) %>% 
   relocate(MINVCDO, .after = MINVC) 
+
+# one step
+
+MINVC = paste0("M", str_pad(invc, 5, pad = "0"))
+
 ```
 
 ## Taxon -> rod, druh, autor
@@ -483,6 +512,20 @@ sbirky <- read_excel(paste0(path_data, "/Sbirky.xlsx")) %>%
 separate(taxon, into=c("Mrod", "Mdruh", "Mautor") , sep=" ", extra = "merge", remove = F)
 ```
 
+## Check import KD
+
+```{r KD IMPORT CHECK}
+
+mus_imp <- read_excel(paste0(path_kd, v, "/KontextovyDokument_export (1).xlsx")) %>%  
+  mutate(MFN = sub("_original", "", URL))
+
+jpg_cs <- jpg %>% mutate(MFN = ifelse(str_detect(MFN, "JPG"), sub("JPG", "jpg", MFN), MFN))
+
+imp_check <- left_join(jpg_cs, mus_imp, by = c("MFN" = "MFN"), keep = T)
+
+na <- imp_check %>% filter(is.na(Číslo))
+
+```
 
 
 \newpage

@@ -754,7 +754,7 @@ mus_tab <- modif_tab %>%
     '30sirkaMinuty' = X, '31sirkaVteriny' = DatZm_S, 
     '32delkaEW' = StLokace_S, '33delkaStupne' = AktLokace_S, 
     '34delkaMinuty' = Titul_S, '35delkaVteriny' = Predmet_S, 
-    '36vyska' = Popis_S, # neni nadmorska vyska! Nadmorska je v 42nadmorskaVyska
+    '36vyska' = Popis_S, # neni nadmorska vyska! Nadmorska je v 42nadmorskaVyska.
     '37specifikaceLokality' = X, 
     '38mapa' = X, '39ctverec' = X,
     

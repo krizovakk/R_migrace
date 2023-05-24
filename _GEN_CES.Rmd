@@ -1,0 +1,144 @@
+---
+title: "CES"
+subtitle: "Parovani vypisu z CES a MUSEIONovych zaznamu"
+author: "Katerina Krizova"
+date: "`r Sys.Date()`"
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+\newpage 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("stringi")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+# install.packages("xlsx")
+require(tidyverse)
+require(readxl)
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+require(xlsx) # write excel in sheets
+```
+
+\newpage 
+
+# PATHS AND PROJ INFO
+
+```{r PATHS AND PROJ INFO}
+
+path_ces <- "C:/Users/krizova/Documents/R/data/CES/"
+
+proj <- "GMUR"
+
+```
+
+
+# LOAD CES TXT
+
+1.sloupec = Změna {N = nove, platne; V = vyrazeni; R = ruseni}
+2.sloupec = Duvod (pro N vypusteno)
+            V {N = neupotrebitelnost; P = prebytecnost; R = rozepsani; O = omyl}
+            R {C = chyba; Z = zmena cislovani}
+3. sloupec = typ cisla {P = prirustkove; I = inventarni}
+            
+```{r LOAD CES TXT, warning = F}
+
+# TEST
+
+gra <- read.table(paste0(path_ces, proj, "/Další_-_Grafiky.txt"),
+                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
+kre <- read.table(paste0(path_ces, proj, "/Další_-_Kresby.txt"),
+                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
+obr <- read.table(paste0(path_ces, proj, "/Další_-_Obrazy.txt"),
+                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
+soc <- read.table(paste0(path_ces, proj, "/Další_-_Sochy.txt"),
+                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
+uum <- read.table(paste0(path_ces, proj, "/Další_-_Užité_umění.txt"),
+                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
+```
+
+
+```{r LOAD CES TXT LOOP , warning = F}
+
+# FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT vvv
+
+Ltxt <- list.files(paste0(path_ces, proj), pattern = "*.txt")  # Identify file names
+df_filled <- data.frame()
+colnam <- c("zmena","duvod","typ_cisla","cislo",
+                "s5","s6", "s7", "s8",
+                "s9","s10","s11","s12")
+    
+
+for(i in Ltxt) {
+  a <- read.table(paste0(path_ces, proj, "/", i),
+                  skip = 4, header = F, sep = ";", fill = T, 
+                  check.names = F, fileEncoding="cp1250")
+  names(a) <- colnam
+  rows_to_change <- a$zmena == "N"
+  a[rows_to_change,3:12] <- a[rows_to_change,2:12]
+  a[rows_to_change,2] <- NA
+  a$zdroj <- paste(i)
+  a <- a %>% filter(str_detect(zmena, ("^N$|^V$|^R$"))) 
+  df_filled <- rbind(df_filled,a)
+}
+
+# FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT ^^^
+
+rm(a)
+```
+
+```{r CES PROCESSING}
+
+ces <- df_filled %>% discard(~all(is.na(.) | . =="")) # drop empy columns
+ces[ces == ""] <- NA
+
+sort(unique(ces$zmena))
+sort(unique(ces$duvod))
+sort(unique(ces$typ_cisla))
+
+dupl <- ces %>% group_by(cislo) %>% 
+  filter(n() != 1)
+
+ces_ic <- ces %>% filter(typ_cisla == "I") 
+ces_pr <- ces %>% filter(typ_cisla == "P") 
+```
+
+PODSBIRKY:
+
+Grafika: \{S\}\{####\}
+Kresby: \{S\}\{####\}
+Obrazy: \{S\}\{####\}
+Sochy: \{S\}\{####\}
+Uzite umeny: \{S\}\{####\}
+
+```{r CES INVC}
+
+ic <- ces_ic %>% 
+  mutate(Mrada = str_extract(cislo, "[:alpha:]"),
+         Mcislo = str_extract(cislo, "[:digit:]+"),
+         MINVC = paste0(Mrada, str_pad(Mcislo, 4, pad = "0")))
+
+chyby <- ic %>% filter(is.na(Mrada))
+
+sort(unique(ic$Mrada))
+```
+

@@ -20,6 +20,8 @@ output:
 
 - pojmenovavej df s prefixem, at se hezky radi v environmentu
 
+- pri duplikovanem invc podlomit '/dupl1' a '/dupl2' oba zaznamy
+
 # MIG tips
 
 ## naming conventions
@@ -32,3 +34,14 @@ output:
 - *wip_tab* = work-in-progress tab (try everything out here)
 - *mod_tab* = result of modifications, source for building od a mus_tab
 - *mus_tab* = final CSV for import
+
+# OBRAZKY
+
+! nejprve zkontroluj vsechny vyskytujici se pripony ! (meli jsme i *.png)
+
+- *sez* = list of jpg
+- *jpg* = list of MINVC for pairing
+
+- *MFN* = M file name (FM 53753.jpg)
+- *MFC* = M file number (53753)
+ 

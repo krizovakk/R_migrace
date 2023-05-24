@@ -2,7 +2,7 @@
 title: "AXIELL piskoviste"
 subtitle: "Prostredi pro zkouseni novych postupu"
 author: "Kateřina Křížová"
-date: "2023-01-26"
+date: "`r Sys.Date()`"
 output:
   pdf_document:
     toc: true
@@ -13,17 +13,22 @@ output:
   geometry: margin=1in
 
 ---
+# B A S E
 
 ```{r}
 require(tidyverse)
+require(readxl)
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+require(xlsx) # write excel in sheets
 
 path_snd <- "C:/Users/krizova/Documents/R/data/_piskoviste/"
 ```
 
-
 \newpage 
-
-
 
 # X M L
 
@@ -293,6 +298,165 @@ rozm_bezna <- df_long %>%
 write.table(rozm_bezna, file = paste0(path_snd, "MUZBE_rozmery_ptaci_UPR2.csv"),
             quote = T, row.names = F, 
             sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+
+```
+
+# BIOLIB + OHROZENI
+
+```{r BL OHR}
+
+# paths
+
+path_data <- "C:/Users/krizova/Documents/R/data/"
+
+# load
+
+mtax <- read_excel(paste0(path_data, "_gen_tab/muzbe_taxony_MUSEION.xlsx")) %>%  # taxony z musionu
+  unite(nomaut_MUS, c("nomen", "autor"), sep = " ", na.rm = T, remove = F)
+aopk <- read_excel(paste0(path_data, "_gen_tab/cervene_seznamy_AOPK.xlsx"))  %>% # ohrozeni dle AOPK
+  unite(nomaut_AOPK, c("ved_jm", "autor_pop"), sep = " ", na.rm = T, remove = F)
+
+# pair author+name
+
+rel1 <- left_join(mtax, aopk, by = c("nomaut_MUS" = "nomaut_AOPK"), keep = T)
+# -> filter paired; chack names by unpaired
+pair <- rel1 %>% filter(!is.na(nomaut_AOPK))
+unpair <- rel1 %>% filter(is.na(nomaut_AOPK)) 
+
+# install.packages("RecordLinkage")
+require("RecordLinkage")
+
+rel2 <- left_join(unpair, aopk, by = c("nomen" = "ved_jm"), keep = T) %>% 
+  select(id, OHR = kat_ohr_iucn.y, nomen_MUS = nomen, autor_MUS = autor, 
+         nomen_AOPK = ved_jm.y, autor_AOPK = autor_pop.y) %>% 
+  filter(!is.na(nomen_AOPK)) %>% 
+  mutate(sim = levenshteinSim(autor_MUS, autor_AOPK))
+
+
+
+```
+
+```{r BL AOPK OHR INTERPUNCT}
+
+# paths
+
+path_data <- "C:/Users/krizova/Documents/R/data/"
+path_muzbe <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/"
+
+# load
+
+mtax0 <- read_excel(paste0(path_data, "_gen_tab/muzbe_taxony_MUSEION.xlsx"))
+mtax <- read_excel(paste0(path_data, "_gen_tab/muzbe_taxony_MUSEION.xlsx")) %>% 
+  mutate(autor = ifelse(str_detect(autor, "Linneaus|Linnaeus"), gsub("Linneaus|Linnaeus", "L", autor), autor),
+         Mautor_MUS = gsub("\\s|\\.|,|-|\\(|\\)|&", "", autor)) %>% 
+  unite(nomaut_MUS, c("nomen", "Mautor_MUS"), sep = " ", na.rm = T, remove = F) %>% 
+  select(id_MUS = id, nomen_MUS = nomen, autor_MUS = autor, Mautor_MUS, nomaut_MUS,
+         cislo, nazev_1, nadtaxon, uroven, poznamka)
+  
+aopk <- read_excel(paste0(path_data, "_gen_tab/cervene_seznamy_AOPK.xlsx")) %>%
+  mutate(autor_popL = ifelse(str_detect(autor_pop, "Linnaeus"), gsub("Linnaeus", "L", autor_pop), autor_pop),
+         Mautor_AOPK = gsub("\\s|\\.|,|-|\\(|\\)|&", "", autor_popL)) %>% 
+  unite(nomaut_AOPK, c("ved_jm", "Mautor_AOPK"), sep = " ", na.rm = T, remove = F) %>% 
+  select(nomen_AOPK = ved_jm, autor_AOPK = autor_popL, Mautor_AOPK, nomaut_AOPK, OHR = kat_ohr_iucn)
+
+# 1 pairing
+
+rel1 <- left_join(mtax, aopk, by = c("nomaut_MUS" = "nomaut_AOPK"), keep = T)
+# -> filter paired; chack names by unpaired
+pair <- rel1 %>% filter(!is.na(nomaut_AOPK))
+unpair <- rel1 %>% filter(is.na(nomaut_AOPK)) %>% select(-contains("_AOPK"), -OHR)
+
+SAVE1 <- pair # first bunch to save
+
+# 2 pairing
+
+rel2 <- left_join(unpair, aopk, by = c("nomen_MUS" = "nomen_AOPK"), keep = T) %>% 
+  select(id_MUS, OHR, 
+         nomen_MUS, autor_MUS, Mautor_MUS, 
+         nomen_AOPK, autor_AOPK, Mautor_AOPK, cislo, nazev_1, nadtaxon, uroven, poznamka) %>% 
+  distinct()
+pair <- rel2 %>% 
+  filter(!is.na(nomen_AOPK)) %>% 
+  mutate(sim = levenshteinSim(Mautor_MUS, Mautor_AOPK))
+unpair <- rel2 %>% filter(is.na(nomen_AOPK)) # -> nejsou ohrozene nebo je nemame v databazi
+
+# check of 2 pairing
+
+chdupl <- pair %>% group_by(id_MUS) %>% filter(n() !=1) # pridano distinct do rel2
+
+# -> filter authors with year
+
+auty <- pair %>% filter(str_detect(autor_MUS, "\\d\\d\\d\\d")) %>% 
+  mutate(year_MUS = str_extract(autor_MUS, "\\d+"),
+         year_AOPK = str_extract(autor_AOPK, "\\d+"))
+
+nesedirok <- auty %>% 
+  filter(year_MUS != year_AOPK) #%>% select(autor_MUS, autor_AOPK, Mautor_MUS, Mautor_AOPK, sim) 
+sedirok <- auty %>% 
+  filter(year_MUS == year_AOPK) %>% 
+  mutate(Mautor_MUSwy = str_remove(Mautor_MUS, "\\d+"),
+         Mautor_AOPKwy = str_remove(Mautor_AOPK, "\\d+"),
+         sim = levenshteinSim(Mautor_MUSwy, Mautor_AOPKwy)) %>% 
+  select(id_MUS, OHR, nomen_MUS, autor_MUS, autor_AOPK, Mautor_MUSwy, Mautor_AOPKwy, sim, cislo, nazev_1, nadtaxon, uroven, poznamka)
+
+# -> prosla jsem rucne, hranice sim pro stejna jmena je 0.4545
+QUES1 <- nesedirok %>% filter(sim > 0.4) 
+QUES2 <- nesedirok %>% filter(sim < 0.4) 
+QUES3 <- auty %>% filter(is.na(year_AOPK)) 
+QUES4 <- sedirok %>% filter(sim <= 0.2) 
+SAVE2 <- sedirok %>% filter(sim > 0.2) 
+
+# -> filter rows without year
+
+woy <- pair %>% filter(str_detect(autor_MUS, "\\d+", negate = T)) %>% 
+  # select(autor_MUS, autor_AOPK, Mautor_MUS, Mautor_AOPK) %>% 
+  mutate(sim = levenshteinSim(Mautor_MUS, Mautor_AOPK))
+
+SAVE3 <- woy %>% filter(sim > 0.16666667) 
+QUES5 <- woy %>% filter(sim <= 0.16666667) 
+QUES6 <- woy %>% filter(is.na(Mautor_AOPK)) 
+
+# combine
+
+QUES1 <- QUES1 %>% select(id_MUS, OHR, nomen_MUS, autor_MUS, autor_AOPK) %>% mutate(issue = "autor ano, rok ne")
+QUES2 <- QUES2 %>% select(id_MUS, OHR, nomen_MUS, autor_MUS, autor_AOPK) %>% mutate(issue = "autor ne, rok ne")
+QUES3 <- QUES3 %>% select(id_MUS, OHR, nomen_MUS, autor_MUS, autor_AOPK) %>% mutate(issue = "autor ano, rok NA")
+QUES4 <- QUES4 %>% select(id_MUS, OHR, nomen_MUS, autor_MUS, autor_AOPK) %>% mutate(issue = "autor ne, rok ano")
+QUES5 <- QUES5 %>% select(id_MUS, OHR, nomen_MUS, autor_MUS, autor_AOPK) %>% mutate(issue = "autor ne")
+QUES6 <- QUES6 %>% select(id_MUS, OHR, nomen_MUS, autor_MUS, autor_AOPK) %>% mutate(issue = "autor AOPK NA")
+
+questionable <- bind_rows(QUES1, QUES2, QUES3, QUES4, QUES5, QUES6)
+
+SAVE1 <- SAVE1 %>% select(id_MUS, id_MUS, OHR, nomen_MUS, autor_MUS, cislo, nazev_1, nadtaxon, uroven, poznamka)
+SAVE2 <- SAVE2 %>% select(id_MUS, id_MUS, OHR, nomen_MUS, autor_MUS, cislo, nazev_1, nadtaxon, uroven, poznamka)
+SAVE3 <- SAVE3 %>% select(id_MUS, id_MUS, OHR, nomen_MUS, autor_MUS, cislo, nazev_1, nadtaxon, uroven, poznamka)
+
+matched <- bind_rows(SAVE1, SAVE2, SAVE3)
+
+# write.table(matched, file = paste0(path_snd, "MUStaxon_AOPK_ohrozeni.csv"),
+#             quote = T, row.names = F, 
+#             sep = ";", dec = ",", 
+#             na = "", fileEncoding="cp1250")
+
+muzbeohr <- read.table(paste0(path_muzbe, "02 muzBE konverze/BIO/muzbe_VSE_ohrozeni.csv"),
+                       sep = ";", header = T, fileEncoding="cp1250")
+
+merge <- full_join(matched, muzbeohr, by = c("id_MUS" = "MUS_ID")) %>% 
+  select(-AOPK_ohrozeni, -MPODSB, -MNOMEN, -MINVC) %>% 
+  distinct() %>% 
+  group_by(id_MUS) %>%
+  filter(n() == 1)
+
+chdupl <- merge %>% group_by(id_MUS) %>% filter(n() !=1) %>% filter(duplicated(id_MUS)|n()==1)
+
+fin <- bind_rows(merge, chdupl) # checked -> no duplicates
+
+fin[fin == ""] <- NA
+
+write.table(fin, file = paste0(path_data, "MUStaxon_AOPK_MUZBE_ohrozeni.csv"),
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
             na = "", fileEncoding="cp1250")
 
 ```
