@@ -55,6 +55,17 @@ ISSUE: 'Warning: Expecting numeric in E1251 / R1251C5: got '41 (cm)'
 
 SOLUTION: df <- read_excel(paste0(path_snd, "muzbe_rozmery_ptaci.xlsx"), sheet = 1, **col_types="text"**)
 
+### Write excel + sheets
+
+```{r}
+write.xlsx(x = ToothGrowth,                       # Write xlsx with multiple sheets
+           file = "ToothGrowth.xlsx",
+           sheetName = "Our Data Sheet 2",
+           append = TRUE)
+```
+
+
+
 ## D A T A F R A M E S
 
 ### Remove columns acc to pattern
@@ -171,6 +182,18 @@ v <- as.data.frame(v) %>%
   mutate(por = seq_along(v),
          porplus = seq_along(v)+1)
 ```
+
+### Round
+
+round(x, #) = zaokrouhleni na # pocet decimalnich cisel
+ceiling(x) = rounds values up to nearest integer
+floor(x) = rounds values down to nearest integer
+trunc(x) = truncates (cuts off) decimal places from values
+
+```{r}
+
+```
+
 
 
 ## T E X T 

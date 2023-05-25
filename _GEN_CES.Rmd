@@ -31,12 +31,13 @@ knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
 # install.packages("xlsx")
 require(tidyverse)
 require(readxl)
+require(xlsx) # write excel in sheets
 require(stringr) # ::str_split_fixed
 require(stringi) # ::stri_detect_fixed - detect empty string
 require(mdbr) # ::read_mdb
 require(RODBC) # ::read_mdb
 require(odbc) # ::read_mdb
-require(xlsx) # write excel in sheets
+
 ```
 
 \newpage 
@@ -46,13 +47,14 @@ require(xlsx) # write excel in sheets
 ```{r PATHS AND PROJ INFO}
 
 path_ces <- "C:/Users/krizova/Documents/R/data/CES/"
+path_gmur <- "M:/03 klienti/kraj ustecky/galerie moderniho umeni v roudnici nad labem - GMUR/gmur_ces/"
 
 proj <- "GMUR"
 
 ```
 
 
-# LOAD CES TXT
+# LOAD CES TXT LOOP
 
 1.sloupec = Změna {N = nove, platne; V = vyrazeni; R = ruseni}
 2.sloupec = Duvod (pro N vypusteno)
@@ -60,7 +62,7 @@ proj <- "GMUR"
             R {C = chyba; Z = zmena cislovani}
 3. sloupec = typ cisla {P = prirustkove; I = inventarni}
             
-```{r LOAD CES TXT, warning = F}
+```{r LOAD CES TXT ONE BY ONE, warning = F, eval = F}
 
 # TEST
 
@@ -79,7 +81,7 @@ uum <- read.table(paste0(path_ces, proj, "/Další_-_Užité_umění.txt"),
 
 ```{r LOAD CES TXT LOOP , warning = F}
 
-# FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT vvv
+# FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT 
 
 Ltxt <- list.files(paste0(path_ces, proj), pattern = "*.txt")  # Identify file names
 df_filled <- data.frame()
@@ -87,6 +89,7 @@ colnam <- c("zmena","duvod","typ_cisla","cislo",
                 "s5","s6", "s7", "s8",
                 "s9","s10","s11","s12")
     
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 for(i in Ltxt) {
   a <- read.table(paste0(path_ces, proj, "/", i),
@@ -94,17 +97,24 @@ for(i in Ltxt) {
                   check.names = F, fileEncoding="cp1250")
   names(a) <- colnam
   rows_to_change <- a$zmena == "N"
-  a[rows_to_change,3:12] <- a[rows_to_change,2:12]
+  a[rows_to_change,3:12] <- a[rows_to_change,2:12] # shitf columns with N
   a[rows_to_change,2] <- NA
-  a$zdroj <- paste(i)
-  a <- a %>% filter(str_detect(zmena, ("^N$|^V$|^R$"))) 
+  a$zdroj <- paste(i) # add source txt file name
+  a <- a %>% filter(str_detect(zmena, ("^N$|^V$|^R$")))  # filter only relevant rows !!!
   df_filled <- rbind(df_filled,a)
 }
 
-# FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT ^^^
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
+print(count(df_filled))
 rm(a)
+rm(i)
+rm(colnam)
+rm(Ltxt)
+rm(rows_to_change)
 ```
+
+## Check CES txt
 
 ```{r CES PROCESSING}
 
@@ -115,12 +125,17 @@ sort(unique(ces$zmena))
 sort(unique(ces$duvod))
 sort(unique(ces$typ_cisla))
 
-dupl <- ces %>% group_by(cislo) %>% 
-  filter(n() != 1)
+# dupl <- ces %>% group_by(cislo) %>% 
+#   filter(n() != 1)
 
 ces_ic <- ces %>% filter(typ_cisla == "I") 
 ces_pr <- ces %>% filter(typ_cisla == "P") 
+
+count(ces_ic)+count(ces_pr) == count(ces) # TRUE or FALSE
+
 ```
+
+# CES INVC
 
 PODSBIRKY:
 
@@ -130,15 +145,180 @@ Obrazy: \{S\}\{####\}
 Sochy: \{S\}\{####\}
 Uzite umeny: \{S\}\{####\}
 
-```{r CES INVC}
+## Modify ces_ic
+
+```{r}
 
 ic <- ces_ic %>% 
   mutate(Mrada = str_extract(cislo, "[:alpha:]"),
          Mcislo = str_extract(cislo, "[:digit:]+"),
-         MINVC = paste0(Mrada, str_pad(Mcislo, 4, pad = "0")))
+         Mcislo_0 = str_pad(Mcislo, 4, pad = "0")) %>% 
+  unite(MINVC, c(Mrada, Mcislo_0), sep = "", na.rm = T, remove = F) %>% 
+  select(zdroj, typ_cisla, cislo, zmena, duvod, MINVC)
 
-chyby <- ic %>% filter(is.na(Mrada))
 
-sort(unique(ic$Mrada))
+# CHECK !!! IMPORTANT !!!
+ 
+sum(is.na(ic$zmena)) 
+sum(is.na(ic$duvod)) # pocet NA by mel sedet s poctem N
+sum(is.na(ic$duvod)) == sum(ic$zmena == "N")
+sum(is.na(ic$typ_cisla)) 
+sum(is.na(ic$cislo)) 
+sum(is.na(ic$MINVC)) 
+
+dupli <- ic %>% group_by(MINVC) %>% filter(n() != 1) %>% 
+  mutate(popis_chyby = "duplicitni cislo CES")   # -> nejprve sparovat a pak teprve resit duplicity??? 
+  
+clear <- ic %>% group_by(MINVC) %>% filter(n() == 1)
+
+# chyby kontrolovat rucne a rucne nastavit podminky pro nestandardni formaty
+chyby <- ic %>% filter(str_detect(cislo, ".*/.*")) %>% 
+  mutate(popis_chyby = "neni cislo CES ?") 
+```
+
+## Load and check MUS
+
+```{r}
+
+mus_ic <- read_excel(paste0(path_gmur, "MUSEION/gmur_exportCES_KAT.xlsx"), 
+                  sheet = 1, col_types="text") %>% 
+  mutate(id = floor(as.numeric(id)),
+         sp_porcislo = trunc(as.numeric(sp_porcislo)))
+```
+
+## Pair CES+MUS
+
+full_join?
+
+```{r}
+
+rel0 <- full_join(ic, mus_ic, by = c("MINVC" = "sp_cislo"), keep = T)
+
+
+# funkcni vvv
+
+rel <- left_join(clear, mus_ic, by = c("MINVC" = "sp_cislo"), keep = T) %>% 
+  select(-sp_porcislo, -sp_porcislosub, -sp_porcislodo, -sp_porcislosub_1, -cislo.y, -kod) %>% 
+  rename(cislo = cislo.x)
+
+pair <- rel %>% filter(!is.na(sp_cislo)) %>% mutate(status = "sparovano") 
+pair_not <- rel %>% filter(is.na(sp_cislo)) %>% 
+  mutate(popis_chyby = "nenalezeno v MUSEIONU",
+         id = as.character(id)) 
+
+```
+
+
+### Sparovano MUS-ne
+
+### Sparovano CES-ne
+
+### Nesparovano
+
+### Duplicity
+
+### Chyby
+
+## Export XLS
+
+```{r}
+
+SAVE1 <- pair
+SAVE2 <- pair_not
+SAVE3 <- dupli
+SAVE4 <- chyby
+SAVE0 <- ces_ic
+
+SAVE1[is.na(SAVE1)] <- ""
+SAVE2[is.na(SAVE2)] <- ""
+SAVE3[is.na(SAVE3)] <- ""
+SAVE4[is.na(SAVE4)] <- ""
+SAVE0[is.na(SAVE0)] <- ""
+
+exi <- paste0(path_ces, proj, "/", proj, "_KAT.xlsx")
+
+if(file.exists(exi)){
+  print("File already exists !!!")
+} else {
+  f2s = exi
+  rm(exi)
+  }
+
+write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=FALSE)
+write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="nesparovano", append=TRUE, row.names=FALSE)
+write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="dupicity", append=TRUE, row.names=FALSE)
+write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="chyby", append=TRUE, row.names=FALSE)
+write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=TRUE, row.names=FALSE)
+```
+
+
+# CES PRIRC
+
+```{r CES PRIRC}
+
+pr <- ces_pr %>% 
+  mutate(Mrok = sub(".*/", "", cislo),
+         Mcislo = sub("/.*", "", cislo),
+         Mcislo_0 = str_pad(Mcislo, 3, pad = "0"))  %>% 
+  unite(MPRIRC, c(Mcislo_0, Mrok), sep = "/", na.rm = T, remove = F) %>% 
+  select(zdroj, typ_cisla, cislo, zmena, duvod, MPRIRC)
+
+# CHECK !!! IMPORTANT !!!
+
+sum(is.na(pr$zmena)) 
+sum(is.na(pr$duvod)) # pocet NA by mel sedet s poctem N
+sum(is.na(pr$duvod)) == sum(pr$zmena == "N")
+sum(is.na(pr$typ_cisla)) 
+sum(is.na(pr$cislo)) 
+sum(is.na(pr$MINVC)) 
+
+dupli <- pr %>% group_by(MPRIRC) %>% filter(n() != 1) %>% 
+  mutate(popis_chyby = "duplicitni cislo CES")  
+  
+clear <- pr %>% group_by(MPRIRC) %>% filter(n() == 1)
+
+# chyby kontrolovat rucne a rucne nastavit podminky pro nestandardni formaty
+chyby <- pr %>% filter(str_detect(cislo, ".*/.*")) %>% 
+  mutate(popis_chyby = "neni cislo CES ?") 
+
+# LOAD MUSEION
+
+mus_pr <- read_excel(paste0(path_gmur, "MUSEION/gmur_exportCES_PK.xlsx"), 
+                  sheet = 1, col_types="text") %>% 
+  mutate(id = floor(as.numeric(id)),
+         id =  as.character(id),
+         poradovecislo = trunc(as.numeric(poradovecislo)),
+         poradovecislo = as.character(poradovecislo))
+
+# P A I R
+
+rel <- left_join(clear, mus_pr, by = c("MPRIRC" = "cislo"), keep = T) %>% 
+  select(-poradovecislo, -poradovecislosub, -cislo_1, -kod)
+
+pair <- rel %>% filter(!is.na(cislo.y)) %>% mutate(status = "sparovano") 
+pair_not <- rel %>% filter(is.na(cislo.y)) %>% 
+  mutate(popis_chyby = "nenalezeno v MUSEIONU")
+
+# EXPORT XLSX
+
+SAVE1 <- pair
+SAVE2 <- pair_not
+# SAVE3 <- dupli
+# SAVE4 <- chyby
+SAVE0 <- ces_pr
+
+SAVE1[is.na(SAVE1)] <- ""
+SAVE2[is.na(SAVE2)] <- ""
+# SAVE3[is.na(SAVE3)] <- ""
+# SAVE4[is.na(SAVE4)] <- ""
+SAVE0[is.na(SAVE0)] <- ""
+
+f2s <- paste0(path_ces, proj, "/", proj, "_PK.xlsx")
+
+write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=FALSE)
+write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="nesparovano", append=TRUE, row.names=FALSE)
+# write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="dupicity", append=TRUE, row.names=FALSE)
+# write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="chyby", append=TRUE, row.names=FALSE)
+write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=TRUE, row.names=FALSE)
 ```
 
