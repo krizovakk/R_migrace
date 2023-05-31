@@ -51,9 +51,9 @@ projekt <- "MUZBE"
 
 # slovnik <- "animalia"
 # slovnik <- "ento"
-# slovnik <- "fungi"
-slovnik <- "plantae"
-
+slovnik <- "fungi"
+# slovnik <- "plantae"
+# 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
 
@@ -63,6 +63,7 @@ path_data <-  paste0(path, "data/")
 path_csv <-  paste0(path, "mus_csv/", projekt, "/")
 
 path_muzbe <-  "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/" # databaze
+path_mdb <-  "M:/02 dokumenty/03 migrace/BIO/"
 
 ```
 
@@ -101,13 +102,13 @@ sel_biol <- biolib %>%
          poddruh = poddruh_Nomen) %>% 
   unite(sys_tree_BIOL, c(
     # "kmen",  # ? does data have 'kmen' ?
-    # "trida", "rad", 
+    "trida", "rad",
     "celed", "rod", "druh_Nomen"
-    # ,"poddruh"
+    ,"poddruh"
     )
     ,sep = "/", na.rm = T, remove = FALSE) %>% 
   select(sys_tree_BIOL, druh, druh_Autor 
-         # ,poddruh, poddruh_Autor # ? does data have 'poddruh' ?
+         ,poddruh, poddruh_Autor # ? does data have 'poddruh' ?
          ) %>% 
   distinct()
 
@@ -177,7 +178,8 @@ sel_anim <- animalia %>%
 
 ```{r COMPARE ANIMALIA W BIOLIB}
 
-comp <- left_join(sel_anim, sel_biol, by = c("druh_LAT" = "druh_Nomen"), keep = T, multiple = "any") %>% 
+# comp <- left_join(sel_anim, sel_biol, by = c("druh_LAT" = "druh_Nomen"), keep = T, multiple = "any") %>% 
+comp <- left_join(sel_anim, sel_biol, by = c("druh_LAT" = "druh"), keep = T, multiple = "any") %>% 
   filter(sys_tree_ANIM != sys_tree_BIOL)
 
 # systematic tree diffs
@@ -309,7 +311,7 @@ fungi <- db_tab %>%
 
 sel_fungi <- fungi %>% 
    unite(sys_tree_FUNGI, c(
-     # "rise_LAT", 
+     # "rise_LAT",
      "trida_LAT", "rad_LAT", "celed_LAT", "rod_LAT", "druh_LAT"),    
       sep = "/", na.rm = T, remove = FALSE) %>% 
   select(sys_tree_FUNGI, druh_LAT, autor) %>% 
@@ -361,6 +363,8 @@ write.xlsx(diff_author, file=paste0(path_mdb, projekt, "_bioslovniky_fungi_ROZDI
 jina databaze
 
 ```{r}
+
+path_mdb <- "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/01 muzBE analyza/"
 
 dbname <- paste0(path_mdb, "muzBE.mdb") # path to database
 con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
@@ -684,13 +688,13 @@ strom <- wide %>%
         sep = "/", na.rm = T, remove = FALSE) %>%   # create systematic tree
   relocate(sys_tree, .after = tn_type)
   
-# druhy <- strom %>% 
-#   filter(!is.na(BU_DRUH)|!is.na(BU_PODDRUH)) # POZOR ! Nesedi vzdy..
+druhy <- strom %>%
+  filter(!is.na(BU_DRUH)|!is.na(BU_PODDRUH)) # POZOR ! Nesedi vzdy..
 
 length(unique(strom$rod)) # 593
 
 
-rm(com)
+# rm(com)
 rm(tax)
 rm(ton)
 

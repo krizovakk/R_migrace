@@ -1,6 +1,6 @@
 ---
-title: "MIGRACE DAT - DEMUS / MUSEION"
-subtitle: "Prirodovedne sbirky - BIOLIB slovniky"
+title: "BIO data - obecná zpracování"
+subtitle: "BIOLIB slovniky | Ohrozeni"
 author: "Katerina Krizova"
 date: "2023-02-08"
 output:
@@ -29,6 +29,7 @@ knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
 # install.packages("odbc")
 require(tidyverse)
 require(readxl)
+require(xlsx)
 require(stringr) # ::str_split_fixed
 require(RODBC) # ::read_mdb
 require(odbc) # ::read_mdb
@@ -45,18 +46,20 @@ require(odbc) # ::read_mdb
 
 # slovnik <- "animalia"
 # slovnik <- "fungi"
-slovnik <- "plantae"
+# slovnik <- "plantae"
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
 path <-  "C:/Users/krizova/Documents/R/"
 
-path_mdb <-  "M:/02 dokumenty/03 migrace/BIO/"
+path_bio <-  "M:/02 dokumenty/03 migrace/BIO/" # obecna slozka s biologickymi daty
 
 ```
 
 
-# PRIPOJENI DATABAZE
+# B I O L I B   S L O V N I K Y
+
+## Pripojeni databaze 
 
 ```{r SET DATABASE CONNECTION}
 
@@ -69,7 +72,7 @@ con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
 
 \newpage
 
-# LOAD DB TABLES
+## Nacteni tabulek
 
 ```{r READ AND MODIFY DB TABLES, warning = F}
 
@@ -101,9 +104,7 @@ if(slovnik == "animalia"){
 
 ```
 
-
-
-# CREATE SUMMARY TABLE
+## Sloucit do jedne tabulky
 
 ```{r KINGDOM-SPECIFIC}
 
@@ -136,12 +137,9 @@ join6 <- full_join(join5, poddruh, by = c("druh_Nomen" = "poddruh_NadNomen"),
 
 write.table(join6, paste0(path, "bioslov/BioLib_KKsummary_", slovnik, ".csv"), sep = ";", row.names = F)
 
-
 ```
 
-# Mechorosty
-
-## BioLib
+### Mechorosty
 
 ```{r PATH}
 
@@ -332,6 +330,91 @@ tax_mech <- left_join(tax_mech, czm %>% select(tvn_name, tvn_tx_id), by = c("pod
 tax_cz <- tax_mech %>% 
   mutate(druh_Nazev = ifelse(is.na(druh_Nazev), paste(word(poddruh_Nazev, 1), word(poddruh_Nazev, 2)), druh_Nazev),
          rod_Nazev = ifelse(is.na(rod_Nazev), word(druh_Nazev, 1), rod_Nazev))
+
+```
+
+
+
+# O H R O Z E N I
+
+Seznamy ohrozeni stazeny z https://pladias.cz/download/features (dodala pani Tkacikova).  
+
+```{r}
+
+# L O A D   M U S E I O N
+
+mtax <- read_excel(paste0(path, "gen_tabdata/muzbe_taxony_MUSEION.xlsx"))   # taxony z musionu MUZBE
+
+# L O A D   O H R O Z E N I
+
+# # sez <- "Cerveny_seznam_2012"
+# # sez <- "Cerveny_seznam_2017_(narodni_kategorie_ohrozeni)"
+# # sez <- "Cerveny_seznam_2017_(kategorie_ohrozeni_IUCN)"
+# sez <- "Zakonna_ochrana"
+# katohr <- read_excel(paste0(path_bio, "OHROZENI/", sez, ".xlsx")) %>% 
+#   rename(taxon = 1, ohr = 2, domin = 3, frekv = 4, koment = 5)
+# ohr <- left_join(mtax, katohr, by = c("nomen" = "taxon")) %>% 
+#   filter(!is.na(ohr))
+# f2s <- paste0("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/muzbe BIO/MUZBE_ohrozeni_dle_", sez, "_n", count(ohr), ".csv")
+# if(file.exists(f2s)){
+#   print("You've been here before!")
+#   rm(f2s)
+# } else {
+#   write.table(ohr, file = f2s,
+#             quote = T, row.names = F, 
+#             sep = ";", dec = ",", 
+#             na = "",  fileEncoding="cp1250")
+#   print("File  W R I T T E N  !")
+#   rm(f2s)
+#   }
+
+# J E D N A   T A B U L K A 
+
+nar <- read_excel(paste0(path_bio, "OHROZENI/Cerveny_seznam_2017_(narodni_kategorie_ohrozeni).xlsx")) %>% 
+  # rename(taxon = 1, ohr = 2, domin = 3, frekv = 4, koment = 5)
+  select(taxon = 1, ohr_nar = 2) %>% 
+  mutate(ohr_nar = ifelse(ohr_nar == "taxon není zařazen do Červeného seznamu", NA, ohr_nar))
+iuc <- read_excel(paste0(path_bio, "OHROZENI/Cerveny_seznam_2017_(kategorie_ohrozeni_IUCN).xlsx")) %>% 
+  select(taxon = 1, ohr_iucn = 2) 
+zak <- read_excel(paste0(path_bio, "OHROZENI/Zakonna_ochrana.xlsx")) %>% 
+  select(taxon = 1, ohr_zak = 2) %>% 
+  mutate(ohr_zak = case_when(ohr_zak == "ohrožený taxon" ~ "O",
+                             ohr_zak == "silně ohrožený taxon" ~ "SO",
+                             ohr_zak == "kriticky ohrožený taxon" ~ "KO",
+                             TRUE ~ NA))
+
+# ohr1 <- left_join(mtax[ , c("nomen")], nar, by = c("nomen" = "taxon")) # pro pani Tkacikovou
+ohr1 <- left_join(mtax, nar, by = c("nomen" = "taxon")) # pro Danu (s ID)
+ohr2 <- left_join(ohr1, iuc, by = c("nomen" = "taxon"))
+ohr3 <- left_join(ohr2, zak, by = c("nomen" = "taxon")) 
+
+ohr4 <- ohr3 %>% 
+  filter(!if_all(c(ohr_nar, ohr_iucn, ohr_zak), ~ is.na(.)))
+
+# ohr5 <- ohr3 %>% 
+#   filter(if_all(c(ohr_nar, ohr_iucn, ohr_zak), ~ is.na(.))) # check
+
+rm <- sample_n(ohr3, 10) # check
+  
+ohr <- ohr4 %>% 
+  unite(ohrozeni, c("ohr_nar", "ohr_iucn", "ohr_zak"), sep = ", ", na.rm = T) 
+
+
+# write.xlsx(ohr, file = "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/muzbe BIO/MUZBE_ohrozeni_zkraceno.xlsx") # pro pani Tkacikovou
+
+f2s <- paste0("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/muzbe BIO/MUZBE_ohrozeni_FINALNI.csv") # pro Danu (s ID)
+
+if(file.exists(f2s)){
+  print("You've been here before!")
+  rm(f2s)
+} else {
+  write.table(ohr, file = f2s,
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            na = "",  fileEncoding="cp1250")
+  print("File  W R I T T E N  !")
+  rm(f2s)
+}
 
 ```
 

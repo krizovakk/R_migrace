@@ -55,94 +55,30 @@ ISSUE: 'Warning: Expecting numeric in E1251 / R1251C5: got '41 (cm)'
 
 SOLUTION: df <- read_excel(paste0(path_snd, "muzbe_rozmery_ptaci.xlsx"), sheet = 1, **col_types="text"**)
 
+### Write excel
+
+```{r}
+write.xlsx(x = ToothGrowth,                       
+           file = "ToothGrowth.xlsx")
+```
+
 ### Write excel + sheets
 
 ```{r}
-write.xlsx(x = ToothGrowth,                       # Write xlsx with multiple sheets
-           file = "ToothGrowth.xlsx",
-           sheetName = "Our Data Sheet 2",
-           append = TRUE)
-```
+exi <- paste0(path_ces, proj, "/", proj, "_KAT.xlsx")
 
-
-
-## D A T A F R A M E S
-
-### Remove columns acc to pattern
-
-```{r REMOVE COLUMN}
-
-bot <- bot %>% 
-  select(-contains("_sort"), -nvg_id)
-```
-
-### Remove last 35 columns
-
-```{r DROP LAST X COLUMNS}
-
-select(-mus_invc, -(last_col(offset = 34):last_col()))
-```
-
-
-### DF top 10 rows
-
-```{r DF TOP 10}
-
-mus_tab_cvic <- mus_tab %>% 
-  slice(1:10)
-```
-
-### Random sample of n
-
-```{r RNDM SAMPLE}
-
-ch <- sample_n(df, 10) # n=10
-```
-
-### Replace "" with NA
-
-s pipe jsem zatim cestu nenasla
-
-```{r REPLACE "" WITH NA}
-
-taxon[taxon == ""] <- NA
-```
-
-### Replace NA with ""
-
-```{r REPLACE NA WITH ""}
-
-ou <- taxon %>%
-  replace(is.na(.), "")
-
-ou <- taxon %>%
-  mutate_all(~na_if(., ''))
-```
-
-### str_trim pro cely df
-
-```{r STR_TRIM DF}
-
-df %>% 
-  mutate(across(where(is.character), str_trim))
-```
-
-### Drop NA rows in spec col
-
-```{r DROP NA IN COL}
-
-sez_int <- sez %>% 
-  drop_na(MINVChorni)  
-```
-
-### Copy rows / multiply
-
-1:nrow(df) = vsechny radky
-, 1), ]) = jednou (tzn. ve vysledku dostaneme kazdy radek dvakrat)
-
-```{r MULTIPLY ROWS}
-
-df <- rbind(df, df[rep(1:nrow(df), 1), ])
+if(file.exists(exi)){
+  print("File already exists !!!")
+} else {
+  f2s = exi
+  write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="duplicity", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="nesparovanoMUS", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="nesparovanoCES", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=TRUE, row.names=FALSE)
+  rm(exi)
+  rm(f2s)
+  }
 ```
 
 
@@ -194,19 +130,18 @@ trunc(x) = truncates (cuts off) decimal places from values
 
 ```
 
+\newpage
 
+## S T R I N G S 
 
-## T E X T 
-
-### String length
+### Length
 
 ```{r STRING LENGTH}
 
 mutate(Mpskp_len = nchar(pskup)) 
 ```
 
-
-### String similarity
+### Similarity
 
 install.packages("RecordLinkage")
 require("RecordLinkage")
@@ -216,18 +151,17 @@ autor_MUS, autor_AOPK = sloupce, ktere chci porovnat
 
 ```{r STRING SIMILARITY}
 
-df %>%mutate(sim = levenshteinSim(autor_MUS, autor_AOPK))
+df %>% mutate(sim = levenshteinSim(autor_MUS, autor_AOPK))
 ```
 
-
-### String detect case INsensitive
+### Detect case INsensitive
 
 ```{r STRING CASE SENS}
 
 str_detect(MFN, regex("^FM\\s\\d+\\.jpg$", ignore_case = T))
 ```
 
-### Split string
+### Separate
 
 ```{r SPLIT STRING}
 
@@ -244,13 +178,13 @@ separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge") # at first wh
 separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge", remove = F) # ponecha puvodni sloupec
 ```
 
-### Keep text before specific sign
+### Keep text before
 
 ```{r}
   mutate(blMCELED = sub("\\/.*", "", fiMTREE)) # ponechej text do prvni /
 ```
 
-### Extract specific word in a row
+### Extract word
 
 ```{r}
 mutate(boMROD = word(druh, 1)) # vezmi 1. slovo ze sloupce druh
@@ -296,15 +230,130 @@ remove = keep or delete source columns
 
 \newpage
 
-## T A B L E S
+## D A T A F R A M E S
 
-### Add taxon prefix to column names
+### g e n e r a l
+
+#### Replace "" with NA
+
+s pipe jsem zatim cestu nenasla
+
+```{r REPLACE "" WITH NA}
+
+taxon[taxon == ""] <- NA
+```
+
+#### Replace NA with ""
+
+```{r REPLACE NA WITH ""}
+
+ou <- taxon %>%
+  replace(is.na(.), "")
+
+ou <- taxon %>%
+  mutate_all(~na_if(., ''))
+```
+
+#### str_trim pro cely df
+
+```{r STR_TRIM DF}
+
+df %>% 
+  mutate(across(where(is.character), str_trim))
+```
+
+
+### c o l u m n s
+
+#### Remove columns acc to pattern
+
+```{r}
+
+bot <- bot %>% 
+  select(-contains("_sort"), -nvg_id)
+```
+
+#### Remove last n columns
+
+```{r}
+
+select(-mus_invc, -(last_col(offset = 34):last_col()))
+```
+
+#### Add prefix to column names
 
 ```{r}
 colnames(kmen) <- paste0("kmen_", colnames(kmen))
 ```
 
-### Deal with duplicates
+#### Merge two columns with not complete information
+
+column 1 has some NAs  
+column 2 has also some NAs but in different rows than column 1
+TASK: create one column with merged info
+
+```{r}
+#package
+require(dplyr) # part of tidyverse
+
+# command
+mutate(kmen = coalesce(kmen_Nomen, trida_NadNomen))
+```
+
+coalesce = [function](https://www.rdocumentation.org/packages/dplyr/versions/1.0.10/topics/coalesce)
+
+#### Relocate columns
+
+```{r}
+relocate(MINVC, .before = JineC_S) 
+relocate(MINVCDO, .after = MINVC)
+```
+
+#### Shift columns 
+
+```{r}
+rows_to_change <- a$zmena == "N" # filter rows to be shifted
+a[rows_to_change,3:12] <- a[rows_to_change,2:12] # 3:12 nova lokace, 2:12 stara lokace
+a[rows_to_change,2] <- NA # puvodni lukaci (diru) nahradit NA
+```
+
+
+### r o w s
+
+#### DF top 10 rows
+
+```{r}
+
+mus_tab_cvic <- mus_tab %>% 
+  slice(1:10)
+```
+
+#### Random sample of n
+
+```{r}
+
+ch <- sample_n(df, 10) # n=10
+```
+
+#### Drop NA rows in spec col
+
+```{r}
+
+sez_int <- sez %>% 
+  drop_na(MINVChorni)  
+```
+
+#### Copy rows / multiply
+
+1:nrow(df) = vsechny radky
+, 1), ]) = jednou (tzn. ve vysledku dostaneme kazdy radek dvakrat)
+
+```{r}
+
+df <- rbind(df, df[rep(1:nrow(df), 1), ])
+```
+
+#### Duplicates
 
 ```{r}
 
@@ -321,28 +370,6 @@ data %>%
   filter(n() != 1)
 ```
 
-### Merge two collums with not complete information
-
-column 1 has some NAs  
-column 2 has also some NAs but in different rows than column 1
-TASK: create one column with merged info
-
-```{r}
-#package
-require(dplyr) # part of tidyverse
-
-# command
-mutate(kmen = coalesce(kmen_Nomen, trida_NadNomen))
-```
-
-coalesce = [function](https://www.rdocumentation.org/packages/dplyr/versions/1.0.10/topics/coalesce)
-
-### Relocate columns
-
-```{r}
-relocate(MINVC, .before = JineC_S) 
-relocate(MINVCDO, .after = MINVC)
-```
 
 \newpage
 
@@ -362,12 +389,14 @@ RODBC::sqlTables(con)
 tab <- RODBC::sqlFetch(con, "---jmeno-tabulky---")
 
 # old func example
-dbname <- paste0(path_mdb, "bio_slovniky.accdb") # path to database
+dbname <- paste0(path_mdb, "botanika_test.mdb") # path to database
 con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
 
 RODBC::sqlTables(con)                          # list tables in database
 
-kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Animalia_Kmen") # read specified table
+kmen <- RODBC::sqlFetch(con, "data") # read specified table
+
+path_mdb <- "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/zdrojdat/BIO/MB_PVO_Botanika/"
 
 ```
 
@@ -415,38 +444,43 @@ left_join(biolib %>% dplyr::select('4nazevKategorie', '5nomen', '8nadrizenyTaxon
 
 # *REAL TASKS*
 
-## Save modify_tab a mus_tab
+## Save mod_tab a mus_tab
 
-imp = importni rozhrani  
+imp = importni rozhrani 
+f2s = file to save
 
 ```{r SAVE CSV AND OPER FILE}
 
 # finalni csv
 
-save <- paste0(path_csv, projekt, "_import_", imp, ".csv")
+f2s <- paste0(path_csv, projekt, "_import_", imp, ".csv")
 
-if(file.exists(save)){
+if(file.exists(f2s)){
   print("You've been here before!")
+  rm(f2s)
 } else {
-  write.table(mus_tab, file = save, # mus_tab10
+  write.table(mus_tab, file = f2s,
             quote = T, row.names = F, 
             sep = ";", dec = ",", 
             na = "", fileEncoding="cp1250")
   print("Import csv  W R I T T E N  !")
+  rm(f2s)
   }
 
 # upravena tabulka
 
-modif_save <- paste0(path_csv, projekt, "_modif_", imp, ".csv")
+mod2s <- paste0(path_csv, projekt, "_modif_", imp, ".csv")
 
-if(file.exists(modif_save)){
+if(file.exists(mod2s)){
   print("You've been here before!")
+  rm(mod2s)
 } else {
-  write.table(modify_tab, file = modif_save, 
+  write.table(mod_tab, file = mod2s, 
             quote = T, row.names = F, 
             sep = ";", dec = ",",              # desetinny oddelovac musi byt carka
             na = "", fileEncoding="cp1250")
   print("Operational file  S A V E D  !")
+  rm(mod2s)
   }
 ```
 

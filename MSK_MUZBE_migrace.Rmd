@@ -99,7 +99,7 @@ rm(bot1)
 
 # biolib slovnik pro botaniku
 
-biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
+biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/muzbe BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
 
 ```
 
@@ -662,31 +662,31 @@ bot_lok <- bot %>%
 
   # ctverec
 
-  mutate(MCTVEREC = ctverec) %>% 
+  mutate(MCTVEREC = ctverec) 
   
   # oblast
   
-  mutate(oblast = str_trim(oblast),
-         MZEME = case_when(str_detect(oblast, "^Polsko") ~ "Polsko",
-                           str_detect(oblast, "^Slovensko") ~ "Slovensko", 
-                           str_detect(oblast, "^Andorra") ~ "Andorra", 
-                           str_detect(oblast, "^Francie") ~ "Francie", 
-                           str_detect(oblast, "^Rumunsko") ~ "Rumunsko", 
-                           TRUE ~ "Česko"),
-         MFYTOCH = ifelse(oblast %in% fy$fy_id|oblast %in% fy$naz, oblast, NA),
-         # MFYTOCH = ifelse(str_detect(oblast, "^\\d+"), oblast, NA), # co s temi, kde se shoduje nazev, ale nemaji cislo?
-         # Mfytoch_wonum = ifelse(oblast %in% fy$naz, oblast, "neidentifikovatelna oblast"),
-         Mkat_anone = ifelse(katastr %in% ku$ku_name, "katastr", "nekatastr"), 
-         MKATASTR = ifelse(katastr %in% ku$ku_name, katastr, NA)) %>% 
-  relocate(MFYTOCH, .after = "oblast") %>% 
-  # relocate(Mfytoch_wonum, .after = "oblast") %>% 
-  relocate(Mkat_anone, .after = "katastr") %>% 
-  relocate(MKATASTR, .after = "katastr") %>% 
-  mutate_all(~na_if(., '')) %>% 
-  mutate(MLOKALITA = ifelse(is.na(katastr), lokalita_geo, katastr),
-         MLOKALITA = ifelse(is.na(MLOKALITA), oblast, MLOKALITA)) %>% 
-  relocate(MLOKALITA, .after = "katastr") %>% 
-  mutate(across(everything(), ~gsub("\\s{2}", " ", .)))
+  # mutate(oblast = str_trim(oblast),
+  #        MZEME = case_when(str_detect(oblast, "^Polsko") ~ "Polsko",
+  #                          str_detect(oblast, "^Slovensko") ~ "Slovensko", 
+  #                          str_detect(oblast, "^Andorra") ~ "Andorra", 
+  #                          str_detect(oblast, "^Francie") ~ "Francie", 
+  #                          str_detect(oblast, "^Rumunsko") ~ "Rumunsko", 
+  #                          TRUE ~ "Česko"),
+  #        MFYTOCH = ifelse(oblast %in% fy$fy_id|oblast %in% fy$naz, oblast, NA),
+  #        # MFYTOCH = ifelse(str_detect(oblast, "^\\d+"), oblast, NA), # co s temi, kde se shoduje nazev, ale nemaji cislo?
+  #        # Mfytoch_wonum = ifelse(oblast %in% fy$naz, oblast, "neidentifikovatelna oblast"),
+  #        Mkat_anone = ifelse(katastr %in% ku$ku_name, "katastr", "nekatastr"), 
+  #        MKATASTR = ifelse(katastr %in% ku$ku_name, katastr, NA)) %>% 
+  # relocate(MFYTOCH, .after = "oblast") %>% 
+  # # relocate(Mfytoch_wonum, .after = "oblast") %>% 
+  # relocate(Mkat_anone, .after = "katastr") %>% 
+  # relocate(MKATASTR, .after = "katastr") %>% 
+  # mutate_all(~na_if(., '')) %>% 
+  # mutate(MLOKALITA = ifelse(is.na(katastr), lokalita_geo, katastr),
+  #        MLOKALITA = ifelse(is.na(MLOKALITA), oblast, MLOKALITA)) %>% 
+  # relocate(MLOKALITA, .after = "katastr") %>% 
+  # mutate(across(everything(), ~gsub("\\s{2}", " ", .)))
 
 # bot_lok[bot_lok == ""] <- NA
 # bot_lok[is.na(bot_lok)] <- ""
@@ -724,7 +724,7 @@ bot_lok <- bot_init %>%
   mutate_all(~na_if(., '')) %>% 
   mutate(MLOKALITA = ifelse(is.na(katastr), lokalita_geo, katastr),
          MLOKALITA = ifelse(is.na(MLOKALITA), oblast, MLOKALITA)) %>% 
-  relocate(MLOKALITA, .after = "katastr") %>% 
+  relocate(MLOKALITA, .after = "katastr")
   
   # fytochoriony
 
@@ -937,7 +937,7 @@ prac_bot <- bot %>%
 ssp <- prac_bot %>% filter(str_detect(druh, ".*subsp.*subsp.*"))
 
  
-biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
+biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/muzbe BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
 
 porovnani <- left_join(prac_bot, biolib, by = c("MNOMEN" = "5nomen"), keep = T) %>% 
   relocate('5nomen', .after = MNOMEN) %>% 
@@ -1883,6 +1883,35 @@ daturc <- modify_tab %>%
 #             sep = ";", dec = ",", 
 #             na = "", fileEncoding="cp1250")
 
+# synonyma
+
+syn <- modify_tab %>% 
+  select(MTAXON, MTAXKATEG, syn, '8nadrizenyTaxon', druh) 
+
+syn[syn == ""] <- NA
+syn[syn == " "] <- NA
+
+syn <- syn %>% 
+  filter(!is.na(syn)) %>% 
+  distinct()
+
+
+write.table(syn, file = paste0(path_muzbe, "02 muzBE konverze/muzbe BIO/muzbe_Pb_synonyma.csv"),
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            na = "", fileEncoding="cp1250")
+
+dup <-  modify_tab %>% 
+  select(MTAXON, MTAXKATEG, syn, '8nadrizenyTaxon', druh) 
+
+dup[dup == ""] <- NA
+dup[dup == " "] <- NA
+
+dup <- dup %>% 
+  filter(!is.na(syn)) %>% 
+  group_by(syn) %>% 
+  filter(n() != 1)
+
 ```
 
 
@@ -1954,17 +1983,21 @@ bot_prirc <- bot_invc %>%
 
 # L O A D
 
-dbname <- paste0(path_muzbe, "02 muzBE konverze/BIO/muzbeBOT_DK.accdb") 
+dbname <- paste0(path_muzbe, "02 muzBE konverze/muzbe BIO/muzbePVO_DK.accdb") 
 con <- RODBC::odbcConnectAccess2007(dbname)      
 
 # akv <- RODBC::sqlFetch(con, "lcl_akvarely")
 # bot <- RODBC::sqlFetch(con, "lcl_botanika")   
 # bry <- RODBC::sqlFetch(con, "lcl_mechorosty")   
-que <- RODBC::sqlFetch(con, "lcl_quercus")
+que <- RODBC::sqlFetch(con, "lcl_Pb_quercus")
 
-# B R O W S E 
+# S Y N O N Y M A
 
+qsyn <- que %>% 
+  select(MU_INVC, MU_NOMEN, syn) %>% 
+  filter(!is.na(syn))
 
+qsyn_un <- qsyn %>% select(-MU_INVC) %>% distinct()
 
 
 ```
@@ -4558,4 +4591,77 @@ write.table(ohr_all_fin, file = paste0(path_muzbe, "02 muzBE konverze/BIO/muzbe_
             na = "", fileEncoding="cp1250")  
 ```
 
+
+
+
+# S Y N O N Y M A
+
+## Botanika 
+
+```{r}
+
+botsyn <- modify_tab %>% # modify_tab pro BOTANIKU !!!
+  select(MTAXON, MTAXKATEG, '8nadrizenyTaxon', syn) 
+
+botsyn[botsyn == ""] <- NA
+botsyn[botsyn == " "] <- NA
+
+botsyn <- botsyn %>% 
+  filter(!is.na(syn)) %>% 
+  distinct() %>% 
+  rename(nomen = MTAXON,
+         kateg = MTAXKATEG, 
+         nadrizeny = '8nadrizenyTaxon') %>% 
+  mutate(fond = "B")
+
+
+# dup <-  modify_tab %>% 
+#   select(MTAXON, MTAXKATEG, syn, '8nadrizenyTaxon', druh) 
+# 
+# dup[dup == ""] <- NA
+# dup[dup == " "] <- NA
+# 
+# dup <- dup %>% 
+#   filter(!is.na(syn)) %>% 
+#   group_by(syn) %>% 
+#   filter(n() != 1)
+```
+
+## Quercus
+
+```{r}
+dbname <- paste0(path_muzbe, "02 muzBE konverze/muzbe BIO/muzbePVO_DK.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+
+# akv <- RODBC::sqlFetch(con, "lcl_akvarely")
+# bot <- RODBC::sqlFetch(con, "lcl_botanika")   
+# bry <- RODBC::sqlFetch(con, "lcl_mechorosty")   
+que <- RODBC::sqlFetch(con, "lcl_Pb_quercus")
+
+# S Y N O N Y M A
+
+quesyn <- que %>% 
+  select(MU_NOMEN, MU_KATEGORIE, MU_NADNOMEN, syn) %>% 
+  filter(!is.na(syn)) %>% 
+  distinct()  %>% 
+  rename(nomen = MU_NOMEN,
+         kateg = MU_KATEGORIE, 
+         nadrizeny = MU_NADNOMEN) %>% 
+  mutate(fond = "quer")
+
+```
+
+## SYN do jedne tabulky
+
+```{r}
+
+synonyma <- rbind(botsyn, quesyn)
+
+
+write.table(synonyma, file = paste0(path_muzbe, "02 muzBE konverze/muzbe BIO/muzbe_Pb_synonyma.csv"),
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            na = "", fileEncoding="cp1250")
+
+```
 

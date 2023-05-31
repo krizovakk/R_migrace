@@ -333,8 +333,6 @@ rel2 <- left_join(unpair, aopk, by = c("nomen" = "ved_jm"), keep = T) %>%
   filter(!is.na(nomen_AOPK)) %>% 
   mutate(sim = levenshteinSim(autor_MUS, autor_AOPK))
 
-
-
 ```
 
 ```{r BL AOPK OHR INTERPUNCT}
@@ -458,6 +456,40 @@ write.table(fin, file = paste0(path_data, "MUStaxon_AOPK_MUZBE_ohrozeni.csv"),
             quote = T, row.names = F,
             sep = ";", dec = ",",
             na = "", fileEncoding="cp1250")
+
+```
+
+# LOAD 'BF'
+
+Impossible...
+
+# PHP LIST
+
+```{r}
+
+s1 <- read.table(paste0(path_snd, "php_konf23/seznam odběratelů phpList MantisUsers.csv"),
+                 header = T, sep = "\t", encoding = "utf-8")
+s2 <- read.table(paste0(path_snd, "php_konf23/seznam odběratelů phpList prezentace z konference.csv"),
+                 header = T, sep = "\t", encoding = "utf-8")
+s3 <- read.table(paste0(path_snd, "php_konf23/seznam odběratelů phpList Prihlaseni.csv"),
+                 header = T, sep = "\t", encoding = "utf-8")
+s4 <- read.table(paste0(path_snd, "php_konf23/seznam odběratelů phpList UživateléMuseion.csv"),
+                 header = T, sep = "\t", encoding = "utf-8")
+sez0 <- bind_rows(s1, s2, s3, s4)
+
+sez <- sez0 %>% 
+  select(1,13,2,15) %>% 
+  rename(jmeno = 2, email = 3, seznamy = 4) %>% 
+  # group_by(jmeno, email) %>% 
+  # filter(n() != 1) %>% 
+  distinct() %>% 
+  mutate(instituce = gsub(".*@|.cz$|.sk$|.cz>", "", email),
+         instituce = ifelse(instituce == "gmail.com", "neidentifikovano", instituce),
+         instituce = ifelse(instituce == "seznam", "neidentifikovano", instituce)) %>% 
+  relocate(seznamy, .after = instituce) %>% 
+  arrange(instituce)
+  
+write.xlsx(sez, file = paste0(path_snd, "php_konf23/phpList_seznam.xlsx"), row.names = F)
 
 ```
 

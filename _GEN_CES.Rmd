@@ -1,8 +1,8 @@
 ---
-title: "CES"
-subtitle: "Parovani vypisu z CES a MUSEIONovych zaznamu"
-author: "Katerina Krizova"
+title: "Kontrola CES × MUSEION"
+subtitle: "zjištěný stav k"
 date: "`r Sys.Date()`"
+author: "Katerina Krizova"
 output:
   pdf_document
     toc: true
@@ -15,6 +15,7 @@ output:
 ---
 
 \newpage 
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
@@ -44,15 +45,24 @@ require(odbc) # ::read_mdb
 
 # PATHS AND PROJ INFO
 
-```{r PATHS AND PROJ INFO}
+```{r}
 
-path_ces <- "C:/Users/krizova/Documents/R/data/CES/"
-path_gmur <- "M:/03 klienti/kraj ustecky/galerie moderniho umeni v roudnici nad labem - GMUR/gmur_ces/"
+path_ces <- "C:/Users/krizova/Documents/R/CES/"
+# path_proj <- "M:/03 klienti/kraj ustecky/galerie moderniho umeni v roudnici nad labem - GMUR/gmur_ces/"
+path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum v chomutove, p. o. - OMCV/omcv_ces/"
 
-proj <- "GMUR"
+# proj <- "GMUR"
+proj <- "OMCV"
+
+if(proj == "GMUR"){
+  path_proj <- "M:/03 klienti/kraj ustecky/galerie moderniho umeni v roudnici nad labem - GMUR/gmur_ces/"
+} else if(proj == "OMCV"){
+  path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum v chomutove, p. o. - OMCV/omcv_ces/"
+} else{
+  print("No project found!")
+}
 
 ```
-
 
 # LOAD CES TXT LOOP
 
@@ -83,7 +93,8 @@ uum <- read.table(paste0(path_ces, proj, "/Další_-_Užité_umění.txt"),
 
 # FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT 
 
-Ltxt <- list.files(paste0(path_ces, proj), pattern = "*.txt")  # Identify file names
+# Ltxt <- list.files(paste0(path_ces, proj), pattern = "*.txt")  # Identify file names
+Ltxt <- list.files(paste0(path_proj, "CES"), pattern = "*.txt")  # Identify file names
 df_filled <- data.frame()
 colnam <- c("zmena","duvod","typ_cisla","cislo",
                 "s5","s6", "s7", "s8",
@@ -92,7 +103,7 @@ colnam <- c("zmena","duvod","typ_cisla","cislo",
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 for(i in Ltxt) {
-  a <- read.table(paste0(path_ces, proj, "/", i),
+  a <- read.table(paste0(path_proj, "CES/", i),
                   skip = 4, header = F, sep = ";", fill = T, 
                   check.names = F, fileEncoding="cp1250")
   names(a) <- colnam
@@ -101,10 +112,15 @@ for(i in Ltxt) {
   a[rows_to_change,2] <- NA
   a$zdroj <- paste(i) # add source txt file name
   a <- a %>% filter(str_detect(zmena, ("^N$|^V$|^R$")))  # filter only relevant rows !!!
+  # print(unique(a$zdroj))
+  print(count(a))
   df_filled <- rbind(df_filled,a)
 }
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+# CHECK AND CLEAR ENVIRONMENT
 
 print(count(df_filled))
 rm(a)
@@ -112,13 +128,38 @@ rm(i)
 rm(colnam)
 rm(Ltxt)
 rm(rows_to_change)
+
+# SAVE COMBINED TXT
+
+# exi <- paste0(path_ces, proj, "/", proj, "_allTXT.csv")
+# 
+# if(file.exists(exi)){
+#   print("File already exists !!!")
+# } else {
+#   f2s = exi
+#   rm(exi)
+#   }
+
+f2s <- paste0(path_ces, proj, "/", proj, "_allTXT.csv")
+
+if(file.exists(f2s)){
+  print("TXT already saved")
+  rm(f2s)
+} else {
+  write.table(df_filled, file = f2s, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  rm(f2s)
+  }
+
 ```
 
 ## Check CES txt
 
 ```{r CES PROCESSING}
 
-ces <- df_filled %>% discard(~all(is.na(.) | . =="")) # drop empy columns
+ces <- df_filled %>% discard(~all(is.na(.) | . == "")) # drop empy columns
 ces[ces == ""] <- NA
 
 sort(unique(ces$zmena))
@@ -128,106 +169,117 @@ sort(unique(ces$typ_cisla))
 # dupl <- ces %>% group_by(cislo) %>% 
 #   filter(n() != 1)
 
-ces_ic <- ces %>% filter(typ_cisla == "I") 
-ces_pr <- ces %>% filter(typ_cisla == "P") 
+ic <- ces %>% filter(typ_cisla == "I") 
+pr <- ces %>% filter(typ_cisla == "P") 
 
-count(ces_ic)+count(ces_pr) == count(ces) # TRUE or FALSE
+count(ic)+count(pr) == count(ces) # TRUE or FALSE
 
 ```
 
-# CES INVC
+# GMUR
 
-PODSBIRKY:
+## CES INVC
 
-Grafika: \{S\}\{####\}
-Kresby: \{S\}\{####\}
-Obrazy: \{S\}\{####\}
-Sochy: \{S\}\{####\}
-Uzite umeny: \{S\}\{####\}
-
-## Modify ces_ic
+### Modify ces_ic
 
 ```{r}
 
-ic <- ces_ic %>% 
+sort(unique(ic$zdroj))
+
+ces_ic <- ic %>% 
+  # separate(cislo, into=c("rada", "num") , sep=" ", extra = "merge", remove = F)
   mutate(Mrada = str_extract(cislo, "[:alpha:]"),
          Mcislo = str_extract(cislo, "[:digit:]+"),
-         Mcislo_0 = str_pad(Mcislo, 4, pad = "0")) %>% 
-  unite(MINVC, c(Mrada, Mcislo_0), sep = "", na.rm = T, remove = F) %>% 
+         Mcislo_0 = str_pad(Mcislo, 5, pad = "0")) 
+
+sort(unique(ces_ic$Mrada))
+
+  unite(MINVC, c(Mrada, Mcislo_0), sep = "", na.rm = T, remove = F) 
   select(zdroj, typ_cisla, cislo, zmena, duvod, MINVC)
 
 
 # CHECK !!! IMPORTANT !!!
  
-sum(is.na(ic$zmena)) 
-sum(is.na(ic$duvod)) # pocet NA by mel sedet s poctem N
-sum(is.na(ic$duvod)) == sum(ic$zmena == "N")
-sum(is.na(ic$typ_cisla)) 
-sum(is.na(ic$cislo)) 
-sum(is.na(ic$MINVC)) 
+sum(is.na(ces_ic$zmena)) 
+sum(is.na(ces_ic$duvod)) # pocet NA by mel sedet s poctem N
+sum(is.na(ces_ic$duvod)) == sum(ces_ic$zmena == "N")
+sum(is.na(ces_ic$typ_cisla)) 
+sum(is.na(ces_ic$cislo)) 
+sum(is.na(ces_ic$MINVC)) 
 
-dupli <- ic %>% group_by(MINVC) %>% filter(n() != 1) %>% 
-  mutate(popis_chyby = "duplicitni cislo CES")   # -> nejprve sparovat a pak teprve resit duplicity??? 
-  
-clear <- ic %>% group_by(MINVC) %>% filter(n() == 1)
-
-# chyby kontrolovat rucne a rucne nastavit podminky pro nestandardni formaty
-chyby <- ic %>% filter(str_detect(cislo, ".*/.*")) %>% 
-  mutate(popis_chyby = "neni cislo CES ?") 
+SAVE0 <- ces_ic
 ```
 
-## Load and check MUS
+### Load and check MUS
 
 ```{r}
 
 mus_ic <- read_excel(paste0(path_gmur, "MUSEION/gmur_exportCES_KAT.xlsx"), 
                   sheet = 1, col_types="text") %>% 
+  filter(kod != "A") %>% # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! JEN PRO GMUR !!!!!!!!!!!
   mutate(id = floor(as.numeric(id)),
          sp_porcislo = trunc(as.numeric(sp_porcislo)))
 ```
 
-## Pair CES+MUS
-
-full_join?
+### Pair CES+MUS
 
 ```{r}
 
-rel0 <- full_join(ic, mus_ic, by = c("MINVC" = "sp_cislo"), keep = T)
+rel0 <- full_join(ces_ic, mus_ic, by = c("MINVC" = "sp_cislo"), keep = T) %>% 
+  select(-sp_porcislo, -sp_porcislosub, -sp_porcislodo, -sp_porcislosub_1, -kod) %>% 
+  rename(CEScislo = cislo.x, cislo_podsb = cislo.y)
+```
 
+### Sparovano 
 
-# funkcni vvv
+```{r}
 
-rel <- left_join(clear, mus_ic, by = c("MINVC" = "sp_cislo"), keep = T) %>% 
-  select(-sp_porcislo, -sp_porcislosub, -sp_porcislodo, -sp_porcislosub_1, -cislo.y, -kod) %>% 
-  rename(cislo = cislo.x)
-
-pair <- rel %>% filter(!is.na(sp_cislo)) %>% mutate(status = "sparovano") 
-pair_not <- rel %>% filter(is.na(sp_cislo)) %>% 
-  mutate(popis_chyby = "nenalezeno v MUSEIONU",
-         id = as.character(id)) 
+pair <- rel0 %>% filter(!is.na(sp_cislo)&!is.na(MINVC)) %>% mutate(status = "sparovano") 
 
 ```
 
-
-### Sparovano MUS-ne
-
-### Sparovano CES-ne
-
-### Nesparovano
-
 ### Duplicity
-
-### Chyby
-
-## Export XLS
 
 ```{r}
 
+dupl <- pair %>% group_by(MINVC) %>% filter(n() != 1) %>% mutate(popis_chyby = "duplicitni cislo CES")
+# -> check what nature are the duplicates
+# -> if relevant, keep them in 'pair'
+# -> if not, delete them from 'pair', store in 'duplicates' sheet
+
+# GMUR: duplicates are relevant -> KEEP
+
+# SAVE 
+
 SAVE1 <- pair
-SAVE2 <- pair_not
-SAVE3 <- dupli
-SAVE4 <- chyby
-SAVE0 <- ces_ic
+SAVE2 <- dupl
+```
+
+### Nesparovano MUS-ne
+
+```{r}
+
+pair_not_MUS <- rel0 %>% filter(is.na(sp_cislo)) %>% mutate(status = "nenalezeno v MUSEIONU") 
+SAVE3 <- pair_not_MUS
+```
+
+### Nesparovano CES-ne
+
+```{r}
+
+pair_not_CES <- rel0 %>% filter(is.na(MINVC)) %>% mutate(status = "nenalezeno ve vypisu z CES") 
+SAVE4 <- pair_not_CES
+
+# CHECK
+
+count(pair)+count(pair_not_MUS)+count(pair_not_CES) == count(rel0) # TRUE or FALSE
+```
+
+### Chyby
+
+### Export XLS
+
+```{r}
 
 SAVE1[is.na(SAVE1)] <- ""
 SAVE2[is.na(SAVE2)] <- ""
@@ -241,20 +293,39 @@ if(file.exists(exi)){
   print("File already exists !!!")
 } else {
   f2s = exi
+  write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="duplicity", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="nesparovanoMUS", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="nesparovanoCES", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=TRUE, row.names=FALSE)
   rm(exi)
+  rm(f2s)
   }
 
-write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=FALSE)
-write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="nesparovano", append=TRUE, row.names=FALSE)
-write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="dupicity", append=TRUE, row.names=FALSE)
-write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="chyby", append=TRUE, row.names=FALSE)
-write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=TRUE, row.names=FALSE)
+```
+
+### Report CES invc
+
+```{r}
+
+# table1 
+sort(unique(ces$zdroj))
+sort(unique(mus_ic$nazev))
+
+# table2
+pair$zdroj <- as.factor(pair$zdroj)
+summary(pair) 
+
+# table3
+# table 4
+
+
 ```
 
 
-# CES PRIRC
+## CES PRIRC
 
-```{r CES PRIRC}
+```{r eval = F}
 
 pr <- ces_pr %>% 
   mutate(Mrok = sub(".*/", "", cislo),
@@ -265,20 +336,20 @@ pr <- ces_pr %>%
 
 # CHECK !!! IMPORTANT !!!
 
-sum(is.na(pr$zmena)) 
-sum(is.na(pr$duvod)) # pocet NA by mel sedet s poctem N
-sum(is.na(pr$duvod)) == sum(pr$zmena == "N")
-sum(is.na(pr$typ_cisla)) 
-sum(is.na(pr$cislo)) 
-sum(is.na(pr$MINVC)) 
+sum(is.na(ces_pr$zmena)) 
+sum(is.na(ces_pr$duvod)) # pocet NA by mel sedet s poctem N
+sum(is.na(ces_pr$duvod)) == sum(ces_pr$zmena == "N")
+sum(is.na(ces_pr$typ_cisla)) 
+sum(is.na(ces_pr$cislo)) 
+sum(is.na(ces_pr$MINVC)) 
 
-dupli <- pr %>% group_by(MPRIRC) %>% filter(n() != 1) %>% 
+dupli <- ces_pr %>% group_by(MPRIRC) %>% filter(n() != 1) %>% 
   mutate(popis_chyby = "duplicitni cislo CES")  
   
-clear <- pr %>% group_by(MPRIRC) %>% filter(n() == 1)
+clear <- ces_pr %>% group_by(MPRIRC) %>% filter(n() == 1)
 
 # chyby kontrolovat rucne a rucne nastavit podminky pro nestandardni formaty
-chyby <- pr %>% filter(str_detect(cislo, ".*/.*")) %>% 
+chyby <- ces_pr %>% filter(str_detect(cislo, ".*/.*")) %>% 
   mutate(popis_chyby = "neni cislo CES ?") 
 
 # LOAD MUSEION
@@ -321,4 +392,324 @@ write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="nesparovano", append=TRUE
 # write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="chyby", append=TRUE, row.names=FALSE)
 write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=TRUE, row.names=FALSE)
 ```
+
+### Modify ces_ic
+
+```{r}
+
+ces_pr <- pr %>% 
+  mutate(Mrok = sub(".*/", "", cislo),
+         Mcislo = sub("/.*", "", cislo),
+         Mcislo_0 = str_pad(Mcislo, 3, pad = "0"))  %>% 
+  unite(MPRIRC, c(Mcislo_0, Mrok), sep = "/", na.rm = T, remove = F) %>% 
+  select(zdroj, typ_cisla, cislo, zmena, duvod, MPRIRC)
+
+# CHECK !!! IMPORTANT !!!
+
+sum(is.na(ces_pr$zmena)) 
+sum(is.na(ces_pr$duvod)) # pocet NA by mel sedet s poctem N
+sum(is.na(ces_pr$duvod)) == sum(ces_pr$zmena == "N")
+sum(is.na(ces_pr$typ_cisla)) 
+sum(is.na(ces_pr$cislo)) 
+sum(is.na(ces_pr$MINVC)) 
+
+SAVE0 <- ces_pr
+```
+
+### Load and check MUS
+
+```{r}
+
+mus_pr <- read_excel(paste0(path_gmur, "MUSEION/gmur_exportCES_PK.xlsx"), 
+                  sheet = 1, col_types="text") %>% 
+  mutate(id = floor(as.numeric(id)),
+         id =  as.character(id),
+         poradovecislo = trunc(as.numeric(poradovecislo)),
+         poradovecislo = as.character(poradovecislo))
+
+```
+
+### Pair CES+MUS
+
+```{r}
+
+rel0 <- full_join(ces_pr, mus_pr, by = c("MPRIRC" = "cislo"), keep = T) %>% 
+ select(-poradovecislo, -poradovecislosub, -kod) %>% 
+  rename(CEScislo = cislo.x, 
+         MUScislo = cislo.y, 
+         cislo_podsb = cislo_1)
+```
+
+### Sparovano 
+
+```{r}
+
+pair <- rel0 %>% filter(!is.na(MUS_cislo)&!is.na(MPRIRC)) %>% mutate(status = "sparovano") 
+
+```
+
+### Duplicity
+
+```{r}
+
+dupl <- pair %>% group_by(MPRIRC) %>% filter(n() != 1) %>% mutate(popis_chyby = "duplicitni cislo CES")
+# -> check what nature are the duplicates
+# -> if relevant, keep them in 'pair'
+# -> if not, delete them from 'pair', store in 'duplicates' sheet
+
+# GMUR: duplicates are relevant -> KEEP
+
+# SAVE 
+
+SAVE1 <- pair
+SAVE2 <- dupl
+```
+
+### Nesparovano MUS-ne
+
+```{r}
+
+pair_not_MUS <- rel0 %>% filter(is.na(MUS_cislo)) %>% mutate(status = "nenalezeno v MUSEIONU") 
+SAVE3 <- pair_not_MUS
+```
+
+### Nesparovano CES-ne
+
+```{r}
+
+pair_not_CES <- rel0 %>% filter(is.na(MPRIRC)) %>% mutate(status = "nenalezeno ve vypisu z CES") 
+SAVE4 <- pair_not_CES
+
+# CHECK
+
+count(pair)+count(pair_not_MUS)+count(pair_not_CES) == count(rel0) # TRUE or FALSE
+```
+
+### Chyby
+
+### Export XLS
+
+```{r}
+
+SAVE1[is.na(SAVE1)] <- ""
+SAVE2[is.na(SAVE2)] <- ""
+SAVE3[is.na(SAVE3)] <- ""
+SAVE4[is.na(SAVE4)] <- ""
+SAVE0[is.na(SAVE0)] <- ""
+
+exi <- paste0(path_ces, proj, "/", proj, "_PK.xlsx")
+
+if(file.exists(exi)){
+  print("File already exists !!!")
+} else {
+  f2s = exi
+  write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="duplicity", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="nesparovanoMUS", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="nesparovanoCES", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=TRUE, row.names=FALSE)
+  rm(exi)
+  rm(f2s)
+  }
+
+```
+
+### Report CES prirc
+
+```{r}
+
+# table1 
+sort(unique(ces$zdroj))
+sort(unique(mus_pr$nazev))
+ces_pr$zdroj <- as.factor(ces_pr$zdroj)
+summary(ces_pr) 
+
+# table2
+pair$zdroj <- as.factor(pair$zdroj)
+summary(pair) 
+
+# table3
+# table 4
+```
+
+# OMCV
+
+## CES INVC
+
+### Modify ces_ic
+
+```{r}
+
+petky <- c("B", "CV-N", "CV-S", "G", "K-N", "K-S", "Li", "M", "pB", "pCV-N", "pG", 
+           "pK-N", "pLi", "pM", "pMO", "pT", "T") 
+ctyrky <- c("B-sken", "C", "Ck", "Dt", "Eg", "Et", "F", "Fa", "H", "IT", "La", "Le", 
+            "Li-sken", "Mi","M-sken", "MT", "MTč", "N", "NDa", "NDo", "NDp", "NDvz", 
+            "Ng", "Ng-f", "Nu", "O", "Ok", "P", "Pc", "Pc-K", "Pl", "Plk", "pom", 
+            "PS", "PS-kn", "PS-ko", "PS-kr", "PS-pr", "PS-v", "R", "S", "S-K", "ST", 
+            "TR", "T-sken", "Tx", "ZM")
+
+trojky <- "Rš"
+
+# ces_ic <- ic %>% 
+#   mutate(Mrada = str_replace_all(cislo, "[:digit:]+", ""),
+#          Mrada = str_trim(Mrada),
+#          Mcislo = str_extract(cislo, "[:digit:]+"),
+#          Mcislo_0 = case_when(Mrada %in% trojky ~ str_pad(Mcislo, 3, pad = "0"),
+#                               Mrada %in% ctyrky ~ str_pad(Mcislo, 4, pad = "0"),
+#                               Mrada %in% petky ~ str_pad(Mcislo, 5, pad = "0"),
+#                               TRUE ~ Mcislo), 
+#          Mrada0 = case_when(Mrada == "CV - N" ~ "CV-N",
+#                            Mrada == "L" ~ "chybi",
+#                            Mrada == "La x" ~ "La",
+#                            Mrada == "LE" ~ "Le",
+#                            Mrada %in% c("M T č /", "MT č", "MT č /", "MT č /-", "MT č //",
+#                                         "MT č //-", "MT č //,", "MT č //,-", "MT č //a",
+#                                         "MT č /a", "MTč/") ~ "MTč",
+#                            TRUE ~ Mrada)) %>% 
+#   unite(MINVC, c(Mrada, Mcislo_0), sep = "", na.rm = T, remove = F)  
+
+ces_ic <- ic %>%
+  mutate(Mrada = case_when(
+    str_detect(cislo, "^[:alpha:]{2}\\s\\d+") ~ str_extract(cislo, "^[:alpha:]{2}"), # Ng 5
+    str_detect(cislo, "^[:alpha:]{2}\\s[:alpha:]+\\s\\d+") ~ str_extract(cislo, "^[:alpha:]{2}\\s[:alpha:]+"), # "Pl CV" "Pl K" 
+    str_detect(cislo, "\\w+-\\w+\\s.*") ~ str_extract(cislo, "\\w+-\\w+"), # "K-S", "CV-N"
+    str_detect(cislo, "^[:upper:]\\s.*") ~ str_extract(cislo, "^[:upper:]"), # B 10
+    str_detect(cislo, "^[:upper:]{2}\\s\\w\\s\\d+") ~ str_extract(cislo, "^[:upper:]{2}\\s\\w"), # ND o 110
+    str_detect(cislo, "CV - N") ~ "CV-N",
+    str_detect(cislo, "^Li.*") ~ "Li",
+    str_detect(cislo, "^PcK.*") ~ "Pc K",
+    str_detect(cislo, "^s Cv\\s\\d+") ~ "S CV",
+    str_detect(cislo, "^s\\s\\d+") ~ "S",
+    str_detect(cislo, "^Et\\d+") ~ "Et",
+    str_detect(cislo, "^[:upper:]\\d+") ~ str_extract(cislo,"^[:upper:]"), # O2703
+    str_detect(cislo, "^MTč\\d+") ~ "MTč",
+                           TRUE ~ "chybny format invc"))
+
+# C CV 143	1	Jiná_-_Cín.txt	C
+
+sample_n(ces_ic, 10)
+
+# CHECK !!! IMPORTANT !!!
+ 
+sum(is.na(ces_ic$zmena)) 
+sum(is.na(ces_ic$duvod)) # pocet NA by mel sedet s poctem N -> chceme TRUE
+sum(is.na(ces_ic$duvod)) == sum(ces_ic$zmena == "N") # chceme TRUE
+sum(is.na(ces_ic$typ_cisla)) 
+sum(is.na(ces_ic$cislo)) 
+sum(is.na(ces_ic$MINVC)) 
+
+SAVE0 <- ces_ic
+```
+
+### Load and check MUS
+
+```{r}
+
+mus_ic <- read_excel(paste0(path_proj, "MUSEION/omcv_exportKAT.xlsx"), 
+                  sheet = 1)  
+```
+
+### Pair CES+MUS
+
+```{r}
+
+rel0 <- full_join(ces_ic, mus_ic, by = c("MINVC" = "sp_cislo"), keep = T) 
+  select(-sp_porcislo, -sp_porcislosub, -sp_porcislodo, -sp_porcislosub_1, -kod) %>% 
+  rename(CEScislo = cislo.x, cislo_podsb = cislo.y)
+  
+rnd <- sample_n(rel0, 10)
+```
+
+### Sparovano 
+
+```{r}
+
+pair <- rel0 %>% filter(!is.na(sp_cislo)&!is.na(MINVC)) %>% mutate(status = "sparovano") 
+
+```
+
+### Duplicity
+
+```{r}
+
+dupl <- pair %>% group_by(MINVC) %>% filter(n() != 1) %>% mutate(popis_chyby = "duplicitni cislo CES")
+# -> check what nature are the duplicates
+# -> if relevant, keep them in 'pair'
+# -> if not, delete them from 'pair', store in 'duplicates' sheet
+
+# GMUR: duplicates are relevant -> KEEP
+
+# SAVE 
+
+SAVE1 <- pair
+SAVE2 <- dupl
+```
+
+### Nesparovano MUS-ne
+
+```{r}
+
+pair_not_MUS <- rel0 %>% filter(is.na(sp_cislo)) %>% mutate(status = "nenalezeno v MUSEIONU") 
+SAVE3 <- pair_not_MUS
+```
+
+### Nesparovano CES-ne
+
+```{r}
+
+pair_not_CES <- rel0 %>% filter(is.na(MINVC)) %>% mutate(status = "nenalezeno ve vypisu z CES") 
+SAVE4 <- pair_not_CES
+
+# CHECK
+
+count(pair)+count(pair_not_MUS)+count(pair_not_CES) == count(rel0) # TRUE or FALSE
+```
+
+### Chyby
+
+### Export XLS
+
+```{r}
+
+SAVE1[is.na(SAVE1)] <- ""
+SAVE2[is.na(SAVE2)] <- ""
+SAVE3[is.na(SAVE3)] <- ""
+SAVE4[is.na(SAVE4)] <- ""
+SAVE0[is.na(SAVE0)] <- ""
+
+exi <- paste0(path_ces, proj, "/", proj, "_KAT.xlsx")
+
+if(file.exists(exi)){
+  print("File already exists !!!")
+} else {
+  f2s = exi
+  write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="duplicity", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="nesparovanoMUS", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="nesparovanoCES", append=TRUE, row.names=FALSE)
+  write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=TRUE, row.names=FALSE)
+  rm(exi)
+  rm(f2s)
+  }
+
+```
+
+### Report CES invc
+
+```{r}
+
+# table1 
+sort(unique(ces$zdroj))
+sort(unique(mus_ic$nazev))
+
+# table2
+pair$zdroj <- as.factor(pair$zdroj)
+summary(pair) 
+
+# table3
+# table 4
+
+
+```
+
 
