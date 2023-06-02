@@ -542,7 +542,7 @@ summary(pair)
 
 petky <- c("B", "CV-N", "CV-S", "G", "K-N", "K-S", "Li", "M", "pB", "pCV-N", "pG", 
            "pK-N", "pLi", "pM", "pMO", "pT", "T") 
-ctyrky <- c("B-sken", "C", "Ck", "Dt", "Eg", "Et", "F", "Fa", "H", "IT", "La", "Le", 
+ctyrky <- c("B-sken", "C", "CK", "Dt", "Eg", "Et", "F", "Fa", "H", "IT", "La", "Le", 
             "Li-sken", "Mi","M-sken", "MT", "MTč", "N", "NDa", "NDo", "NDp", "NDvz", 
             "Ng", "Ng-f", "Nu", "O", "Ok", "P", "Pc", "Pc-K", "Pl", "Plk", "pom", 
             "PS", "PS-kn", "PS-ko", "PS-kr", "PS-pr", "PS-v", "R", "S", "S-K", "ST", 
@@ -550,44 +550,51 @@ ctyrky <- c("B-sken", "C", "Ck", "Dt", "Eg", "Et", "F", "Fa", "H", "IT", "La", "
 
 trojky <- "Rš"
 
-# ces_ic <- ic %>% 
-#   mutate(Mrada = str_replace_all(cislo, "[:digit:]+", ""),
-#          Mrada = str_trim(Mrada),
-#          Mcislo = str_extract(cislo, "[:digit:]+"),
-#          Mcislo_0 = case_when(Mrada %in% trojky ~ str_pad(Mcislo, 3, pad = "0"),
-#                               Mrada %in% ctyrky ~ str_pad(Mcislo, 4, pad = "0"),
-#                               Mrada %in% petky ~ str_pad(Mcislo, 5, pad = "0"),
-#                               TRUE ~ Mcislo), 
-#          Mrada0 = case_when(Mrada == "CV - N" ~ "CV-N",
-#                            Mrada == "L" ~ "chybi",
-#                            Mrada == "La x" ~ "La",
-#                            Mrada == "LE" ~ "Le",
-#                            Mrada %in% c("M T č /", "MT č", "MT č /", "MT č /-", "MT č //",
-#                                         "MT č //-", "MT č //,", "MT č //,-", "MT č //a",
-#                                         "MT č /a", "MTč/") ~ "MTč",
-#                            TRUE ~ Mrada)) %>% 
-#   unite(MINVC, c(Mrada, Mcislo_0), sep = "", na.rm = T, remove = F)  
+# CCV, L -> nejsou vubec
 
 ces_ic <- ic %>%
-  mutate(Mrada = case_when(
+  mutate(Mrada_patt = case_when(
     str_detect(cislo, "^[:alpha:]{2}\\s\\d+") ~ str_extract(cislo, "^[:alpha:]{2}"), # Ng 5
     str_detect(cislo, "^[:alpha:]{2}\\s[:alpha:]+\\s\\d+") ~ str_extract(cislo, "^[:alpha:]{2}\\s[:alpha:]+"), # "Pl CV" "Pl K" 
     str_detect(cislo, "\\w+-\\w+\\s.*") ~ str_extract(cislo, "\\w+-\\w+"), # "K-S", "CV-N"
-    str_detect(cislo, "^[:upper:]\\s.*") ~ str_extract(cislo, "^[:upper:]"), # B 10
+    str_detect(cislo, "^[:upper:]\\s\\d+") ~ str_extract(cislo, "^[:upper:]"), # B 10
+    str_detect(cislo, "^[:upper:]\\s[:upper:]+.*") ~ str_extract(cislo, "^[:upper:]\\s[:upper:]+"), # C CV
     str_detect(cislo, "^[:upper:]{2}\\s\\w\\s\\d+") ~ str_extract(cislo, "^[:upper:]{2}\\s\\w"), # ND o 110
-    str_detect(cislo, "CV - N") ~ "CV-N",
-    str_detect(cislo, "^Li.*") ~ "Li",
-    str_detect(cislo, "^PcK.*") ~ "Pc K",
-    str_detect(cislo, "^s Cv\\s\\d+") ~ "S CV",
-    str_detect(cislo, "^s\\s\\d+") ~ "S",
-    str_detect(cislo, "^Et\\d+") ~ "Et",
     str_detect(cislo, "^[:upper:]\\d+") ~ str_extract(cislo,"^[:upper:]"), # O2703
-    str_detect(cislo, "^MTč\\d+") ~ "MTč",
-                           TRUE ~ "chybny format invc"))
+    TRUE ~ "chybny format invc"),
+    Mrada_edit = case_when(str_detect(cislo, "^Li.*") ~ "Li",
+                           str_detect(cislo, "^PcK.*") ~ "Pc-K",
+                           str_detect(cislo, "^Pc K.*") ~ "Pc-K",
+                           str_detect(cislo, "^s Cv\\s\\d+") ~ "S CV",
+                           str_detect(cislo, "^s\\s\\d+") ~ "S",
+                           str_detect(cislo, "^Et\\d+") ~ "Et",
+                           str_detect(cislo, "^MTč\\d+") ~ "MTč",
+                           str_detect(cislo, "CV - N") ~ "CV-N",
+                           str_detect(Mrada_patt, "PS") ~ str_replace(Mrada_patt, "PS", "Ps"),
+                           str_detect(Mrada_patt, "CK") ~ "Ck",
+                           str_detect(Mrada_patt, "LE") ~ "Le",
+                           str_detect(Mrada_patt, "Mt") ~ "MT",
+                           str_detect(Mrada_patt, "Pl K") ~ "Plk",
+                           str_detect(Mrada_patt, "Rš") ~ "Rs",
+                           str_detect(Mrada_patt, "sK") ~ "S-K",
+                           TRUE ~ Mrada_patt),
+    Mrada = gsub(" ", "", Mrada_edit),
+    Mcislo = case_when(
+      str_detect(cislo, "\\d+\\/.+") ~ str_extract(cislo, "\\d+\\/.+"), # Ng 5)
+      str_detect(cislo, "\\d+") ~ str_extract(cislo, "\\d+"), # Ng 5)
+      TRUE ~ "chybny format invc"),
+    Mcislo_0 = case_when(Mrada %in% trojky ~ str_pad(Mcislo, 3, pad = "0"),
+                         Mrada %in% ctyrky ~ str_pad(Mcislo, 4, pad = "0"),
+                         Mrada %in% petky ~ str_pad(Mcislo, 5, pad = "0"),
+                         TRUE ~ Mcislo),
+    Msubc = ifelse(str_detect(Mcislo_0, "\\/.+"), gsub(".+\\/", "", Mcislo_0), NA),
+    Mcislo_0 = ifelse(str_detect(Mcislo_0, "\\/.+"), gsub("\\/.+", "", Mcislo_0), Mcislo_0),
+    MINVC = ifelse(is.na(Msubc), paste0(Mrada, Mcislo_0), paste0(Mrada, Mcislo_0, "/", Msubc)))
 
-# C CV 143	1	Jiná_-_Cín.txt	C
 
-sample_n(ces_ic, 10)
+check <- ces_ic %>% select(Mrada_patt, Mrada_edit, Mrada) %>% distinct()
+
+print(sample_n(ces_ic, 10))
 
 # CHECK !!! IMPORTANT !!!
  
@@ -603,7 +610,7 @@ SAVE0 <- ces_ic
 
 ### Load and check MUS
 
-```{r}
+```{r, warning = F}
 
 mus_ic <- read_excel(paste0(path_proj, "MUSEION/omcv_exportKAT.xlsx"), 
                   sheet = 1)  
@@ -613,11 +620,10 @@ mus_ic <- read_excel(paste0(path_proj, "MUSEION/omcv_exportKAT.xlsx"),
 
 ```{r}
 
-rel0 <- full_join(ces_ic, mus_ic, by = c("MINVC" = "sp_cislo"), keep = T) 
-  select(-sp_porcislo, -sp_porcislosub, -sp_porcislodo, -sp_porcislosub_1, -kod) %>% 
-  rename(CEScislo = cislo.x, cislo_podsb = cislo.y)
+rel0 <- full_join(ces_ic, mus_ic, by = c("MINVC" = "sp_cislo"), keep = T) %>% 
+  select(-sp_porcislo, -sp_porcislosub, -sp_porcislodo,-sp_porcislosubdo) 
   
-rnd <- sample_n(rel0, 10)
+sample_n(rel0, 10)
 ```
 
 ### Sparovano 

@@ -49,16 +49,3 @@ output:
  
 # CES OMCV
 
-""          "/"         "B"         "C"         "C CV"      "C K"       "CV-N"      "CV-S"      "CV - N"    "Dt"       
-[11] "Dt /"      "Eg"        "Et"        "Et /"      "F"         "F /"       "F /-"      "Fa"        "G"         "H"        
-[21] "K-S"       "L"         "La"        "La x"      "LE"        "Li"        "M"         "M T č /"   "Mi"        "Mt"       
-[31] "MT"        "MT a"      "MT č"      "MT č /"    "MT č /-"   "MT č //"   "MT č //-"  "MT č //,"  "MT č //,-" "MT č //a" 
-[41] "MT č /a"   "MTč/"      "N"         "N /"       "ND a"      "ND a /"    "ND a /-"   "ND o"      "ND o /"    "ND p"     
-[51] "ND vz"     "Ng"        "Ng-f"      "Nu"        "O"         "P"         "P /"       "P /a"      "P /b"      "Pc"       
-[61] "Pc /-"     "Pc /a-b"   "Pc Cv"     "Pc K"      "PcK"       "Pl"        "Pl CV"     "Pl K"      "PS"        "PS-kn"    
-[71] "PS-ko"     "PS-kr"     "PS-pr"     "PS-v"      "R CV"      "Rš"        "s"         "s /"       "s /-"      "s Cv"     
-[81] "sK"        "ST"        "T"         "TR"        "Tx"        "Tx /"      "Tx CV"     "ZM"        "ZM /"      "ZM /A-B"  
-[91] "ZM CV"     "ZM K"     
-
-C CV 143	1	Jiná_-_Cín.txt	C
-
