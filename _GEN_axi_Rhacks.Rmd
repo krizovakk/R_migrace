@@ -82,6 +82,34 @@ if(file.exists(exi)){
 ```
 
 
+### Write excel - memory issue
+
+Error  
+pouzit funkci gc() = Grabage Collection -> vycisti pamet po ulozeni predchoziho listu  
+
+```{r}
+
+exi <- paste0(path_ces, proj, "/", proj, "_KAT_PVO.xlsx")
+
+if(file.exists(exi)){
+  print("File already exists !!!")
+} else {
+  f2s = exi
+  write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=F, showNA = F)
+  gc()
+  write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="duplicity", append=T, row.names=F, showNA = F)
+  gc()
+  write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="nesparovanoMUS", append=T, row.names=F, showNA = F)
+  gc()
+  write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="nesparovanoCES", append=T, row.names=F, showNA = F)
+  gc()
+  write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=T, row.names=F, showNA = F)
+  rm(exi)
+  rm(f2s)
+  }
+```
+
+
 ## N U M E R I C S
 
 ### Leading zeros -add
@@ -126,9 +154,6 @@ ceiling(x) = rounds values up to nearest integer
 floor(x) = rounds values down to nearest integer
 trunc(x) = truncates (cuts off) decimal places from values
 
-```{r}
-
-```
 
 \newpage
 
@@ -263,6 +288,15 @@ df %>%
 ```
 
 
+#### mult column summary
+
+```{r}
+unique(df[,c('session','first','last')])
+
+plyr::count(SAVE3[,c('zmena','duvod')]) # i s poctem
+```
+
+
 ### c o l u m n s
 
 #### Remove columns acc to pattern
@@ -341,6 +375,13 @@ ch <- sample_n(df, 10) # n=10
 
 sez_int <- sez %>% 
   drop_na(MINVChorni)  
+```
+
+#### Filter with contains
+
+```{r}
+spo_ces <- ic %>% 
+  filter(grepl("Další|Jiná|Lapidárium|Etnografická", zdroj))
 ```
 
 #### Copy rows / multiply

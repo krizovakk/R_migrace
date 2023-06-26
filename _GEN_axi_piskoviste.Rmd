@@ -493,3 +493,38 @@ write.xlsx(sez, file = paste0(path_snd, "php_konf23/phpList_seznam.xlsx"), row.n
 
 ```
 
+# HAL RMTP
+
+```{r}
+require(RODBC)
+
+path <- "M:/03 klienti/kraj ustecky/regionalni muzeum v teplicich, p.o. - RMTP/04 migrace 2023/"
+# general
+
+dbname <- paste0(path, "RMTP-Knihovna2023.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+RODBC::sqlTables(con)
+tab <- RODBC::sqlFetch(con, "Osek7643")
+
+# old func example
+dbname <- paste0(path_mdb, "botanika_test.mdb") # path to database
+con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
+
+RODBC::sqlTables(con)                          # list tables in database
+
+kmen <- RODBC::sqlFetch(con, "data") # read specified table
+
+path_mdb <- "M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/zdrojdat/BIO/MB_PVO_Botanika/"
+
+
+kni <- tab %>% 
+  select(MINVC, PoradiPredmet, MPOPIS1) %>% 
+  mutate(popis = paste0(PoradiPredmet, ") ", MPOPIS1)) %>% 
+  group_by(MINVC) %>% 
+  summarise(DLOUHYPOPIS = paste(popis, collapse = "\n\n"))
+  
+write.xlsx(as.data.frame(kni), file = paste0(path, "RMTP_knihovna_sloucenePopisy.xlsx"), row.names = F)
+
+
+```
+
