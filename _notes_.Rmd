@@ -47,7 +47,14 @@ output:
 
 \newpage
  
-# CES OMCV
+# OMCV CES - script rearrangement
 
-# HELA RMPT
+## CES INVC
 
+# MUZTE MIGRACE
+
+1) v jednom pripade podskupina 'Tracheopyhta' -> opraveno na 'Tracheophyta'
+2) ADRESAR$create_uid: ztotozneno: 'Buša E.' -> 'Burša E.' ; 'svendova' a 'Svendova'
+3) ADRESAR$sberatel: ztotozneno: "Buša E." -> "Burša E." ; "Kousalová Š:" -> "Kousalová Š." ; Pavlíkovi P. A J. -> Pavlíkovi P. a J. ; D. Podstawková -> Podstawková D.
+4) ADRESAR$sberatel: ztotozneno: "Buša E." "BUrša E."-> "Burša E." ; Pavlíkovi P. A J. -> Pavlíkovi P. a J.
+5) ADRESAR$urcil: koupě invc: 1142

@@ -178,38 +178,46 @@ imp <- "podskupiny"
 ```{r ADRESAR}
 
 mus_tab <- modif_tab %>% 
-  select('1typSubjektuKod' = '1typSubjektuKod', # !! povinne !!
-         '2subjektKod' = '2subjektKod',         # !! povinne !!
-         '3subjektAlterKod' = X, '4osobaJmenoPrvni'= Jmeno_A, 
+  select('1typSubjektuKod' = typsubj1, # !! povinne !!
+         '2subjektKod' = subjkod2,         # !! povinne !!
+         '3subjektAlterKod' = X, 
+         '4osobaJmenoPrvni'= osjm4, 
          '5osobaJmenoDruhe' = X, 
-         '6osobaPrijmeni' = Prijmeni_A,         # !! povinne !!
-         '7osobaTitulPredJmenem' = TitPred_A, '8osobaTitulZaJmenem' = TitZa_A, 
+         '6osobaPrijmeni' = osprijm6,         # !! povinne !!
+         '7osobaTitulPredJmenem' = X, '8osobaTitulZaJmenem' = X, 
          '9osobaRodnePrijmeni' = X, 
-         '10osobaPohlavi' = '10osobaPohlavi',   # !! povinne !! "muž", "žena", "neznámé"
+         '10osobaPohlavi' = ospohl10,   # !! povinne !! "muž", "žena", "neznámé"
+         
          '11osobaDatumNarozeni' = X, '12osobaMistoNarozeni' = X,
          '13okresNarozeniNazev' = X, '14obecNarozeniNazev' = X,
          '15statNarozeniKod' = X, '16osobaDatumUmrti' = X,
-         '17osobaMistoUmrti' = X, '18subjektStatKod' = '18subjektStatKod',
+         '17osobaMistoUmrti' = X, 
+    
+         '18subjektStatKod' = '18subjektStatKod',
          '19kontaktEmail' = X, '20kontaktMobil' = X,
          '21kontaktMobil2' = X, '22kontaktTelefon' = X,
          '23kontaktInternet' = X, '24kontaktInternetoveVolani' = X,
          '25adresaText' = X, '26kontaktniAdresaText' = X,
-         '27fyzickaOsobaRodneCislo' = X, '28subjektPoznamka' = X,
+         '27fyzickaOsobaRodneCislo' = X, '28subjektPoznamka' = X, 
+         
          '29AdresaTextoveOkres' = X, '30AdresaTextoveObec' = X,
          '31AdresaTextoveCastObce' = X, '32AdresaTextoveMestskaCast' = X,
          '33AdresaTextoveUlice' = X, '34AdresaTextoveCisloOrientacni' = X,
          '35AdresaTextoveCislo' = X, '36AdresaTextovePSC' = X,
+         
          '37zamestnanecCislo' = X, '38oddeleniKod' = X,
          '39osobnostMedailon' = X, '40osobnostPseudonym' = X,
-         '41okruhSubjektuNazev' = X, '42subjektSbirka' =  X,           
-         '43subjektPodsbirka' =  X, '44osobaStudia' = X,
+         '41okruhSubjektuNazev' = X, '42subjektSbirka' = '42subjektSbirka',           
+         '43subjektPodsbirka' = '43subjektPodsbirka', 
+         '44osobaStudia' = X,
          '45osobaSpolky' = X, '46osobaOsobnost' = X,
          '47subjektDatumOd' = X, '48subjektDatumDo' = X,
          '49kontaktEmail2' = X, 
          '50text1' = X, '51text2' = X, '52text3' = X, 
          '53role1' = X, '54role2' = X, 
-         '55role3' = X, '56role4' = X, '57$role5' = X,
-         rel_ZkrJm = ZkrJm_A)
+         '55role3' = X, '56role4' = X, '57$role5' = X
+         # , rel_ZkrJm = puv
+         )
 
 oper_adresar <- mus_tab %>% 
   select(rel_ZkrJm, '1typSubjektuKod', '2subjektKod', '4osobaJmenoPrvni', '6osobaPrijmeni') # pro tvorbu interniho adresare
@@ -994,8 +1002,8 @@ mus_tab <- modif_tab %>%
     '1SPCislo' = MINVC,                                # !! povinne !!
     '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
     '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
-    '4poradi' = MTECH_POR,                             # !! povinne !!
-    '5sberatelPredmetu' = MTECHNIKA,                   # !! povinne !!
+    '4poradi' = X,                             # !! povinne !!
+    '5sberatelPredmetu' = X,                   # !! povinne !!
     '6poznamka' = X)
 
 oper_sberpred <- mus_tab

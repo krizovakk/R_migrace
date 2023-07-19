@@ -1,5 +1,5 @@
 ---
-title: "Univerzalni RMD pro migraci dat"
+title: "MUZTE"
 subtitle: "Migrace dat"
 author: "Katerina Krizova"
 date: "2023-02-08"
@@ -61,10 +61,11 @@ require(xlsx) # write excel in sheets
 
 ```{r PROJECT SPECIFICATIONS AND PATHS}
 
-projekt <- ""
+projekt <- "MUZTE"
 
 path <-  "C:/Users/krizova/Documents/R/"
-path_proj <-  paste0("C:/Users/krizova/Documents/R/MIG/", projekt) 
+path_proj <-  "C:/Users/krizova/Documents/R/MIG/MUZTE/" 
+path_muzte <- 
 
 path_data <-  paste0(path_proj, "data/")
 path_csv <-  paste0(path_proj, "csv/")
@@ -72,57 +73,68 @@ path_kd <- paste0(path_proj, "kd/")
 ```
 
 
-
 # B A C H
 
-## load bach table
+## nacist bach tabulku
 
 ```{r LOAD AND INIT MODIF}
 
 # L O A D
 
-dbname <- paste0(path_muzbe, "02 muzBE konverze/zdrojdat/BIO/MB_PVO_Botanika/botanika - aktuální.mdb") 
+dbname <- paste0(path_data, "muzTE_bio.accdb") 
 con <- RODBC::odbcConnectAccess2007(dbname)      
-bach0 <- RODBC::sqlFetch(con, "data")   
+bach0 <- RODBC::sqlFetch(con, "lcl_botanika")   
 
 
 # M U S E I O N   E V I D E N C E
 
 bach <- bach0 %>% 
-  mutate(MSBIRKA = "MUZBE",
-         MPODSB = "Pb",
-         MPODSBnaz = "botanika",
-         MFOND = "bot",
-         MFONDnaz = "botanika",
-         MSKUP = "herbT",
-         MSKUPnaz = "herbář Tracheophyta",
+  mutate(MSBIRKA = "MUZTE",
+         MPODSB = "5",
+         MPODSBnaz = "Botanická",
+         MFOND = "",
+         MFONDnaz = "",
+         MSKUP = "",
+         MSKUPnaz = "",
          X = NA) %>% 
   select(-contains("_sort"), -nvg_id, -id) %>%  # vyrad nadbytecne bach sloupce
   mutate(across(where(is.character), str_trim)) # zbav se nadbytecnych mezer
+
 
 # M I G R A C N I   M A T I C E
 
 mm <- as.data.frame(colnames(bach)) # zkopiruj do excelu a vytvor si migr. matici
 # write.xlsx(x = mm, file = paste0(path_proj, "MUZTE_migracni_matice.xlsx"))
 
-rm(bach0)
+# rm(bach0)
 rm(mm)
-
 ```
 
-## biolib
+## biolib + ciselniky
 
-```{r BIOLIB}
+```{r BIOSLOVNIKY}
 
 # B I O L I B   S L O V N I K
 
-biolib <- read_excel("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/importDK/slovniky/muzbe_import_Plantae_Taxon.xlsx") 
+biolib <- read.csv(paste0(path, "bioslov/BioLib_KKsummary_plantae.csv"), sep = ";") 
+
+dbname <- paste0(path_data, "botanicke_lokality.mdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+botlok <- RODBC::sqlFetch(con, "data")  
+ 
+dbname <- paste0(path_data, "ciselnik_botanickych_rodu.mdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+botrod <- RODBC::sqlFetch(con, "data") 
+
+dbname <- paste0(path_data, "ciselnik_botanickych_druhu.mdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)      
+botdru <- RODBC::sqlFetch(con, "data") 
 ```
 
 
 ## slovniky
 
-### fondy
+### fondy ?
 
 **IMPORTNÍ ROZHRANNÍ**: CSV Fond
 **MUSEION**: import_fond.csv
@@ -157,6 +169,8 @@ imp <- "fond"
 
 # M O D I F Y
 
+sort(unique(bach$skup))
+
 # C R E A T E    C S V
 
 mus_tab <- bach %>% 
@@ -182,15 +196,21 @@ imp <- "skupiny"
 **IMPORTNÍ ROZHRANNÍ**: CSV Podskupiny
 **MUSEION**: import_podskupiny.csv
 
+POZN:
+
+v jednom pripade podskupina 'Tracheopyhta' -> opraveno na 'Tracheophyta'
+
 ```{r PODSKUPINY}
 
 # M O D I F Y
+
+sort(unique(bach$pskup))
 
 mod_tab <- bach %>% 
   mutate(MPODSKUP = substr(sub("\\s", "", pskup), 1,20), # smazat mezeru, orezat na 20 znaku
          # MPODSKUP = substr(pskup, 1,20), 
          Mpskp_len = nchar(pskup), 
-         MPODSKUPNAZ = pskup, 
+         MPODSKUPNAZ = case_when(pskup == "Tracheopyhta" ~ "Tracheophyta", TRUE ~ pskup), 
          X = "")
 
 # C R E A T E    C S V
@@ -218,10 +238,15 @@ imp <- "podskupiny"
 *IMPORTNÍ ROZHRANÍ*: CSV Adresář osob  
 **MUSEION**: import_adresar.csv
     
-    
-```{r MODIF ADRESAR}
+POZN:
 
-# M O D I F Y
+pole:  
+    + create_uid
+    + lastwrite_uid -> *mozna nepotrebujeme ?! *
+    + sberatel  (vice zaznamu)  
+    + urcil  (vice zaznamu)  
+
+```{r MODIF ADRESAR}
 
 # install.packages("randomNames")
 require(randomNames)
@@ -233,10 +258,97 @@ sort(unique(bach$urcil))
 
 # P R E
 
-bach_adr <- bach %>% ...
-mod_tab <- bach_adr %>% select(...)
-mus_tab <- mod_tab
+bach_adr <- bach %>% 
+  # create_uid  
+  mutate(M1 = case_when(create_uid == "dpodstawkova" ~ "D.",
+                        create_uid == "jana.glombova" ~ "Jana",
+                        create_uid == "nela.kotaskova" ~ "Nela",
+                        TRUE ~ NA),
+         M2 = case_when(create_uid == "dpodstawkova" ~ "Podstawková",
+                        create_uid == "jana.glombova" ~ "Glombová",
+                        create_uid == "nela.kotaskova" ~ "Kotásková",
+                        create_uid %in% c("skarka", "Skarka") ~ "Skarka",
+                        create_uid %in% c("svendova", "Svendova") ~ "Svendova",
+                        TRUE ~ NA)) %>% 
+  unite(MCREATE, c(M2, M1), sep = " ", na.rm = T, remove = FALSE) %>% 
+  # lastwrite_uid  
+  mutate(M1 = case_when(lastwrite_uid == "dpodstawkova" ~ "D.",
+                        lastwrite_uid == "jana.glombova" ~ "Jana",
+                        lastwrite_uid == "nela.kotaskova" ~ "Nela",
+                        lastwrite_uid == "Skarka" ~ NA,
+                        TRUE ~ NA),
+         M2 = case_when(lastwrite_uid == "dpodstawkova" ~ "Podstawková",
+                        lastwrite_uid == "jana.glombova" ~ "Glombová",
+                        lastwrite_uid == "nela.kotaskova" ~ "Kotásková",
+                        lastwrite_uid %in% c("skarka", "Skarka") ~ "Skarka",
+                        TRUE ~ NA)) %>% 
+  unite(MLSTWR, c(M2, M1), sep = " ", na.rm = T, remove = FALSE) %>% 
+  # sberatel
+  mutate(
+    Msberatel = case_when(sberatel == "Buša E." ~ "Burša E.",
+                          sberatel == "Kousalová Š:" ~ "Kousalová Š.",
+                          sberatel == "Pavlíkovi P. A J." ~ "Pavlíkovi P. a J.",
+                          sberatel == "D. Podstawková" ~ "Podstawková D.", TRUE ~ sberatel), 
+    M1 = ifelse(str_detect(Msberatel, "^\\w+\\s\\w\\.$"), str_extract(Msberatel, "\\w\\.$"), 
+                ifelse(str_detect(Msberatel, "^\\w\\.\\s\\w+$"), str_extract(Msberatel, "^\\w\\."), NA)),
+    M2 = ifelse(str_detect(Msberatel, "^\\w+\\s\\w\\.$"), str_extract(Msberatel, "^\\w+"),
+                ifelse(str_detect(Msberatel, "^\\w\\.\\s\\w+$"), str_extract(Msberatel, "\\w+$"), NA))
+    ) %>% 
+  unite(MSBERAT, c(M2, M1), sep = " ", na.rm = T, remove = FALSE) %>%
+  mutate(MSBERAT = ifelse(is.na(M1), Msberatel, MSBERAT)) %>% 
+   # urcil         
+   mutate(
+    Murcil = case_when(urcil %in% c("Buša E.", "BUrša E.") ~ "Burša E.",
+                       urcil %in% c("Pavlíkovi P.a J.", "Pavlíkovi P. A J.") ~ "Pavlíkovi P. a J.",
+                       urcil %in% c("Duda m.", "Duda M.,") ~ "Duda M.",
+                       urcil == "Kilián Z" ~ "Kilián Z.",
+                       urcil == "koupě" ~ NA,
+                       TRUE ~ urcil), 
+    M1 = ifelse(str_detect(Murcil, "^\\w+\\s\\w\\.$"), str_extract(Murcil, "\\w\\.$"), 
+                ifelse(str_detect(Murcil, "^\\w\\.\\s\\w+$"), str_extract(Murcil, "^\\w\\."), NA)),
+    M2 = ifelse(str_detect(Murcil, "^\\w+\\s\\w\\.$"), str_extract(Murcil, "^\\w+"),
+                ifelse(str_detect(Murcil, "^\\w\\.\\s\\w+$"), str_extract(Murcil, "\\w+$"), NA))
+    ) %>% 
+  unite(MURCIL, c(M2, M1), sep = " ", na.rm = T, remove = FALSE) %>%
+  mutate(MURCIL = ifelse(is.na(M1), Murcil, MURCIL)) %>% 
+  select(-M1, -M2, -Msberatel, -Murcil) 
 
+
+# S L I C E   A D R E S A R
+
+c <- bach_adr %>% select("bach" = create_uid, "mus" = MCREATE) 
+l <- bach_adr %>% select("bach" = lastwrite_uid, "mus" = MLSTWR)
+s <- bach_adr %>% select("bach" = sberatel, "mus" = MSBERAT)
+u <- bach_adr %>% select("bach" = urcil,"mus" =  MURCIL)
+
+# M O D I F Y 
+
+mod_tab <- bind_rows(c,l,s,u) %>% 
+  distinct() %>% 
+  select(mus) %>% 
+  distinct() %>%  
+  mutate(typsubj1 = "OO",
+         subjkod2 = case_when(mus %in% c("", NA) ~ "neznámý", TRUE ~ mus),
+         osjm4 = case_when(str_detect(mus, "^\\w+\\s\\w+$") ~ str_extract(mus, "\\w+$"),
+                           str_detect(mus, "^\\w+\\s\\w\\.$") ~ str_extract(mus, "\\w\\.$"),
+                           TRUE ~ NA),
+         osprijm6 = case_when(str_detect(mus, "^\\w+\\s\\w+$|^\\w+\\s\\w\\.$") ~ str_extract(mus, "^\\w+"),
+                           is.na(osjm4) ~ subjkod2,
+                           TRUE ~ NA),
+         ospohl10 = "neznámé",
+         MSBIRKA = "MUZTE",
+         MPODSB = "5",
+         MPODSBnaz = "Botanická",
+         MFOND = "",
+         MFONDnaz = "",
+         MSKUP = "",
+         MSKUPnaz = "",
+         X = NA)
+
+rm(c)
+rm(l)
+rm(s)
+rm(u)
 
 ```
 
@@ -259,8 +371,8 @@ mus_tab <- mod_tab %>%
          '13okresNarozeniNazev' = X, '14obecNarozeniNazev' = X,
          '15statNarozeniKod' = X, '16osobaDatumUmrti' = X,
          '17osobaMistoUmrti' = X, 
-         
-         '18subjektStatKod' = '18subjektStatKod',
+    
+         '18subjektStatKod' = X,
          '19kontaktEmail' = X, '20kontaktMobil' = X,
          '21kontaktMobil2' = X, '22kontaktTelefon' = X,
          '23kontaktInternet' = X, '24kontaktInternetoveVolani' = X,
@@ -274,8 +386,8 @@ mus_tab <- mod_tab %>%
          
          '37zamestnanecCislo' = X, '38oddeleniKod' = X,
          '39osobnostMedailon' = X, '40osobnostPseudonym' = X,
-         '41okruhSubjektuNazev' = X, '42subjektSbirka' = '42subjektSbirka',           
-         '43subjektPodsbirka' = '43subjektPodsbirka', 
+         '41okruhSubjektuNazev' = X, '42subjektSbirka' = MSBIRKA,           
+         '43subjektPodsbirka' = MPODSB, 
          '44osobaStudia' = X,
          '45osobaSpolky' = X, '46osobaOsobnost' = X,
          '47subjektDatumOd' = X, '48subjektDatumDo' = X,
@@ -290,17 +402,60 @@ csv_adresar <- mus_tab # ulozit na pozdeji
 imp <- "BOTadresar"
 
 # pokracuj k ulozeni do sekce: # ! ! !   E X P O R T Y  C S V   ! ! !
+
 ```
+
+#### commit adresar
+
+```{r}
+
+bach <- bach_adr %>%
+  mutate(status_adresar = "OK") %>%
+  select(-status_adresar, status_adresar) # UNCOMMENT TO COMMIT
+
+utils::View(bach)
+```
+
 
 ### lokality
 
 *IMPORTNÍ ROZHRANÍ*: CSV Lokalita  
 **MUSEION**: import_lokalita.csv
 
+    
+POZN:
+oblast, katastr, (lokalita_geo, lokalita_ekol)
 
 ```{r MODIF LOKALITY, warning=FALSE}
 
-mod_tab <- bot %>% 
+# P R E
+
+# kontrola katastru
+
+muskat <- read_excel(paste0(path, "gen_tabdata/KatastralniUzemi_export.xlsx")) 
+bachkat <- bach %>% select(katastr) %>% distinct()
+kat_check <- left_join(bachkat, muskat, by = c("katastr" = "Název"), keep = T)
+
+# modifikace
+
+utils::View(bach_lok)
+sort(unique(bach_lok$statkod3))
+summary(factor(bach_lok$statkod3))
+
+bach_lok <- bach %>% 
+  mutate(loknaz1 = katastr,  # ?????
+         okrnaz2 = ifelse(str_detect(oblast, "^[:upper:]{2},\\s[:upper:]{2}"), 
+                                     substr(oblast, 5,6), paste("")),
+         statkod3 = str_extract(oblast, "^\\w\\w"),
+         oblnaz4 = oblast,
+         lokzem5 = case_when(statkod3 == "ČR" ~ "Česko",
+                             statkod3 == "PL" ~ "Polsko",
+                             statkod3 == "SK" ~ "Slovensko",
+                             statkod3 == "SR" ~ "Slovensko")) #ČR 11096  PL 24 SK 17 SR 492  NA's 69
+         
+  
+  
+mod_tab <- bach_lok%>% 
   select(oblast, katastr, lokalita_geo) %>%  
   mutate(across(everything(), ~gsub("\\s{2}", " ", .)),
          oblast = str_trim(oblast)) %>% 
@@ -359,10 +514,10 @@ mod_tab[mod_tab == ""] <- NA
 
 mus_tab <- mod_tab %>% 
   select(
-    '1lokalitaNazev' = MLOKALITA,  # !! povinne !!
-    '2okresNazev'= X,
-    '3statKod' = MSTKOD, 
-    '4oblastNazev'= MOBLAST,
+    '1lokalitaNazev' = loknaz1,  # !! povinne !!
+    '2okresNazev'= okrnaz2,
+    '3statKod' = statkod3, 
+    '4oblastNazev'= oblnaz4,
     '5lokalitaZeme' = MZEME, 
     '6lokalitaCtverec'= X,
     '7lokalitaMapa' = X, 
@@ -387,6 +542,17 @@ imp <- "lokalita"
 # rm(fy0)
 # rm(ku)
 
+```
+
+#### commit lokality
+
+```{r}
+
+bach <- bach_lok %>%
+  mutate(status_lokality = "OK") %>%
+  select(-status_lokality, status_lokality) # UNCOMMENT TO COMMIT
+
+utils::View(bach)
 ```
 
 ## MUS karta

@@ -380,6 +380,7 @@ sez_int <- sez %>%
 #### Filter with contains
 
 ```{r}
+
 spo_ces <- ic %>% 
   filter(grepl("Další|Jiná|Lapidárium|Etnografická", zdroj))
 ```
@@ -410,7 +411,6 @@ data %>%
   group_by(name) %>% 
   filter(n() != 1)
 ```
-
 
 \newpage
 

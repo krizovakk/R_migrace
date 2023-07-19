@@ -1791,7 +1791,7 @@ imp <- "sberPtu"
 
 # fetch tab 'prac_bot' (actualized TAXON NOMEN)
 
-bot_ohr <- prac_bot %>% select(MINVC, MNOMEN)
+bot_ohr <- prac_bot %>% select(MINVC, MNOMEN, publikace)
 
 # BACH
 ohr <- modify_tab %>% 
@@ -1808,7 +1808,7 @@ sort(unique(ohr$publikace))
 
 # REJSTRIK-SYSTEM !!! Tahle tabulka ma jenom mechy, zivocichy a houby !!!
 
-dbname <- paste0("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/BIO/muzbePVO_DK.accdb") 
+dbname <- paste0("M:/03 klienti/kraj moravskoslezsky/muzeum beskyd - MUZBE/02 muzBE konverze/muzbe BIO/muzbePVO_DK.accdb") 
 con <- RODBC::odbcConnectAccess2007(dbname)      
 RODBC::sqlTables(con)
 
@@ -1823,7 +1823,10 @@ ohr_rej <- left_join(bot_ohr, ohr, by = c("MNOMEN" = "druh_L"), keep = T) %>%
 
 # AOPK
 
-aopk <- read_excel(paste0(path_data, "/_gen_tab/cervene_seznamy_AOPK.xlsx")) %>% 
+path_gd <- "C:/Users/krizova/Documents/R/gen_tabdata/"
+
+aopk <- read_excel(paste0(path_gd, "cervene_seznamy_AOPK.xlsx")) %>% 
+# aopk <- read_excel(paste0(path_data, "cervene_seznamy_AOPK.xlsx")) %>% 
   select(id_tax, ved_jm, kat_ohr_iucn)
 
 ohr_aopk <- left_join(bot_ohr, aopk, by = c("MNOMEN" = "ved_jm"), keep = T) %>% 

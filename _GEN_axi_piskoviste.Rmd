@@ -308,13 +308,13 @@ write.table(rozm_bezna, file = paste0(path_snd, "MUZBE_rozmery_ptaci_UPR2.csv"),
 
 # paths
 
-path_data <- "C:/Users/krizova/Documents/R/data/"
+path_data <- "C:/Users/krizova/Documents/R/gen_tabdata/"
 
 # load
 
-mtax <- read_excel(paste0(path_data, "_gen_tab/muzbe_taxony_MUSEION.xlsx")) %>%  # taxony z musionu
+mtax <- read_excel(paste0(path_data, "muzbe_taxony_MUSEION.xlsx")) %>%  # taxony z musionu
   unite(nomaut_MUS, c("nomen", "autor"), sep = " ", na.rm = T, remove = F)
-aopk <- read_excel(paste0(path_data, "_gen_tab/cervene_seznamy_AOPK.xlsx"))  %>% # ohrozeni dle AOPK
+aopk <- read_excel(paste0(path_data, "cervene_seznamy_AOPK.xlsx"))  %>% # ohrozeni dle AOPK
   unite(nomaut_AOPK, c("ved_jm", "autor_pop"), sep = " ", na.rm = T, remove = F)
 
 # pair author+name
