@@ -25,7 +25,7 @@ require(RODBC) # ::read_mdb
 require(odbc) # ::read_mdb
 require(xlsx) # write excel in sheets
 
-path_snd <- "C:/Users/krizova/Documents/R/data/_piskoviste/"
+path_snd <- "C:/Users/krizova/Documents/R/piskoviste/"
 ```
 
 \newpage 
@@ -493,7 +493,7 @@ write.xlsx(sez, file = paste0(path_snd, "php_konf23/phpList_seznam.xlsx"), row.n
 
 ```
 
-# HAL RMTP
+# HELA RMTP
 
 ```{r}
 require(RODBC)
@@ -528,3 +528,19 @@ write.xlsx(as.data.frame(kni), file = paste0(path, "RMTP_knihovna_sloucenePopisy
 
 ```
 
+# HELA MUZTE
+
+```{r}
+
+path_snd <- "C:/Users/krizova/Documents/R/piskoviste/"
+
+df <- read_excel(paste0(path_snd, "MUZTE-PopisProDuplicityPK.xlsx"))
+
+kni <- df %>% 
+  mutate(popis = paste0(poradi, ") ", POLOZKA1POPIS)) %>% 
+  group_by(MPRIRC) %>% 
+  summarise(DLOUHYPOPIS = paste(popis, collapse = "\n\n"))
+  
+write.xlsx(as.data.frame(kni), file = paste0(path_snd, "MUZTE_sloucenePopisy.xlsx"), row.names = F)
+
+```

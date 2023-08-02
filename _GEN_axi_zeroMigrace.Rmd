@@ -110,6 +110,19 @@ rm(mm)
 
 ```
 
+
+## sort unique
+
+```{r}
+
+su <- bach$nabyti
+su <- bach$reviz
+su <- bach$var
+sort(unique(su))
+
+```
+
+
 ## biolib
 
 ```{r BIOLIB}

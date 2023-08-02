@@ -58,3 +58,5 @@ output:
 3) ADRESAR$sberatel: ztotozneno: "Buša E." -> "Burša E." ; "Kousalová Š:" -> "Kousalová Š." ; Pavlíkovi P. A J. -> Pavlíkovi P. a J. ; D. Podstawková -> Podstawková D.
 4) ADRESAR$sberatel: ztotozneno: "Buša E." "BUrša E."-> "Burša E." ; Pavlíkovi P. A J. -> Pavlíkovi P. a J.
 5) ADRESAR$urcil: koupě invc: 1142
+
+6) NABYTI: "", "42/92", "dar", "koupě", "sběr", "Sběr", "sbšr", "Tracheophyta"

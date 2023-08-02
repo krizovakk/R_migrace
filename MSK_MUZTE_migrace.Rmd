@@ -110,6 +110,15 @@ mm <- as.data.frame(colnames(bach)) # zkopiruj do excelu a vytvor si migr. matic
 rm(mm)
 ```
 
+## sort unique
+
+```{r}
+
+sort(unique(bach$publikace))
+
+```
+
+
 ## biolib + ciselniky
 
 ```{r BIOSLOVNIKY}
@@ -132,7 +141,7 @@ botdru <- RODBC::sqlFetch(con, "data")
 ```
 
 
-## slovniky
+## SLOVNIKY
 
 ### fondy ?
 
@@ -426,9 +435,9 @@ utils::View(bach)
 POZN:
 oblast, katastr, (lokalita_geo, lokalita_ekol)
 
-```{r MODIF LOKALITY, warning=FALSE}
 
-# P R E
+---------------------LOAD----------------------
+```{r LOKALITY, warning=FALSE}
 
 # kontrola katastru
 
@@ -436,7 +445,28 @@ muskat <- read_excel(paste0(path, "gen_tabdata/KatastralniUzemi_export.xlsx"))
 bachkat <- bach %>% select(katastr) %>% distinct()
 kat_check <- left_join(bachkat, muskat, by = c("katastr" = "Název"), keep = T)
 
-# modifikace
+
+```
+
+---------------------DISKUSE----------------------
+```{r LOKALITY}
+
+# diskuse nad rozdelenim poli atd
+
+disklok <- bach %>% 
+  select(oblast, katastr) %>%  # , lokalita_geo, lokalita_ekol
+  distinct()
+
+# write.xlsx(x = disklok,                       
+#            file = paste0(path_proj, "diskuse/MUZTE_lokality_k_diskusi.xlsx"), row.names = F)
+
+sort(unique(disklok$oblast))
+
+```
+
+---------------------MODIFIKACE----------------------
+```{r LOKALITY, warning=FALSE}
+# M O D I F
 
 utils::View(bach_lok)
 sort(unique(bach_lok$statkod3))
@@ -510,7 +540,8 @@ mod_tab[mod_tab == ""] <- NA
 
 ```
 
-```{r CSV LOKALITY}
+---------------------CSV----------------------
+```{r LOKALITY}
 
 mus_tab <- mod_tab %>% 
   select(
@@ -548,12 +579,36 @@ imp <- "lokalita"
 
 ```{r}
 
-bach <- bach_lok %>%
-  mutate(status_lokality = "OK") %>%
-  select(-status_lokality, status_lokality) # UNCOMMENT TO COMMIT
+# bach <- bach_lok %>%
+#   mutate(status_lokality = "OK") %>%
+#   select(-status_lokality, status_lokality) # UNCOMMENT TO COMMIT
 
 utils::View(bach)
 ```
+
+### taxon
+
+```{r}
+
+tax0 <- bach %>% 
+  select(celed, rod, druh, var, syn)
+
+tax <- tax0 %>% 
+  mutate(MDRUH = case_when(str_detect(druh, "×") ~ paste(word(druh, 1), word(druh, 2), word(druh, 3)), 
+                            TRUE ~ paste(word(druh, 1), word(druh, 2))),
+         MSUBSP = case_when(str_detect(druh, "subsp.") ~ paste(word(druh, 1), word(druh, 2), word(druh, 3), word(druh, 4)), 
+                            TRUE ~ NA),
+         MAUTOR = ifelse(str_detect(druh, "^\\w+\\s\\w+$"), NA, 
+           case_when(str_detect(druh, "×") ~ sub('^\\w+\\s\\W\\s\\w+\\s', '', druh), 
+                     str_detect(druh, "subsp.") ~ sub('^\\w+\\s\\w+\\s\\w+\\.\\s\\w+\\s', '', druh), 
+                            TRUE ~ sub('^\\w+\\s\\w+\\s', '', druh))))
+
+bl <- left_join(tax, biolib %>% dplyr::select(celed_Nomen, rod_Nomen, druh_Nomen, druh_Autor), 
+                by = c("celed" = "celed_Nomen", "rod" = "rod_Nomen", "MDRUH" = "druh_Nomen"), keep = T)
+
+```
+
+# **************************************************************************************
 
 ## MUS karta
 
@@ -567,7 +622,6 @@ utils::View(bach)
 
 **CSV:**  
 - vytvor importni csv soubor pro finalni mograci
-
 
 
 *MINVC*
@@ -1299,13 +1353,9 @@ fin_imp <- left_join(vypis_list, mus_list, keep = T) %>%
 
 ```
 
+# **************************************************************************************
 
-# D E M U S
-
-(in progress)
-
-
-# ! ! !   E X P O R T Y    C S V   ! ! !
+# E X P O R T Y    C S V
 
 
 ```{r FIXED EXPORT CSV}
@@ -1357,6 +1407,7 @@ rm(modif_save)
 rm(check_save)
 ```
 
+# **************************************************************************************
 
 # KONFLIKTY PRI MIGRACI DAT
 
@@ -1365,3 +1416,10 @@ Nesrovnalosti v datech, vyjimky, apod.
 
 ## pis zde:
 
+1) v jednom pripade podskupina 'Tracheopyhta' -> opraveno na 'Tracheophyta'
+2) ADRESAR$create_uid: ztotozneno: 'Buša E.' -> 'Burša E.' ; 'svendova' a 'Svendova'
+3) ADRESAR$sberatel: ztotozneno: "Buša E." -> "Burša E." ; "Kousalová Š:" -> "Kousalová Š." ; Pavlíkovi P. A J. -> Pavlíkovi P. a J. ; D. Podstawková -> Podstawková D.
+4) ADRESAR$sberatel: ztotozneno: "Buša E." "BUrša E."-> "Burša E." ; Pavlíkovi P. A J. -> Pavlíkovi P. a J.
+5) ADRESAR$urcil: koupě invc: 1142
+
+6) NABYTI: "", "42/92", "dar", "koupě", "sběr", "Sběr", "sbšr", "Tracheophyta"
