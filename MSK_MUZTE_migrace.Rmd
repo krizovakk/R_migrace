@@ -64,8 +64,7 @@ require(xlsx) # write excel in sheets
 projekt <- "MUZTE"
 
 path <-  "C:/Users/krizova/Documents/R/"
-path_proj <-  "C:/Users/krizova/Documents/R/MIG/MUZTE/" 
-path_muzte <- 
+path_proj <-  paste0("C:/Users/krizova/Documents/R/MIG/", projekt, "/") 
 
 path_data <-  paste0(path_proj, "data/")
 path_csv <-  paste0(path_proj, "csv/")
@@ -92,8 +91,8 @@ bach <- bach0 %>%
   mutate(MSBIRKA = "MUZTE",
          MPODSB = "5",
          MPODSBnaz = "Botanická",
-         MFOND = "",
-         MFONDnaz = "",
+         MFOND = "Botanika",
+         MFONDnaz = "Botanika",
          MSKUP = "",
          MSKUPnaz = "",
          X = NA) %>% 
@@ -106,11 +105,13 @@ bach <- bach0 %>%
 mm <- as.data.frame(colnames(bach)) # zkopiruj do excelu a vytvor si migr. matici
 # write.xlsx(x = mm, file = paste0(path_proj, "MUZTE_migracni_matice.xlsx"))
 
-# rm(bach0)
+rm(bach0)
 rm(mm)
 ```
 
 ## sort unique
+
+vymenuj nazev sloupce dle potreby
 
 ```{r}
 
@@ -242,7 +243,7 @@ imp <- "podskupiny"
 
 ```
 
-### adresar
+### " A D R E S A R"
 
 *IMPORTNÍ ROZHRANÍ*: CSV Adresář osob  
 **MUSEION**: import_adresar.csv
@@ -255,7 +256,9 @@ pole:
     + sberatel  (vice zaznamu)  
     + urcil  (vice zaznamu)  
 
-```{r MODIF ADRESAR}
+#### analyza
+
+```{r ADRESAR}
 
 # install.packages("randomNames")
 require(randomNames)
@@ -264,8 +267,11 @@ sort(unique(bach$create_uid))
 sort(unique(bach$lastwrite_uid))
 sort(unique(bach$sberatel))
 sort(unique(bach$urcil))
+```
 
-# P R E
+#### priprava bach_adr
+
+```{r ADRESAR}
 
 bach_adr <- bach %>% 
   # create_uid  
@@ -296,7 +302,8 @@ bach_adr <- bach %>%
   mutate(
     Msberatel = case_when(sberatel == "Buša E." ~ "Burša E.",
                           sberatel == "Kousalová Š:" ~ "Kousalová Š.",
-                          sberatel == "Pavlíkovi P. A J." ~ "Pavlíkovi P. a J.",
+                          sberatel %in% c("J. a P. Pavlíkovi", "Pavlíkovi P. A J.") 
+                          ~ "Pavlíkovi P. a J.",
                           sberatel == "D. Podstawková" ~ "Podstawková D.", TRUE ~ sberatel), 
     M1 = ifelse(str_detect(Msberatel, "^\\w+\\s\\w\\.$"), str_extract(Msberatel, "\\w\\.$"), 
                 ifelse(str_detect(Msberatel, "^\\w\\.\\s\\w+$"), str_extract(Msberatel, "^\\w\\."), NA)),
@@ -322,18 +329,40 @@ bach_adr <- bach %>%
   mutate(MURCIL = ifelse(is.na(M1), Murcil, MURCIL)) %>% 
   select(-M1, -M2, -Msberatel, -Murcil) 
 
+```
 
-# S L I C E   A D R E S A R
+#### commit adresar
+
+```{r}
+
+bach <- bach_adr %>%                      # UNCOMMENT TO COMMIT
+  mutate(status_adresar = "OK") %>%
+   select(-contains("status_"), contains("status_")) # status at the end
+
+utils::View(bach)
+```
+
+
+#### vazby
+
+```{r ADRESAR}
 
 c <- bach_adr %>% select("bach" = create_uid, "mus" = MCREATE) 
 l <- bach_adr %>% select("bach" = lastwrite_uid, "mus" = MLSTWR)
 s <- bach_adr %>% select("bach" = sberatel, "mus" = MSBERAT)
 u <- bach_adr %>% select("bach" = urcil,"mus" =  MURCIL)
 
-# M O D I F Y 
+pracovni_adresar <- bind_rows(c,l,s,u) %>% distinct() %>% arrange(mus) %>% filter(mus != "")
 
-mod_tab <- bind_rows(c,l,s,u) %>% 
-  distinct() %>% 
+# pokracuj k ulozeni do sekce: # ! ! !   E X P O R T Y  C S V   ! ! !
+
+```
+
+#### modified table
+
+```{r ADRESAR}
+
+mod_tab <- pracovni_adresar %>%  
   select(mus) %>% 
   distinct() %>%  
   mutate(typsubj1 = "OO",
@@ -360,6 +389,8 @@ rm(s)
 rm(u)
 
 ```
+
+#### csv table
 
 ```{r CSV ADRESAR}
 
@@ -414,19 +445,7 @@ imp <- "BOTadresar"
 
 ```
 
-#### commit adresar
-
-```{r}
-
-bach <- bach_adr %>%
-  mutate(status_adresar = "OK") %>%
-  select(-status_adresar, status_adresar) # UNCOMMENT TO COMMIT
-
-utils::View(bach)
-```
-
-
-### lokality
+### L O K A L I T Y
 
 *IMPORTNÍ ROZHRANÍ*: CSV Lokalita  
 **MUSEION**: import_lokalita.csv
@@ -435,8 +454,8 @@ utils::View(bach)
 POZN:
 oblast, katastr, (lokalita_geo, lokalita_ekol)
 
+#### analyza
 
----------------------LOAD----------------------
 ```{r LOKALITY, warning=FALSE}
 
 # kontrola katastru
@@ -445,10 +464,10 @@ muskat <- read_excel(paste0(path, "gen_tabdata/KatastralniUzemi_export.xlsx"))
 bachkat <- bach %>% select(katastr) %>% distinct()
 kat_check <- left_join(bachkat, muskat, by = c("katastr" = "Název"), keep = T)
 
-
 ```
 
----------------------DISKUSE----------------------
+Diskuse nad oblastmi a katastry s pani Ilonou Pavelkovou vvvvvvvv
+
 ```{r LOKALITY}
 
 # diskuse nad rozdelenim poli atd
@@ -464,91 +483,151 @@ sort(unique(disklok$oblast))
 
 ```
 
----------------------MODIFIKACE----------------------
-```{r LOKALITY, warning=FALSE}
-# M O D I F
+#### priprava bach_lok
 
-utils::View(bach_lok)
-sort(unique(bach_lok$statkod3))
-summary(factor(bach_lok$statkod3))
+```{r LOKALITY, warning=FALSE}
+
+# utils::View(bach_lok)
+# sort(unique(bach_lok$statkod3))
+# summary(factor(bach_lok$statkod3))
 
 bach_lok <- bach %>% 
-  mutate(loknaz1 = katastr,  # ?????
-         okrnaz2 = ifelse(str_detect(oblast, "^[:upper:]{2},\\s[:upper:]{2}"), 
-                                     substr(oblast, 5,6), paste("")),
-         statkod3 = str_extract(oblast, "^\\w\\w"),
-         oblnaz4 = oblast,
-         lokzem5 = case_when(statkod3 == "ČR" ~ "Česko",
-                             statkod3 == "PL" ~ "Polsko",
-                             statkod3 == "SK" ~ "Slovensko",
-                             statkod3 == "SR" ~ "Slovensko")) #ČR 11096  PL 24 SK 17 SR 492  NA's 69
-         
-  
-  
-mod_tab <- bach_lok%>% 
-  select(oblast, katastr, lokalita_geo) %>%  
-  mutate(across(everything(), ~gsub("\\s{2}", " ", .)),
-         oblast = str_trim(oblast)) %>% 
-  
-  # fytochorion
-  
-  mutate(Mkod = ifelse(str_detect(oblast, "^\\d+"), sub("\\s.*", "", oblast), NA),
-         MNAZ = ifelse(str_detect(oblast, "^\\d+"), sub("^[:alnum:]+\\s", "", oblast), NA),
-         Mfyt = ifelse(oblast %in% fy$Název|oblast %in% fy$Mkodnaz, oblast, NA),
-         Mfyt_naz = ifelse(str_detect(Mfyt, "^[:alpha:]+"), Mfyt, NA)) %>%  
-  left_join(fy, by = c("Mfyt_naz" = "Název"), keep = T) %>% 
-  mutate(MFYTOCH = ifelse(str_detect(Mfyt, "^\\d+"), sub("\\s.*", "", Mfyt), Kód)) %>% 
-  
+  # select(katastr, oblast) %>%  # TENTO RADEK PAK SMAZAT !!! JEN PRO PREHLEDNOST PRO TVORBE
   # oblast
-  mutate(MZEME = case_when(str_detect(oblast, "^Polsko") ~ "Polsko",
-                           str_detect(oblast, "^Slovensko") ~ "Slovensko", 
-                           str_detect(oblast, "^Andorra") ~ "Andorra", 
-                           str_detect(oblast, "^Francie") ~ "Francie", 
-                           str_detect(oblast, "^Rumunsko") ~ "Rumunsko", 
-                           TRUE ~ "Česko"),
-         MSTKOD = case_when(str_detect(oblast, "^Polsko") ~ "PL",
-                           str_detect(oblast, "^Slovensko") ~ "SK", 
-                           str_detect(oblast, "^Andorra") ~ "AD", 
-                           str_detect(oblast, "^Francie") ~ "FR", 
-                           str_detect(oblast, "^Rumunsko") ~ "RO", 
-                           TRUE ~ "CZ"),
-         
-         # Mkat_anone = ifelse(katastr %in% ku$ku_name, "katastr", "nekatastr"), 
-         # MKATASTR = ifelse(katastr %in% ku$ku_name, katastr, NA), 
-         MOBLAST = ifelse(is.na(MFYTOCH), oblast, "")) %>% 
-  mutate_all(~na_if(., '')) %>% 
-  mutate(MLOKALITA = ifelse(is.na(katastr), lokalita_geo, katastr),
-         MLOKALITA = ifelse(is.na(MLOKALITA), oblast, MLOKALITA),
-         MLOKALITA = str_trim(MLOKALITA)) %>% 
-  
-  select(MLOKALITA, MFYTOCH, MZEME, MSTKOD, MOBLAST) %>% 
-  pivot_longer(cols = c(MFYTOCH),
-               names_to = "Mfytoch_por",
-               values_to = "Mfytoch_naz") %>% 
-  distinct() %>% 
-  group_by(MLOKALITA) %>% 
-  mutate(Mfytoch_por = seq_along(Mfytoch_naz)) %>% 
-  spread(key = "Mfytoch_por",
-         value = "Mfytoch_naz") %>% 
-  mutate(X = "",
-         '12lokalitaSbirka' = "MUZBE",
-         '13lokalitaPodsbirka' = "Pb") %>% 
-  ungroup()
-  
- 
-mod_tab[mod_tab == ""] <- NA  
+  # drop_na() %>% 
+  separate(oblast, into=c("Mstat0", "Mokres0", "Moblast0") , 
+           sep = ",", extra = "merge", remove = F) %>% # |\\.
+  mutate(across(where(is.character), str_trim)) %>%
+  mutate(Mstat = ifelse(str_detect(oblast, "u Černého"), NA, Mstat0), 
+         Mkraj = case_when(str_detect(Mokres0, "kraj|krak|Kraj") ~ Mokres0, 
+                           str_detect(Moblast0, "Žilinský kraj, okres Čadca") 
+                           ~ "Žilinský kraj",
+                           TRUE ~ NA),
+         Mokres = case_when(str_detect(Mokres0, "^[:upper:][:upper:]$") ~ Mokres0,
+                            str_detect(Moblast0, "Žilinský kraj, okres Čadca") 
+                           ~ "Čadca", TRUE ~ NA),
+         Moblast = case_when(is.na(Moblast0)&!str_detect(Mokres0,"[:upper:][:upper:]|kraj|krak|Kraj") ~ Mokres0, 
+                             # str_detect() ~ "", 
+                             str_detect(oblast, "u Černého") ~ "U Černého moře",
+                             str_detect(oblast, "Severní Morava, Jeseník") ~ "Severní Morava, Jeseník",
+                                          TRUE ~ Moblast0)) %>% 
+  mutate(MSTAT = case_when(Mstat == "SK" ~ "SR",
+                           Mstat == "" ~ NA, 
+                           TRUE ~ Mstat),
+         MKRAJ = case_when(Mkraj == "JIhomoravský kraj" ~ "Jihomoravský kraj",
+                           Mkraj == "NItranský kraj" ~ "Nitranský kraj",
+                           Mkraj %in% c("Plzeńský kraj", "Plzeňský krak") ~ "Plzeňský kraj",
+                           Mkraj == "Prešovský  kraj" ~ "Prešovský kraj",
+                           TRUE ~ Mkraj),
+         MOKRES = Mokres,
+         MOBLAST = case_when(Moblast == "Beskydské podhůří, Beskydské podhůří" 
+                             ~ "Beskydské podhůří",
+                           Moblast %in% c("Jablunkovské brázda", "Jablunkvoská brázda")
+                           ~ "Jablunkovská brázda",
+                           Moblast == "Lysohorksá hornatina" ~ "Lysohorská hornatina",
+                           Moblast %in% c("Podbeskdská pahorkatina", 
+                                          "Podbeskydksá pahorkatina", 
+                                          "Podbeskydská phorkatina", 
+                                          "Podsbeskydská pahorkatina", 
+                                          "Posbeskydská pahorkatina") 
+                           ~ "Podbeskydská pahorkatina",
+                           Moblast == "Slezské Beskdy" ~ "Slezské Beskydy",
+                           TRUE ~ Moblast)) %>% 
+  select(-Mstat0, -Mstat, -Mkraj, -Mokres0, -Mokres, -Moblast0, -Moblast) %>% 
+  # katastr
+
+  mutate(MKATASTR = case_when(katastr == "Albrechitce" ~ "Albrechtice",
+                              katastr %in% c("Belanské tatry", "Belanské Tatry", 
+                                             "Belianské tatry") ~ "Belianské Tatry",
+                              katastr == "Bílý kříž" ~ "Bílý Kříž",
+                              katastr == "Bystřcie" ~ "Bystřice",
+                              katastr == "Františkovy lázně" ~ "Františkovy Lázně",
+                              katastr == "Frýdek - Místek" ~ "Frýdek-Místek",
+                              katastr %in% c("Havířov-Bludovice,", "Havířov - Bludovice") 
+                              ~ "Havířov-Bludovice",
+                              katastr == "Hraadec u Opavy" ~ "Hradec u Opavy",
+                              katastr == "Hranice na  Moravě" ~ "Hranice na Moravě",
+                              katastr == "Chtoěbuz" ~ "Chotěbuz",
+                              katastr == "Karivná" ~ "Karviná",
+                              katastr == "Kunčice pod Onřejníkem" ~ 
+                                "Kunčice pod Ondřejníkem",
+                              katastr == "Liptovské hole - Roháče" ~ 
+                                "Liptovské hole (Roháče)",
+                              katastr == "Loučná nad desnou" ~ "Loučná nad Desnou",
+                              katastr == "MIlíkov" ~ "Milíkov",
+                              katastr == "NItra" ~ "Nitra",
+                              katastr %in% c("Nový dvůr u Opavy", "Nový Dvůr u Opavy,")
+                              ~ "Nový Dvůr u Opavy",
+                              katastr %in% c("Olrlová", "Olrová") ~ "Orlová",
+                              katastr == "Oščadnice" ~ "Oščadnica",
+                              katastr == "Petrovice u Karviná" ~ "Petrovice u Karviné",
+                              katastr == "Rožnov p. Radhoštěm" ~ "Rožnov pod Radhoštěm",
+                              katastr == "Rychvlad" ~ "Rychvald",
+                              katastr == "Sedlišě" ~ "Sedliště",
+                              katastr == "Stará ves nad Ondřejnicí" ~ 
+                                "Stará Ves nad Ondřejnicí",
+                              katastr == "Staré Město u Uh. Hradiště" ~ 
+                                "Staré Město u Uherského Hradiště",
+                              katastr == "Střítěž" ~ "Střítež",
+                              katastr == "Těrlicko- Kostelec" ~ "Těrlicko-Kostelec",
+                              katastr == "Těrlilcko" ~ "Těrlicko",
+                              katastr %in% c("Věřňoivce", "Věřnovice", "Věřńovice") 
+                              ~ "Věřňovice",
+                              katastr %in% c("Vadovce", "Vaďovice") ~ "Vaďovce",
+                              katastr %in% c("Věřňoivce", "Věřnovice", "Věřńovice") 
+                              ~ "Věřňovice",
+                              katastr %in% c("Višnové", "Višnpvé") ~ "Višňové",
+                              katastr %in% c("Vyské Tatry", "Vysoké tatry") 
+                              ~ "Vysoké Tatry", 
+                              TRUE ~ katastr)) %>% 
+  mutate(across(where(is.character), str_trim))
 
 ```
 
----------------------CSV----------------------
+#### commit lokality
+
+```{r}
+ 
+# bach <- bach_lok %>%                        # UNCOMMENT TO COMMIT
+#   mutate(status_lokality = "OK") %>%
+#   select(-contains("status_"), contains("status_")) # status at the end
+
+utils::View(bach)
+```
+
+#### vazby
+
+```{r LOKALITY}
+
+pracovni_lokality <- bach_lok %>% select(oblast, katastr, lokalita_geo, lokalita_ekol,
+                                         MSTAT, MKRAJ, MOKRES, MOBLAST, MKATASTR)
+
+# pokracuj k ulozeni do sekce: # ! ! !   E X P O R T Y  C S V   ! ! !
+  
+```
+
+#### modified table * POKRACUJ *
+
+```{r LOKLITY}
+
+mod_tab <- bach %>% 
+  mutate(MZEME = case_when(MSTAT %in% c("ČR", "ČR. KI") ~ "Česko",
+                           MSTAT == "PL" ~ "Polsko",
+                           MSTAT == "SR" ~ "Slovensko", TRUE ~ NA))
+                           
+  
+```
+
+
+#### csv table
 ```{r LOKALITY}
 
 mus_tab <- mod_tab %>% 
   select(
-    '1lokalitaNazev' = loknaz1,  # !! povinne !!
-    '2okresNazev'= okrnaz2,
-    '3statKod' = statkod3, 
-    '4oblastNazev'= oblnaz4,
+    '1lokalitaNazev' = MKATASTR,  # !! povinne !!
+    '2okresNazev'= MOKRES,
+    '3statKod' = MSTAT, 
+    '4oblastNazev'= MOBLAST,
     '5lokalitaZeme' = MZEME, 
     '6lokalitaCtverec'= X,
     '7lokalitaMapa' = X, 
@@ -556,12 +635,12 @@ mus_tab <- mod_tab %>%
     '9lokalitaZemepisnaDelka'= X, 
     '10lokalitaNadmorskaVyska'= X,
     '11lokalitaPoznamka'= X, 
-    '12lokalitaSbirka'= '12lokalitaSbirka',
-    '13lokalitaPodsbirka'= '13lokalitaPodsbirka',
-    '14fytochorion1'= '1',
+    '12lokalitaSbirka'= MSBIRKA,
+    '13lokalitaPodsbirka'= MPODSB,
+    '14fytochorion1'= X,
     '15lokalitaPublicNadNazev'= X, '16lokalitaPublicNazev'= X,
-    '17fytochorion2'= '2', '18fytochorion3'= '3',
-    '19fytochorion4'='4') %>% 
+    '17fytochorion2'= X, '18fytochorion3'= X,
+    '19fytochorion4'= X) %>% 
   drop_na('1lokalitaNazev') %>% 
   distinct()
 
@@ -575,18 +654,9 @@ imp <- "lokalita"
 
 ```
 
-#### commit lokality
+### T A X O N
 
-```{r}
-
-# bach <- bach_lok %>%
-#   mutate(status_lokality = "OK") %>%
-#   select(-status_lokality, status_lokality) # UNCOMMENT TO COMMIT
-
-utils::View(bach)
-```
-
-### taxon
+#### analyza
 
 ```{r}
 
@@ -594,19 +664,70 @@ tax0 <- bach %>%
   select(celed, rod, druh, var, syn)
 
 tax <- tax0 %>% 
-  mutate(MDRUH = case_when(str_detect(druh, "×") ~ paste(word(druh, 1), word(druh, 2), word(druh, 3)), 
+  mutate(druh = ifelse(druh == "Achyrophorus uniflorus(Vill.)Bluff et Fingerh.", 
+                       "Achyrophorus uniflorus (Vill.)Bluff et Fingerh.", druh), # jen oprava mezery
+         MDRUH = case_when(str_detect(druh, "×") ~ paste(word(druh, 1), word(druh, 2), word(druh, 3)), 
                             TRUE ~ paste(word(druh, 1), word(druh, 2))),
-         MSUBSP = case_when(str_detect(druh, "subsp.") ~ paste(word(druh, 1), word(druh, 2), word(druh, 3), word(druh, 4)), 
+         MSUBSP = case_when(str_detect(druh, "subsp.") ~ 
+                              paste(word(druh, 1), word(druh, 2), word(druh, 3), word(druh, 4)), 
                             TRUE ~ NA),
          MAUTOR = ifelse(str_detect(druh, "^\\w+\\s\\w+$"), NA, 
            case_when(str_detect(druh, "×") ~ sub('^\\w+\\s\\W\\s\\w+\\s', '', druh), 
                      str_detect(druh, "subsp.") ~ sub('^\\w+\\s\\w+\\s\\w+\\.\\s\\w+\\s', '', druh), 
-                            TRUE ~ sub('^\\w+\\s\\w+\\s', '', druh))))
+                     str_detect(druh, "agg.") ~ NA, 
+                            TRUE ~ sub('^\\w+\\s\\w+\\s', '', druh)))) %>% 
+  distinct()
 
-bl <- left_join(tax, biolib %>% dplyr::select(celed_Nomen, rod_Nomen, druh_Nomen, druh_Autor), 
-                by = c("celed" = "celed_Nomen", "rod" = "rod_Nomen", "MDRUH" = "druh_Nomen"), keep = T)
+# bl <- left_join(tax, biolib %>% dplyr::select(celed_Nomen, rod_Nomen, druh_Nomen, druh_Autor), 
+#                 by = c("celed" = "celed_Nomen", "rod" = "rod_Nomen", "MDRUH" = "druh_Nomen"), keep = T)
 
 ```
+
+#### parovani s BL
+
+```{r}
+
+tax[tax == ""] <- NA
+
+# parovani poddruhu
+tax_subsp <- tax %>% 
+  filter(!is.na(MSUBSP))
+
+a <- left_join(tax_subsp, biolib,
+                by = c("celed" = "celed_Nomen", "rod" = "rod_Nomen", "MDRUH" = "druh_Nomen",
+                       "MSUBSP" = "poddruh_Nomen", "MAUTOR" = "poddruh_Autor"), keep = T) %>% 
+  distinct() %>% 
+  mutate(biolib_status = ifelse(is.na(poddruh_Nomen), "NESPAROVANO", "SPAROVANO"))
+
+# parovani druhu
+tax_sp <- tax %>% 
+  filter(is.na(MSUBSP))
+
+b <- left_join(tax_sp, biolib,
+                by = c("celed" = "celed_Nomen", "rod" = "rod_Nomen", "MDRUH" = "druh_Nomen",
+                       "MAUTOR" = "druh_Autor"), keep = T) %>% 
+  distinct() %>% 
+  mutate(biolib_status = ifelse(is.na(druh_Nomen), "NESPAROVANO", "SPAROVANO"))
+
+#parovani druhu bez autora
+tak_spWOaut <- b %>% filter(biolib_status == "NESPAROVANO") %>% 
+  select(celed, rod, druh, var, syn, MDRUH, MSUBSP, MAUTOR)
+
+c <- left_join(tak_spWOaut, biolib,
+                by = c("celed" = "celed_Nomen", "rod" = "rod_Nomen", "MDRUH" = "druh_Nomen"), keep = T) %>% 
+  distinct() %>% 
+  mutate(biolib_status = ifelse(is.na(druh_Nomen), "NESPAROVANO", "SPAROVANO bez autora"))
+
+# kombinace vysledku parovani
+komp_biolib <- bind_rows(a, b, c)
+komp_biolib$biolib_status <- factor(komp_biolib$biolib_status)
+
+summary(komp_biolib$biolib_status) # statistika
+
+nesp <- komp_biolib %>% filter(biolib_status == "NESPAROVANO")
+
+```
+
 
 # **************************************************************************************
 
@@ -1405,6 +1526,24 @@ if(file.exists(check_save)){
 rm(save)
 rm(modif_save)
 rm(check_save)
+
+# p r a c o v n i   t a b u l k y
+
+prtab <- "pracovni_lokality"
+prsave <- pracovni_lokality
+
+if(file.exists(paste0(path_csv, projekt, "_", prtab, ".csv"))){
+  print("You've been here before!")
+} else {
+  write.table(prsave, file = paste0(path_csv, projekt, "_", prtab, ".csv"), 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+}
+
+rm(prtab)
+
 ```
 
 # **************************************************************************************

@@ -476,12 +476,12 @@ dupl2 <- ic %>% group_by(cislo, zdroj) %>% filter(n() != 1) %>%
 # -> definuj pocet mist v INVC pro tvorbu parovaciho cisla
 
 petky <- c("CV-N", "CV-S", "G", "K-N", "K-S") 
-ctyrky <- c("B", "C", "CK", "Dt", "Eg", "Et", "F", "Fa", "H", "IT", "La", "Le", 
+ctyrky <- c("B", "C", "Ck", "Dt", "Eg", "Et", "F", "Fa", "H", "IT", "La", "Le", 
             "Li", "M", "Mi", "MT", "MTč", "N", "NDa", "NDo", "NDp", "NDvz", 
             "Ng", "Ng-f", "Nu", "O", "Ok", "P", "Pc", "Pc-K", "Pl", "Plk",  
             "Ps", "Ps-kn", "Ps-ko", "Ps-kr", "Ps-pr", "Ps-v", "R", "S", "S-K", "ST", 
             "T", "TR", "Tx", "ZM")
-trojky <- "Rš" # CCV, L: nejsou vubec
+trojky <- "Rs" # CCV, L: nejsou vubec
 
 # -> priprav hlavní df 
 
@@ -547,6 +547,7 @@ ces_ic <- ic %>%
       str_detect(Mc, "^ZMK") ~ "ZMK", TRUE ~ "chybny format invc"), # militaria - KADAN 
 # c i s l o    
     Mporc = case_when(
+      str_detect(cislo, "\\/\\d+\\/.+") ~ str_extract(cislo, "\\d+\\/\\d+"), 
       str_detect(cislo, "\\d+\\/.+") ~ str_extract(cislo, "\\d+\\/.+"), 
       str_detect(cislo, "\\d+") ~ str_extract(cislo, "\\d+"), TRUE ~ "chybny format invc"), # -> oddelit cislo od rady
     Mcislo = ifelse(str_detect(Mporc, "\\/.+"), gsub("\\/.+", "", Mporc), Mporc), # oddelit poradove od sub
@@ -557,8 +558,11 @@ ces_ic <- ic %>%
 # s u b c i s l o
     Msubc = ifelse(str_detect(cislo, "a$|\b$|x$"), str_extract(cislo, ".$"), NA), 
     Msubc = ifelse(str_detect(Mporc, "\\/.+"), gsub(".+\\/", "", Mporc), Msubc),
+    Msubc2 = ifelse(str_detect(cislo, "\\/\\d+\\/.+"), gsub(".+\\/", "", cislo), NA),
 # c i s l o   p r o   p a r o v a n i 
-    MCES_par = ifelse(is.na(Msubc), paste0(Mrada, Mcislo_0), paste0(Mrada, Mcislo_0, "/", Msubc)), # MCES_par = parovaci cislo z CES
+    MCES_par = ifelse(!is.na(Msubc2), paste0(Mrada, Mcislo_0,"/", Msubc,"/", Msubc2), 
+                      ifelse(!is.na(Msubc), paste0(Mrada, Mcislo_0, "/", Msubc),
+                             paste0(Mrada, Mcislo_0))), # MCES_par = parovaci cislo z CES
     MCES_par2 = paste0(Mrada, Mcislo_0)) %>%  # MCES_par2 = parovaci cislo bez subcisla
   
   select(-s6, -Mc,-Mpattern, -Mrada, -Mporc, -Mcislo, -Mcislo_0, -Msubc,
@@ -613,16 +617,21 @@ rm(aa)
 
 ## mus_ic
 
-```{r}
+```{r warning = F}
 mus_ic <- read_excel(paste0(path_proj, "MUSEION/omcv_exportKAT.xlsx"), sheet = 1)  %>% 
-  mutate(Mptcis = ifelse(str_detect(predmet_cislo, ".*/0+.*"), str_remove(predmet_cislo, "(?<=\\/)0*"), predmet_cislo),
+  mutate(predmet_cislo = ifelse(str_detect(predmet_cislo, "PS-ko"), gsub("PS-ko", "Ps-ko", predmet_cislo), predmet_cislo),
+    Mptcis = ifelse(str_detect(predmet_cislo, ".*/0+.*"), str_remove(predmet_cislo, "(?<=\\/)0*"), predmet_cislo),
          MMUS_par = case_when(rada %in% c("B", "Li", "T") ~ str_remove(Mptcis, "\\d\\d\\d\\d\\/"), # MMUS_par ´museionove parovaci cislo
-                           TRUE ~ Mptcis),
+                              TRUE ~ Mptcis),
          MMUS_par2 = case_when(str_detect(MMUS_par, "\\/") ~ gsub("\\/.*", "", MMUS_par),
                                TRUE ~ MMUS_par)) %>%
   relocate(MMUS_par, .before = predmet_cislo) %>% 
   relocate(MMUS_par2, .before = predmet_cislo) %>% 
   filter(rada != "IT") # rada IT pomocna, treba vyhodit
+
+mus_ic <- mus_ic %>% 
+  mutate(MMUS_par = ifelse(str_detect(MMUS_par, "MTč"), gsub(" ", "/", MMUS_par), MMUS_par),
+         MMUS_par2 = ifelse(str_detect(MMUS_par2, "MTč"), gsub(" ", "/", MMUS_par2), MMUS_par2))
 
 mus_ica <- mus_ic %>% filter(nazev == "archeologická")
 mus_icz <- mus_ic %>%filter(nazev != "archeologická")
@@ -761,9 +770,46 @@ SAVE1 <- dupl1 %>% arrange(CES_cislo)
 
 ```{r}
 
-relz <- full_join(icz, mus_icz, by = c("MCES_par" = "MMUS_par2"), keep = T) %>% 
-  select(zdroj, zdroj_kod, zmena, duvod, CES_cislo, MCES_par,
-         MMUS_par, MMUS_par2, MUS_cislo = predmet_cislo, MUS_rada = rada, sp_id, sp_cisloCES, podsb, nazev)
+# mus_icz <- mus_icz %>% mutate(MMUS_par = ifelse(str_detect(MMUS_par, "PS-ko"), gsub("PS-ko", "Ps-ko", MMUS_par), MMUS_par))
+
+relz0 <- full_join(icz, mus_icz, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par, MCES_par2, MMUS_par, predmet_cislo, sp_id)
+
+a <- relz0 %>% filter(!is.na(MCES_par)&!is.na(MMUS_par)) %>% mutate(status = "s podlomenim")
+r <- relz0 %>% filter(is.na(predmet_cislo)) %>%  select(-MMUS_par, -predmet_cislo, -sp_id)
+
+relz1 <- full_join(r, mus_icz, by = c("MCES_par2" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par, MCES_par2,  MMUS_par, predmet_cislo, sp_id)
+
+b <- relz1 %>% filter(!is.na(MCES_par)&!is.na(MMUS_par)) %>% mutate(status = "CES bez podlomeni")
+r <- relz1 %>% filter(is.na(predmet_cislo)) %>%  select(-MMUS_par, -predmet_cislo, -sp_id)
+
+relz2 <- full_join(r, mus_icz, by = c("MCES_par" = "MMUS_par2"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par, MCES_par2,  MMUS_par, MMUS_par2, predmet_cislo, sp_id)
+
+c <- relz2 %>% filter(!is.na(MCES_par)&!is.na(MMUS_par)) %>% mutate(status = "MUS bez podlomeni")
+r <- relz2 %>% filter(is.na(predmet_cislo)) %>%  select(-MMUS_par, -MMUS_par2, -predmet_cislo, -sp_id) 
+
+relz3 <- full_join(r, mus_icz, by = c("MCES_par2" = "MMUS_par2"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par, MCES_par2, MMUS_par, MMUS_par2, predmet_cislo, sp_id)
+
+d <- relz3 %>% filter(!is.na(MCES_par)&!is.na(MMUS_par)) %>% mutate(status = "oba bez podlomeni")
+r <- relz3 %>% filter(is.na(predmet_cislo)) %>%  select(-MMUS_par, -predmet_cislo, -sp_id) 
+
+# sloucit a b c d -> sparovano
+# r -> nesparovano
+
+colnames(a)
+colnames(b)
+colnames(c)
+colnames(d)
+
+aa <- a %>% select(zdroj, zmena, duvod, CES_cislo, predmet_cislo, sp_id)
+bb <- b %>% select(zdroj, zmena, duvod, CES_cislo, predmet_cislo, sp_id)
+cc <- c %>% select(zdroj, zmena, duvod, CES_cislo, predmet_cislo, sp_id)
+dd <- d %>% select(zdroj, zmena, duvod, CES_cislo, predmet_cislo, sp_id)
+
+
 
 sample_n(relz, 10)
 ```
@@ -773,8 +819,9 @@ sample_n(relz, 10)
 
 ```{r}
 
-icz_spar <- relz %>% filter(!is.na(MCES_par)&!is.na(MMUS_par2))
-icz_mus0 <- relz %>% filter(is.na(MMUS_par2)) %>% arrange(MCES_par)
+icz_spar <- bind_rows(aa, bb, cc, dd)
+print(count(aa)+count(bb)+count(cc)+count(dd))
+icz_mus0 <- r
 icz_ces0 <- relz %>% filter(is.na(MCES_par))
 
 SAVE0 <- icz
@@ -834,536 +881,6 @@ rm(dupl2)
 
 # rm(ic)
 ```
-
-#************************************************************************************
-## CES PRIRC
-
-Pracujes s df 'pr', ktery vznikl filtrem typu cisla ze sumarniho textaku.  
-
-### ces_pr
-
-```{r}
-
-# -> zkontroluj duplicity
-
-dupl <- pr %>% group_by(cislo) %>% filter(n() != 1) %>% 
-  mutate(popis_chyby = "duplicitni cislo CES") # duplicity mame, ale z jinych podsbirek
-
-dupl <- pr %>% group_by(cislo, zdroj) %>% filter(n() != 1) %>% 
-  mutate(popis_chyby = "duplicitni cislo CES") # duplicity v ramci podsbirky nejsou
-
-# -> priprav hlavní df
-
-ces_pr <- pr %>% 
-  mutate(Mrada = ifelse(str_detect(cislo, "[:alpha:]"), gsub("[^a-zA-Z-]+", "", cislo), NA),
-         Mporc = gsub("[^0-9/]+", "", cislo),
-         Mcislo = ifelse(str_detect( Mporc, "\\/"), gsub("\\/.*", "", Mporc), Mporc),
-         Mcislo_0 = str_pad(Mcislo, 4, pad = "0"),
-         Msub = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", Mporc), NA),
-         Mrok = ifelse(str_detect(Msub, "^\\d\\d$"), paste0("19", Msub), Msub)
-         ) %>% 
-  mutate(Mrada = case_when(Mrada == "ZMK" ~ "K", 
-                           # Mrada %in% c("Pl CV", "Pl K") ~ "K", 
-                           TRUE ~ Mrada)) %>%  # uprava kodu rady podle pozorovanych pripadu
-  unite(Mprir, c(Mrada, Mcislo_0), sep = "", na.rm = T, remove = F) %>% 
-  unite(MCES_par, c(Mprir, Mrok), sep = "/", na.rm = T, remove = F) %>% 
-  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
-
-# -> kontrola 
-
-sum(is.na(ces_pr$zmena)) 
-sum(is.na(ces_pr$duvod)) # pocet NA by mel sedet s poctem N
-sum(is.na(ces_pr$duvod)) == sum(ces_pr$zmena == "N")
-sum(is.na(ces_pr$typ_cisla)) 
-sum(is.na(ces_pr$cislo)) 
-sum(is.na(ces_pr$MINVC)) 
-  
-# clear <- ces_pr %>% group_by(MCES_par) %>% filter(n() == 1)
-
-# chyby kontrolovat rucne a rucne nastavit podminky pro nestandardni formaty
-
-# chyby <- ces_pr %>% filter(str_detect(cislo, ".*/.*")) %>% 
-#   mutate(popis_chyby = "neni cislo CES ?") 
-
-# -> faktory
-
-ces_pr$zdroj <- factor(ces_pr$zdroj)
-ces_pr$zmena <- factor(ces_pr$zmena)
-ces_pr$duvod <- factor(ces_pr$duvod)
-
-# -> statistika
-
-aa <- count(ces_pr, zdroj, zmena, duvod) %>% 
-  pivot_wider(names_from = c("zmena", "duvod"), values_from = n) %>% 
-  mutate(sum = rowSums(.[2:6], na.rm = T))
-
-# -> DF pro ulozeni
-SAVE0 <- ces_pr
-
-```
-
-### mus_pr
-
-```{r}
-
-mus_pr <- read_excel(paste0(path_proj, "MUSEION/omcv_exportPK.xlsx"), 
-                  sheet = 1, col_types="text") %>% 
-  mutate(id = floor(as.numeric(id)),
-         id =  as.character(id),
-         poradovecislo = trunc(as.numeric(poradovecislo)),
-         poradovecislo = as.character(poradovecislo),
-         MMUS_par = cislo) %>% 
-   relocate(MMUS_par, .before = cislo) 
-```
-
-### pair CES+MUS
-
-```{r}
-
-rel0 <- full_join(ces_pr, mus_pr, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
-  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
-         MMUS_par, MUS_cislo = cislo, MUS_rada = rada, id, cisloCES, podsb, nazev)
-
-sample_n(rel0, 10)
-```
-
-### ces_pr pair
-
-```{r}
-
-pair <- rel0 %>% filter(!is.na(MCES_par)&!is.na(MMUS_par)) %>% 
-  mutate(status = "sparovano", 
-         updt = "") # updt = SQL update pro zapis do databaze (SQL Developer)
-
-# -> vzorek a sumarni statistika
-sample_n(pair, 10)
-p <-  pair %>% count(zdroj)
-
-# -> DF pro ulozeni
-SAVE1 <- pair
-```
-
-### ces_pr dupl
-
-```{r}
-
-dupl <- pair %>% group_by(MCES_par) %>% filter(n() != 1) %>% mutate(popis_chyby = "duplicitni cislo CES")
-# -> check what nature are the duplicates
-# -> if relevant, keep them in 'pair'
-# -> if not, delete them from 'pair', store in 'duplicates' sheet
-
-
-# -> DF pro ulozeni
-SAVE2 <- dupl
-```
-
-### ces_pr MUS-ne
-
-```{r}
-
-pair_not_MUS <- rel0 %>% filter(is.na(MMUS_par)) %>% 
-  select(zdroj, zmena, duvod, CES_cislo, MCES_par) %>% 
-  mutate(status = "nenalezeno v MUSEIONU")
-
-# -> sumarni statistika
-nm <- pair_not_MUS %>% count(zdroj)
-
-# -> DF pro ulozeni
-SAVE3 <- pair_not_MUS
-```
-
-### ces_pr CES-ne
-
-```{r}
-
-pair_not_CES <- rel0 %>% filter(is.na(MCES_par)) %>% 
-  # select(MMUS_par, MUS_cislo, id) %>% 
-  mutate(status = "nenalezeno ve vypisu z CES")
-
-# -> sumarni statistika
-nc <- pair_not_CES %>% count(nazev)
-
-# -> DF pro ulozeni
-SAVE4 <- pair_not_CES
-```
-
-### -> export PK
-
-```{r}
-
-SAVE1[is.na(SAVE1)] <- ""
-SAVE2[is.na(SAVE2)] <- ""
-SAVE3[is.na(SAVE3)] <- ""
-SAVE4[is.na(SAVE4)] <- ""
-SAVE0[is.na(SAVE0)] <- ""
-
-# Restart R and,before loading the R packages, insert INTO A CONSOLE (!!!) :
-# options(java.parameters = "-Xmx8000m")
-# require(xlsx)
-
-f2s <- paste0(path_ces, proj, "/", proj, "_PK.xlsx")
-
-if(file.exists(f2s)){
-  print("File already exists !!!")
-  rm(f2s)
-} else {
-  print("File writing in progress...")
-  write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=F, showNA = F)
-  gc(verbose = T) # memory cleanse
-  write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="duplicity", append=T, row.names=F, showNA = F)
-  gc(verbose = T)
-  write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="nesparovanoMUS", append=T, row.names=F, showNA = F)
-  gc(verbose = T)
-  write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="nesparovanoCES", append=T, row.names=F, showNA = F)
-  gc(verbose = T)
-  write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=T, row.names=F, showNA = F)
-  rm(f2s)
-  print("File writing finished.")
-  }
-```
-
-## CES INVC
-
-Pracujes s df 'ic', ktery vznikl filtrem typu cisla ze sumarniho textaku.  
-
-
-Zkontrolovat Z M E N U  a  D U V O D  !!
-
-N -> zpracovat
-V-N -> mel by existovat odpoidajici zaznam v MUS
-V-P -> mel by existovat odpoidajici zaznam v MUS
-V-R -> mel by existovat odpoidajici zaznam v MUS
-V-O -> mel by existovat odpoidajici zaznam v MUS ??
-R-C -> pokud neexistuje zaznam v MUS, je to ok
-R-Z -> pokud neexistuje zaznam v MUS, je to ok
-
-### ces_ic
-
-```{r}
-
-# -> zkontroluj duplicity
-
-dupl <- ic %>% group_by(cislo) %>% filter(n() != 1) %>% 
-  mutate(popis_chyby = "duplicitni cislo CES") # duplicity mame, ale z jinych podsbirek
-
-dupl <- ic %>% group_by(cislo, zdroj) %>% filter(n() != 1) %>% 
-  mutate(popis_chyby = "duplicitni cislo CES") # duplicity v ramci podsbirky nejsou
-
-# -> definuj pocet mist v INVC pro tvorbu parovaciho cisla
-
-petky <- c("CV-N", "CV-S", "G", "K-N", "K-S") 
-ctyrky <- c("B", "C", "CK", "Dt", "Eg", "Et", "F", "Fa", "H", "IT", "La", "Le", 
-            "Li", "M", "Mi", "MT", "MTč", "N", "NDa", "NDo", "NDp", "NDvz", 
-            "Ng", "Ng-f", "Nu", "O", "Ok", "P", "Pc", "Pc-K", "Pl", "Plk",  
-            "Ps", "Ps-kn", "Ps-ko", "Ps-kr", "Ps-pr", "Ps-v", "R", "S", "S-K", "ST", 
-            "T", "TR", "Tx", "ZM")
-trojky <- "Rš" # CCV, L: nejsou vubec
-
-# -> priprav hlavní df 
-
-ces_ic <- ic %>%
-  
-  mutate(
-    Mc = gsub(" ", "", cislo),
-    Mpattern = gsub("[^[:alpha:]]+", "", Mc),
-# r a d a    
-    Mrada = case_when(
-      str_detect(Mc, "^B\\d+") ~ "B", # mechorosty
-      str_detect(Mc, "^C\\d+|^CCV") ~ "C", # cin, cin - CHOMUTOV 
-      str_detect(Mc, "^CK") ~ "Ck", # cin - KADAN
-      str_detect(Mc, "^CV-N") ~ "CV-N", # archeologie
-      str_detect(Mc, "^CV-S") ~ "CV-S", # archeologie
-      str_detect(Mc, "^Dt") ~ "Dt", # pisemnosti a tisky
-      str_detect(Mc, "^Eg") ~ "Eg", # ?
-      str_detect(Mc, "^Et") ~ "Et", # Etnografie
-      str_detect(Mc, "^F\\d+") ~ "F", # fotografie
-      str_detect(Mc, "^Fa") ~ "Fa", # faleristika
-      str_detect(Mc, "^G") ~ "G", # geologie
-      str_detect(Mc, "^H") ~ "H", # hodiny
-      str_detect(Mc, "^IT") ~ "IT", # testovaci rada -> VYHODIT
-      str_detect(Mc, "^K-S") ~ "K-S", # archeologie 
-      str_detect(Mc, "^L\\d+") ~ "L", # je v CES, ale v MUS ne !!!!!!!!!!!!!!!!!
-      str_detect(Mc, "^La") ~ "La", # lapidarium
-      str_detect(Mc, "^LE") ~ "Le", # lekarna
-      str_detect(Mc, "^Li") ~ "Li", # lisejniky
-      str_detect(Mc, "^M\\d+") ~ "M", # houby
-      str_detect(Mc, "^Mi\\d+") ~ "Mi", # miniatury
-      str_detect(Mc, "^Mt\\d+|^MT\\d+") ~ "MT", # mistni tisky
-      str_detect(Mc, "^MTč") ~ "MTč", # mistni tisky a casopisy
-      str_detect(Mc, "^N\\d+") ~ "N", # nabytek
-      str_detect(Mc, "^NDa") ~ "NDa", # nove dejiny
-      str_detect(Mc, "^NDo") ~ "NDo", # nove dejiny
-      str_detect(Mc, "^NDp") ~ "NDp", # nove dejiny
-      str_detect(Mc, "^NDvz") ~ "NDvz", # nove dejiny
-      str_detect(Mc, "^Ng\\d+") ~ "Ng", # ?
-      str_detect(Mc, "^Ng-f") ~ "Ng-f", # 
-      str_detect(Mc, "^Nu") ~ "Nu", # numizmatika
-      str_detect(Mc, "^O\\d+") ~ "O", # obrazy
-      str_detect(Mc, "^P\\d+") ~ "P", # pohlednice
-      str_detect(Mc, "^Pc\\d+|^PcCv") ~ "Pc", # porcelan, porcelan - CHOMUTOV
-      str_detect(Mc, "^PcK") ~ "Pc-K", # porcelan - KADAN
-      str_detect(Mc, "^PS\\d+") ~ "Ps",  # pozamenty 
-      str_detect(Mc, "^PS-kn") ~ "Ps-kn", # pozamenty knofliky
-      str_detect(Mc, "^PS-ko") ~ "Ps-ko", # pozamenty koralky
-      str_detect(Mc, "^PS-kr") ~ "Ps-kr", # pozamenty
-      str_detect(Mc, "^PS-pr") ~ "Ps-pr", # pozamenty 
-      str_detect(Mc, "^PS-v") ~ "Ps-v", # pozamenty
-      str_detect(Mc, "^Pl\\d|^PlCV") ~ "Pl", # sochy; sochy - CHOMUTOV
-      str_detect(Mc, "^PlK") ~ "Plk", # sochy - KADAN
-      str_detect(Mc, "^RCV") ~ "R", # etnografie
-      str_detect(Mc, "^Rš") ~ "Rs", #raselina
-      str_detect(Mc, "^s\\d+|^sCv") ~ "S", # sklo
-      str_detect(Mc, "^S\\d+|^SCV") ~ "S", # sklo, sklo - CHOMUTOV
-      str_detect(Mc, "^sK") ~ "S-K", # sklo - KADAN
-      str_detect(Mc, "^ST") ~ "ST", # stare tisky
-      str_detect(Mc, "^T\\d+") ~ "T", # cevnate rostliny
-      str_detect(Mc, "^TR") ~ "TR", # terce
-      str_detect(Mc, "^Tx|^TxCV") ~ "Tx", #textil, textil - CHOMUTOV
-      str_detect(Mc, "^ZM\\d|^ZMCV") ~ "ZM", # militaria, militaria - CHOMUTOV
-      str_detect(Mc, "^ZMK") ~ "ZMK", TRUE ~ "chybny format invc"), # militaria - KADAN 
-# c i s l o    
-    Mporc = case_when(
-      str_detect(cislo, "\\d+\\/.+") ~ str_extract(cislo, "\\d+\\/.+"), 
-      str_detect(cislo, "\\d+") ~ str_extract(cislo, "\\d+"), TRUE ~ "chybny format invc"), # -> oddelit cislo od rady
-    Mcislo = ifelse(str_detect(Mporc, "\\/.+"), gsub("\\/.+", "", Mporc), Mporc), # oddelit poradove od sub
-    Mcislo_0 = case_when(Mrada %in% trojky ~ str_pad(Mcislo, 3, pad = "0"), # doplnit k porc vedouci nuly
-                         Mrada %in% ctyrky ~ str_pad(Mcislo, 4, pad = "0"),
-                         Mrada %in% petky ~ str_pad(Mcislo, 5, pad = "0"),
-                         TRUE ~ Mcislo),
-# s u b c i s l o
-    Msubc = ifelse(str_detect(cislo, "a$|\b$|x$"), str_extract(cislo, ".$"), NA), 
-    Msubc = ifelse(str_detect(Mporc, "\\/.+"), gsub(".+\\/", "", Mporc), Msubc),
-# c i s l o   p r o   p a r o v a n i 
-    MCES_par = ifelse(is.na(Msubc), paste0(Mrada, Mcislo_0), paste0(Mrada, Mcislo_0, "/", Msubc)), # MCES_par = parovaci cislo z CES
-    MCES_par2 = paste0(Mrada, Mcislo_0)) %>%  # MCES_par2 = parovaci cislo bez subcisla
-  
-  select(-s6, -Mc,-Mpattern, -Mrada, -Mporc, -Mcislo, -Mcislo_0, -Msubc,
-         CES_cislo = cislo)
-
-
-# ***  ***  ***  ***  S W I T C H  ***  ***  ***  *** 
-
-# Mskupina = case_when(str_detect(zdroj, "Další|Jiná|Etnogr|Fotogr|Militá|Negativy|Numizm|Písemnosti|Věda|Výtvarné")~
-#                            "SPO",
-#                          str_detect(zdroj, "Botan|Geol") ~ "PVO",
-#                          str_detect(zdroj, "Archeol") ~ "ARC")
-
-
-# ces_ic <- ces_ic %>% filter(Mskupina == "SPO")
-# ces_ic <- ces_ic %>% filter(Mskupina == "PVO")
-# ces_ic <- ces_ic %>% filter(Mskupina == "ARC")
-
-
-
-# ***  ***  ***  ***  S W I T C H  ***  ***  ***  *** 
-
-# -> kontrola 
-
-sum(is.na(ces_ic$zmena)) 
-sum(is.na(ces_ic$duvod)) # pocet NA by mel sedet s poctem N -> chceme TRUE
-sum(is.na(ces_ic$duvod)) == sum(ces_ic$zmena == "N") # chceme TRUE
-sum(is.na(ces_ic$typ_cisla)) 
-sum(is.na(ces_ic$cislo)) 
-sum(is.na(ces_ic$MCES_par)) 
-
-# -> faktory
-
-ces_ic$zdroj <- factor(ces_ic$zdroj)
-ces_ic$zmena <- factor(ces_ic$zmena)
-ces_ic$duvod <- factor(ces_ic$duvod)
-
-# -> statistika
-
-aa <- count(ces_ic, zdroj, zmena, duvod) %>% 
-  pivot_wider(names_from = c("zmena", "duvod"), values_from = n) %>% 
-  mutate(sum = rowSums(.[2:6], na.rm = T))
-
-# -> DF pro ulozeni
-SAVE0 <- ces_ic
-
-```
-
-### mus_ic
-
-```{r, warning = F}
-
-mus_ic <- read_excel(paste0(path_proj, "MUSEION/omcv_exportKAT.xlsx"), sheet = 1)  %>% 
-  mutate(Mptcis = ifelse(str_detect(predmet_cislo, ".*/0+.*"), str_remove(predmet_cislo, "(?<=\\/)0*"), predmet_cislo),
-         MMUS_par = case_when(rada %in% c("B", "Li", "T") ~ str_remove(Mptcis, "\\d\\d\\d\\d\\/"), # MMUS_par ´museionove parovaci cislo
-                           TRUE ~ Mptcis),
-         MMUS_par2 = case_when(str_detect(MMUS_par, "\\/") ~ gsub("\\/.*", "", MMUS_par),
-                               TRUE ~ MMUS_par)) %>%
-  relocate(MMUS_par, .before = predmet_cislo) %>% 
-  relocate(MMUS_par2, .before = predmet_cislo) %>% 
-  filter(rada != "IT") # rada IT pomocna, treba vyhodit
-```
-
-### pair CES+MUS
-
-```{r}
-
-rel0 <- full_join(ces_ic, mus_ic, by = c("MCES_par" = "MMUS_par"), keep = T) %>%
-  select(zdroj, zmena, duvod, typ_cisla, CES_cislo, MCES_par, MCES_par2,
-         MMUS_par, MMUS_par2, predmet_cislo, sp_cislo, sp_id, MUS_rada = rada, sp_cisloCES, podsb, nazev)
-
-sample_n(rel0, 10)
-```
-
-### ces_ic pair
-
-```{r}
-
-pair <- rel0 %>% filter(!is.na(MCES_par)&!is.na(MMUS_par)) %>% 
-  mutate(status = "sparovano", 
-         updt = "") # updt = SQL update pro zapis do databaze (SQL Developer)
-
-# -> vzorek a sumarni statistika
-sample_n(pair, 10)
-p <-  pair %>% count(zdroj)
-
-# -> DF pro ulozeni
-SAVE1 <- pair
-```
-
-### ces_ic dupl
-
-```{r}
-
-dupl <- pair %>% group_by(MCES_par) %>% filter(n() != 1) %>% mutate(popis_chyby = "duplicitni cislo CES")
-
-# -> check what nature are the duplicates
-# -> if relevant, keep them in 'pair'
-# -> if not, delete them from 'pair', store in 'duplicates' sheet
-
-# -> DF pro ulozeni
-SAVE2 <- dupl
-```
-
-### ces_ic MUS-ne
-
-```{r}
-
-pair_not_MUS0 <- rel0 %>% filter(is.na(MMUS_par)) %>% 
-  select(zdroj, zmena, duvod, typ_cisla, CES_cislo, MCES_par, MCES_par2) 
-  
-pair_not_MUS <- left_join(pair_not_MUS0, mus_ic, by = c("MCES_par2" = "MMUS_par2"), keep = T) %>%
-  mutate(status = case_when(is.na(MMUS_par2) ~ "nenalezeno v MUSEIONU",
-                            TRUE ~ "nesrovnalosti v podlomení"),
-         akce = ifelse(is.na(MMUS_par2), case_when(zmena == "N" ~ "-> nutno dohledat vazbu na MUSEION",
-                          zmena == "V" & duvod == "N" ~ "-> nutno dohledat vazbu na MUSEION",
-                          zmena == "V" & duvod == "P" ~ "-> nutno dohledat vazbu na MUSEION",
-                          zmena == "R" & duvod == "C" ~ "",
-                          zmena == "R" & duvod == "Z" ~ "",
-                          TRUE ~ ""), paste0("-> definovat způsob párování")))
-
-# -> doplnit nejakou statistiku - ne vsechny nesparovane jsou spatne (napr. vyrazeni)
-
-ch <- pair_not_MUS %>% filter(!is.na(MMUS_par)) # "nesrovnalosti v podlomení"
-ch <- pair_not_MUS %>% filter(is.na(MMUS_par)) # "nenalezeno v MUSEIONU"
-
-
-# -> sumarni statistika
-plyr::count(ch[,c('zmena','duvod')])
-nm <- pair_not_MUS %>% count(zdroj)
-stat <- pair_not_MUS %>% count(status, akce)
-
-# -> DF pro ulozeni
-SAVE3 <- pair_not_MUS
-# rm(pair_not_MUS0) 
-
-```
-
-### ces_ic CES-ne
-
-```{r}
-
-pair_not_CES0 <- rel0 %>% filter(is.na(MCES_par)) %>% 
-  select(MMUS_par, MMUS_par2, predmet_cislo, sp_cislo, sp_id, nazev) 
-
-pair_not_CES <- right_join(ces_ic, pair_not_CES0, by = c("MCES_par2" = "MMUS_par2"), keep = T) %>% 
-  mutate(status = case_when(is.na(MCES_par) ~ "nenalezeno ve vypisu z CES",
-                            TRUE ~ "nesrovnalosti v podlomení"))
-
-ch <- pair_not_CES %>% filter(!is.na(MCES_par)) # "nesrovnalosti v podlomení"
-ch <- pair_not_CES %>% filter(is.na(MCES_par)) # "nenalezeno v CES"
-
-
-# -> sumarni statistika
-plyr::count(ch[,c('zmena','duvod')])
-nc <- pair_not_CES %>% count(nazev)
-stat <- pair_not_CES %>% count(status)
-
-# -> DF pro ulozeni
-SAVE4 <- pair_not_CES
-
-# -> kontrola
-count(pair)+count(pair_not_MUS)+count(pair_not_CES) == count(rel0) # chceme TRUE 
-```
-
-### -> export KAT
-
-```{r}
-
-SAVE1[is.na(SAVE1)] <- ""
-SAVE2[is.na(SAVE2)] <- ""
-SAVE3[is.na(SAVE3)] <- ""
-SAVE4[is.na(SAVE4)] <- ""
-SAVE0[is.na(SAVE0)] <- ""
-
-# Restart R and,before loading the R packages, insert INTO A CONSOLE (!!!) :
-# options(java.parameters = "-Xmx8000m")
-# require(xlsx)
-
-f2s <- paste0(path_ces, proj, "/", proj, "_KAT.xlsx")
-
-if(file.exists(f2s)){
-  print("File already exists !!!")
-  rm(f2s)
-} else {
-  print("File writing in progress...")
-  write.xlsx(as.data.frame(SAVE1), file= f2s, sheetName="sparovano", row.names=F, showNA = F)
-  gc(verbose = T) # memory cleanse
-  write.xlsx(as.data.frame(SAVE2), file= f2s, sheetName="duplicity", append=T, row.names=F, showNA = F)
-  gc(verbose = T)
-  write.xlsx(as.data.frame(SAVE3), file= f2s, sheetName="nesparovanoMUS", append=T, row.names=F, showNA = F)
-  gc(verbose = T)
-  write.xlsx(as.data.frame(SAVE4), file= f2s, sheetName="nesparovanoCES", append=T, row.names=F, showNA = F)
-  gc(verbose = T)
-  write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=T, row.names=F, showNA = F)
-  rm(f2s)
-  print("File writing finished.")
-  }
-```
-
-
-## OMCV RM ENV
-
-```{r}
-rm(aa)
-rm(dupl)
-rm(ch)
-rm(mus_ic)
-rm(mus_pr)
-rm(n)
-rm(nc)
-rm(nm)
-rm(p)
-rm(pair)
-rm(pair_not_CES)
-rm(pair_not_CES0)
-rm(pair_not_MUS)
-rm(pair_not_MUS0)
-rm(rel0)
-rm(ic)
-rm(pr)
-rm(t)
-rm(SAVE0)
-rm(SAVE1)
-rm(SAVE2)
-rm(SAVE3)
-rm(SAVE4)
-```
-
 
 # ***********************************************************************************
 
