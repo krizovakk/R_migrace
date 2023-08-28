@@ -348,7 +348,7 @@ imp <- "oznaceni"
 *IMPORTNÍ ROZHRANÍ*: CSV Taxonu  
 *MUSEION*: import_taxon.csv  
 
-```{r OZNACENI}
+```{r TAXON}
 
 mus_tab <- modif_tab %>% 
   select(
@@ -402,7 +402,77 @@ imp <- "technika"
 
 # K A R T Y   
 
-## OBP  
+## --PK--
+
+*IMPORTNÍ ROZHRANÍ*: CSV Prirustkova kniha
+*MUSEION*: import_PK.csv 
+
+## OBP 
+
+```{r}
+
+mus_tab <- mod_tab %>%
+  select("1sbirkaCisloEvidInt" = sbirka1, # POV
+         "2podsbirkaCislo" = podsb2, # POV
+         "3ciselnaRadaKod" = cisrada3, # POV
+         "4prirustekCislo" = prirc,  # POV
+         "5inventarniCisla" = X, "6lokaceKod" = X, 
+         "7prirustekPlatnost" = X, "8prirustekDuvodNeplatnosti" = X,
+         "9prirustekVyrazeno" = X, "10prirustekOznaceni" = X,
+         "11prirustekPopisPrirustku" = X,  
+         "12prirustekRok" = prirrok12, # POV
+         "13prirustekPocetKusu" = pocetks13, # POV
+         "14prirustekObal" = X, 
+         "15prirustekEvidovano" = evid15, 
+         "16materialNazev" = X, 
+         "17dataceHodnota" = X, "18stavNazev" = X, 
+         "19prirustekPopisStavu" = X, "20prirustekPoznamka" = X,
+         "21literaturaNazev" = X, "22nabytiPredmetuDatum" = X,
+         "23zpusobNabytiKod" = X, "24typDokladuNabytiKod" = X,
+         "25nabytiPredmetuDoklad" = X, "26menaKod" = X, 
+         "27nabytiPredmetuCena" = X, "28puvodniMajitelKod" = X,
+         "29nabytiPredmetuPoznamka" = X, 
+         "30typPredmetuKod" = typptukod30, # POV - "P"(obecný) nebo "PA"(archeologický)
+         "31nalezArcheologieMisto" = X, "32nalezArcheologieKontext" = X,
+         "33nalezArcheologieAkce" = X, "34vyzkumCislo" = X,
+         "35lokalitaNazev" = X,  "36katastralniUzemiNazev" = X, 
+         "37druhCislovaniParcelKod" = X, "38pozemekKod" = X,
+         "39nalezPredmetuPoznamka" = X, "40nalezPredmetuAdresa" = X, 
+         "41nalezPredmetuOkres" = X, "42nalezPredmetuObec" = X, 
+         "43nalezPredmetuCastObce" = X, "44nalezPredmetuMestskaCast" = X,
+         "45nalezPredmetuCislo" = X, "46nalezPredmetuUlice" = X, 
+         "47nalezPredmetuCisloOrientacni" = X, "48nalezPredmetuPSC" = X,
+         "49statKod" = X, "50prirustekArcheologieText" = X, 
+         "51polozkaPrirustku1PopisPredmetu" = X, "52cisloCES" = X, 
+         "53polozkaPrirustku1PocetKusu" = X,  # POV , muzeme nechat prazdne, vyplni se aut 1
+         "54doplnkoveCislo1Cislo" = X,
+         "55doplnkoveCislo1Text" = X, "56doplnkoveCislo2Cislo" = X, 
+         "57doplnkoveCislo2Text" = X, "58doplnkoveCislo3Cislo" = X, 
+         "59doplnkoveCislo3Text" = X, "60archivalieArchivalie" = X, 
+         "61archivalieSignatura" = X, "62archivalieMarkant" = X, 
+         "63archivaliePoznamka" = X, "64vyrazeniPredmetuDatum" = X, 
+         "65duvodVyrazeniKod" = X, "66typDokladuVyrazeniKod" = X, 
+         "67vyrazeniPredmetuDoklad" = X, "68vyrazeniPredmetuMenaKod" = X, 
+         "69vyrazeniPredmetuCena" = X, "70zpusobUbytkuKod" = X, 
+         "71vyrazeniPredmetuCisloCES" = X, "72novyMajitelKod" = X, 
+         "73vyrazeniPredmetuPoznamka" = X, "74predchoziMajitelSlovy" = X, 
+         "75prirustekUserInsert" = X, "76prirustekDatumInsert" = X, 
+         "77nalezArcheologieKontext2" = X, "78nalezArcheologieKontext3" = X, 
+         "79nalezArcheologieKomponenta" = X, "80nalezArcheologieSouradniceSJTSK" = X, 
+         "81nalezArcheologieCiziVyzkum" = X, "82nalezArcheologieNazevVyzkumu" = X, 
+         "83nalezArcheologieRokVyzkumu" = X, "84nalezArcheologieFirmaVyzkumu" = X, 
+         "85nalezArcheologieVedouciVyzkumu" = X, "86nabytiPredmetuRokAkvizice" = X, 
+         "87prispevatelKod" = X, "88text1" = X, "89text2" = X, "90text3" = X, "91text4" = X, "92text5" = X, 
+         "93priznak1" = X, "94priznak2" = X, "95priznak3" = X, "96priznak4" = X, "97priznak5" = X,
+         "98datumZapisu" = datzapis98, 
+         "99text6" = X, "100text7" = X, "101text8" = X, "102text9" = X, "103text10" = X, 
+         "104poradoveCislo" = porc104, 
+         "105poradoveCisloSub" = X)
+
+imp <- "PK"
+
+```
+
 
 *IMPORTNÍ ROZHRANÍ*: CSV OBP  
 *MUSEION*: import_obp.csv  
@@ -517,7 +587,7 @@ mus_tab <- modif_tab %>%
     '117pocetCasti' = X,'118popisCasti' = X)
 
 oper_obp <- mus_tab
-imp <- "obp"
+imp <- "Katalog_OBP"
 ```
 
 ## PAR  
@@ -599,7 +669,7 @@ mus_tab <- modif_tab %>%
     '119pocetCasti' = X,'120popisCasti' = X)
 
 oper_par <- mus_tab
-imp <- "par"
+imp <- "Katalog_ARC"
 ```
 
 ## VUM  
@@ -658,7 +728,7 @@ mus_tab <- modif_tab %>%
     '86mnozstviSlovy' = X, '87pocetCasti' = X, '88popisCasti' = X)
 
 oper_vum <- must_tab
-imp <- "vum"
+imp <- "Katalog_VUM"
 ```
 
 ## FOT
@@ -721,7 +791,7 @@ mus_tab <- modif_tab %>%
     '91mnozstviSlovy' = X, '92pocetCasti' = X, '93popisCasti' = X)
 
 oper_fot <- must_tab
-imp <- "fot"
+imp <- "Katalog_FOT"
 ```
 
 
@@ -734,85 +804,105 @@ Prirodovedna karta.
 
 ```{r BIO}
 
-mus_tab <- modif_tab %>% 
+mus_tab <- mod_tab %>% 
   select(
-    '1typPredmetuKod' = '1typPredmetuKod',        # !! povinne !! (BI, BO, ZO, EN, GE nebo PL)
-    '2sbirkaCisloEvidInt'= '2sbirkaCisloEvidInt', # !! povinne !! ze slovniku
-    '3podsbirkaCislo' = '3podsbirkaCislo',        # !! povinne !! ze slovniku
-    '4ciselnaRadaKod'= Rada_S,                    # !! povinne !! ze slovniku
+    '1typPredmetuKod' = typred1,        # !! povinne !! (BI, BO, ZO, EN, GE nebo PL)
+    '2sbirkaCisloEvidInt'= MSBIRKA, # !! povinne !! ze slovniku
+    '3podsbirkaCislo' = MPODSB,        # !! povinne !! ze slovniku
+    '4ciselnaRadaKod'= MRADA,                    # !! povinne !! ze slovniku
     
     '5SPCislo' = MINVC,                           # !! povinne !!
-    '6SPcisloCES'= PorC_S, 
-    '7SPPoradoveCislo' = MSUB,
-    '8SPCisloDo'= MINVCDO, 
-    '9SPPoradoveCisloDo'= HPorC_S, 
-    '10SPPoradoveCisloSub' = MSUBDO,
-    '11SPPoradoveCisloSubDo' = DatZap_S, 
     
-    '12SPDatumZapisu' = X, '13jinaEvidence1Cislo' = Plus2T_S,
-    '14jinaEvidence2Cislo' = X,'15jinaEvidence3Cislo' =  X,
-    '16fondKod' = '16fondKod', '17skupinaKod' = Skupina_S,
-    '18materialovaSkupinaKod' = X, '19oznaceniNazev' = X,'20taxon' = X,
-    '21snadTaxon' = Pocet_S, '22SPPocetKusu' = X,
-    '23urcilOsobaKod' = X,'24dataceUrceniHodnota' = JineC_S,
-    '25odborneUrceniPoznamka' = Karta_S, '26odborneUrceniPopis' = Opsana_S, 
-    
-    '27lokalita' = Archiv_S,                                    # GEOGRAFIE
-    '28sirkaNS' = Zapsal_S, '29sirkaStupne' = DatZap_S, 
-    '30sirkaMinuty' = X, '31sirkaVteriny' = DatZm_S, 
-    '32delkaEW' = StLokace_S, '33delkaStupne' = AktLokace_S, 
-    '34delkaMinuty' = Titul_S, '35delkaVteriny' = Predmet_S, 
-    '36vyska' = Popis_S, # neni nadmorska vyska! Nadmorska je v 42nadmorskaVyska.
-    '37specifikaceLokality' = X, 
-    '38mapa' = X, '39ctverec' = X,
-    
-    '40charakteristika' = Sign_S, '41puvodniPopisLokality' = X,
-    '42nadmorskaVyska' = Markant_S, '43nalezPoznamka' = X,
-    '44dataceHodnota' = Urcil_S, '45datacePoznamka' = DatUrc_S, 
+    '6SPcisloCES'= X, 
+    '7SPPoradoveCislo' = MPORCISLO,
+    '8SPCisloDo'= MINVChorni, 
+    '9SPPoradoveCisloDo'= MPORCISLOhorni,
+    '10SPPoradoveCisloSub' = MSUBCISLO,
+    '11SPPoradoveCisloSubDo' = MSUBCISLOhorni, 
+# evidence    
+    '12SPDatumZapisu' = create_date, 
+    '13jinaEvidence1Cislo' = jcis, 
+    '14jinaEvidence2Cislo' = X,
+    '15jinaEvidence3Cislo' = X,
+    '16fondKod' = MFOND, 
+    '17skupinaKod' = skup,
+    '18materialovaSkupinaKod' = X, 
+    '19oznaceniNazev' = X, # u botaniky nevyplnovat
+    '20taxon' = MNOMEN, # 
+    '21snadTaxon' = X, 
+    '22SPPocetKusu' = pocetks22, # zkontrolovat, zda je všude vyplněno!
+    '23urcilOsobaKod' = MURCIL,
+    '24dataceUrceniHodnota' = urcil_d,
+    '25odborneUrceniPoznamka' = pozn, 
+    '26odborneUrceniPopis' = popis, 
+# lokalita, geo    
+    '27lokalita' = MLOKALITA,      
+    '28sirkaNS' = sirka28, # N nebo S
+    '29sirkaStupne' = Nst, 
+    '30sirkaMinuty' = Nmin, 
+    '31sirkaVteriny' = Nvte, 
+    '32delkaEW' = delka32, # E nebo W
+    '33delkaStupne' = Est, 
+    '34delkaMinuty' = Emin, 
+    '35delkaVteriny' = Evte, 
+    '36vyska' = X, '37specifikaceLokality' = lokalita_geo, 
+    '38mapa' = X, '39ctverec' = ctverec39,
+    '40charakteristika' = lokalita_ekol, 
+    '41puvodniPopisLokality' = X,
+    '42nadmorskaVyska' = nadmvyska42, '43nalezPoznamka' = X,
+    '44dataceHodnota' = X, '45datacePoznamka' = X, 
+# etikety
     '46textEtiketa' = X, '47typ' = X,
-    '48cf' = X, '49var' = X, 
+    '48cf' = X, '49var' = var, 
     '50herbar' = X, '51preparat' = X, 
-    '52pocetSamcu' = X, '53pocetSamic' = X, '54pocetJuv' = X, # CENA
+    '52pocetSamcu' = X, '53pocetSamic' = X, '54pocetJuv' = X, 
     '55collectio' = X,
-    
-    '56stalaLokaceKod' = X, '57aktualniLokaceKod' = X, 
-    
+# lokace    
+    '56stalaLokaceKod' = X, '57aktualniLokaceKod' = X, # samost import
+# nabyti a zalozeni zaznamu    
     '58SPPoznamka' = X,
-    '59zpusobNabytiKod' = X,'60nabytiPredmetuDatum' = X, 
+    '59zpusobNabytiKod' = nabytikod59,
+    '60nabytiPredmetuDatum' = nabytidat60, 
     '61nabytiPredmetuDoklad' = X, '62nabytiPoznamka' = X, 
-    '63nabytiPredchoziMajitelSlovy' = X,'64prirustekCislo' = X,
-    '65ciselnaRadaPrirustkuKod' = X,'66nabytiPrirustkuDatum' = X, 
-    '67zakladniCharakteristika' = X, '68kodPodskupiny1' = X, 
-    '69kodPodskupiny2' = X,'70kodPodskupiny3' = X,
-    '71predmetCizi' = X,
+    '63nabytiPredchoziMajitelSlovy' = X,'64prirustekCislo' = PCISLO,
+    '65ciselnaRadaPrirustkuKod' = PCRADA,   
+    '66nabytiPrirustkuDatum' = X, 
+    '67zakladniCharakteristika' = X, 
+    '68kodPodskupiny1' = podskup68, 
+    '69kodPodskupiny2' = X,'70kodPodskupiny3' = X, '71predmetCizi' = X,
     '72SPPapirovaKarta' = X, '73SPKartaJeOpsana' = X,
-    '74text1' = X, '75text2' = X, '76text3' = X,
-    '77text4' = X ,'78text5' = X,
-    '79SPUIns' = X,'80SPDIns' = X,
-    '81SPUUpd' = Lokalita_S,'82SPDUpd' = X,
-    
+    '74text1' = prirc, 
+    '75text2' = negat, 
+    '76text3' = zapis_ces,
+    '77text4' = reviz,
+    '78text5' = X,
+    '79SPUIns' = create_uid, # neni slovnikovane, netreba upravovat
+    '80SPDIns' = create_date, 
+    '81SPUUpd' = X,'82SPDUpd' = X, # nemusi byt nic, stejne se prepise importem
+# ?    
     '83parageneze' = X,'84chronostratigrafie' = X,
     '85litostratigrafie' = X,'86poznamkaChrono' = X,
     '87poznamkaLito' = X,'88kompletnost' = X,
     '89tvar' = X,'90barva' = X,
     '91zrnitost' = X,'92biozona' = X,
     '93fertilita' = X,'94zpusobZachovani' = X,
-    '95originalniJmeno' = X,'96zoPohlavi' = X,
+    '95originalniJmeno' = druh, #                  !!!   puvodni jmeno druhu
+    '96zoPohlavi' = X,
     '97zoStari' = X,'98snadChrono' = X,
-    '99snadLito' = X, '100klicovaSlova' = X,
-    '101nazevKU' = X, '102fytochorion' = X,
-    '103lokalitaDoplneni' = X, '104lokalitaOriginalni' = X,
+    '99snadLito' = X, '100klicovaSlova' = syn,
+    '101nazevKU' = MKU, '102fytochorion' = X,  
+    '103lokalitaDoplneni' = lokalita_geo, '104lokalitaOriginalni' = X,
     '105stanoviste' = X, '106mikroStanoviste' = X,
     '107biotopKod' = X, '108zpusobZiskani' = X,
     '109souradniceZdroj' = X, '110souradnicePresnost' = X,
     '111cisloSberu' = X, '112rokAkvizice' = X,
     '113text6' = X, '114text7' = X,
-    '115text8' = X, '116text9' = X,
-    '117text10' = X, '118rokPrirustku' = X,
-    '119kategorieTaxonuNazev' = X, '120nadrizenyTaxonNom' = X)
-
+    '115text8' = dostal_rc, '116text9' = kubat_rc,
+    '117text10' = invc, '118rokPrirustku' = PCROK,
+    '119kategorieTaxonuNazev' = MKATTAX, # povinne
+    '120nadrizenyTaxonNom' = MNADTAX)
 oper_bio <- mus_tab
-imp <- "bio"
+imp <- "KATALOG_BIO"
 ```
 
 ## BR
@@ -856,7 +946,7 @@ mus_tab <- modif_tab %>%
     '45variantaCCLicenceOznaceni' = X, '46seznamKontextovychDokumen' = X)
 
 oper_br <- mus_tab
-imp <- "br"
+imp <- "KATALOG_BR"
 ```
 
 
@@ -869,7 +959,28 @@ imp <- "br"
 ## CSV Doklad Depozitare  
 ## CSV Doklad inventarizace  
 ## CSV Historie odborného určení  
-## CSV Historie Stavů Předmětu  
+## Historie Stavů Předmětu  
+
+Pri migracich zadavame slovnikovany stav "import" a stav davame do popisu stavu.
+
+```{r}
+
+mus_tab <- dop_hist %>% 
+  select("1SPCislo" = MINVC, # POV
+         "2sbirkaCisloEvidInt" = MSBIRKA, # POV
+         "3podsbirkaCislo" = MPODSB, # POV
+         "4stav" = stav4, # POV, slovnik
+         "5datumStavu" = create_date, # POV
+         "6popisStavu" = stav,
+         "7zapsalKod" = X,
+         "8historieStavuPredmetuPoznam" = X)
+
+imp <- "histStavu"
+rm(dop_hist)
+
+```
+
+
 
 ## Obrazky  
 
@@ -990,24 +1101,25 @@ oper_rozmPtu <- mus_tab
 imp <- "rozmPtu"
 ```
 
-## CSV Sběratelé Předmětů 
+## Sběratelé Předmětů 
 
 *IMPORTNÍ ROZHRANÍ*: CSV Sberatele Predmetu 
 *MUSEION*: import_sberPtu.csv  
   
 ```{r SBERATELE PREDMETU}
 
-mus_tab <- modif_tab %>% 
+mus_tab <- dop_sber %>% 
   select(
     '1SPCislo' = MINVC,                                # !! povinne !!
-    '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
-    '3podsbirkaCislo' = '3podsbirkaCislo',             # !! povinne !!
-    '4poradi' = X,                             # !! povinne !!
-    '5sberatelPredmetu' = X,                   # !! povinne !!
+    '2sbirkaCisloEvidInt' = MSBIRKA,     # !! povinne !!
+    '3podsbirkaCislo' = MPODSB,             # !! povinne !!
+    '4poradi' = poradi4,                             # !! povinne !!
+    '5sberatelPredmetu' = MSBERAT,                   # !! povinne !!
     '6poznamka' = X)
 
-oper_sberpred <- mus_tab
 imp <- "sberPtu"
+rm(dop_sber)
+
 ```
 
 ## CSV Smlouva licenční  

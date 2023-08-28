@@ -47,6 +47,7 @@ require(odbc) # ::read_mdb
 # slovnik <- "animalia"
 # slovnik <- "fungi"
 # slovnik <- "plantae"
+slovnik <- "mechy"
 
 # *** SWITCH *** SWITCH *** SWITCH *** SWITCH *** SWITCH ***
 
@@ -63,7 +64,7 @@ path_bio <-  "M:/02 dokumenty/03 migrace/BIO/" # obecna slozka s biologickymi da
 
 ```{r SET DATABASE CONNECTION}
 
-dbname <- paste0(path_mdb, "bio_slovniky.accdb") # path to database
+dbname <- paste0(path_bio, "bio_slovniky.accdb") # path to database
 con <- RODBC::odbcConnectAccess2007(dbname)      # set the connection
 
 # RODBC::sqlTables(con)                           # list tables in database
@@ -100,6 +101,14 @@ if(slovnik == "animalia"){
   rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Plantae_Rod")  
   druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Plantae_Druh")  
   poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Plantae_Poddruh")
+} else if(slovnik == "mechy"){
+  kmen <- RODBC::sqlFetch(con, "PRM_BioLib_080_Mechy_Kmen")  
+  trida <- RODBC::sqlFetch(con, "PRM_BioLib_090_Mechy_Trida")  
+  rad <- RODBC::sqlFetch(con, "PRM_BioLib_100_Mechy_Rad")  
+  celed <- RODBC::sqlFetch(con, "PRM_BioLib_110_Mechy_Celed")  
+  rod <- RODBC::sqlFetch(con, "PRM_BioLib_130_Mechy_Rod")  
+  druh <- RODBC::sqlFetch(con, "PRM_BioLib_150_Mechy_Druh")  
+  poddruh <- RODBC::sqlFetch(con, "PRM_BioLib_153_Mechy_Poddruh")
 } else print("I have a bad feeling about this!")
 
 ```

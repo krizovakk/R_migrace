@@ -544,3 +544,74 @@ kni <- df %>%
 write.xlsx(as.data.frame(kni), file = paste0(path_snd, "MUZTE_sloucenePopisy.xlsx"), row.names = F)
 
 ```
+
+# HELA SOURADNICE
+
+prevod souradnic z formatu DMS do decimalniho
+oba formaty jsou pod WGS84, neboli obecny GPS format
+
+proces zahrnuje:
+  1) pripadne rozdeleni na DMS a DEC format, pokud jsou pritomne oba formaty
+  2) vycisteni puvodnich souradnic
+  3) priprava formatu, ktery lze vkladat do online prevodniku (http://www.gcgpx.cz/transform/)
+          DD MM SS,S DD MM SS,S
+  4) export do xls
+  5) kopie sloupce do notepadu (aby se vymazalo formatovani)
+  6) z notepadu do prevodniku, prevest, zvolit moznost DD.DDDDD°
+  7) zkopirovat do excelu, pridat hlavicku "coord"
+  8) nacist zpet do R a dokoncit tvorbu spravneho formatu pro migracni rozhrani
+
+```{r}
+
+df <- read_excel(paste0(path_snd, "HELA/gps-2.xlsx")) %>% select(-contains("nalez"))
+
+dec <- df %>% filter(!str_detect(gps, "°|\\*")) %>% 
+  mutate(Mgps = gsub("GPS:\\s|gps:\\s|Loc:\\s|kolem\\s|poblíž\\s|
+                     s\\.\\sš\\.|v\\.\\sd|N|E", "", gps)) %>% 
+  separate(Mgps, into=c("ss", "vd") , sep=",\\s", extra = "merge", remove = F) %>% 
+  mutate(Ncoord = paste0("N", ss),
+         Ecoord = paste0("E", vd)) %>% 
+  select(porc, Ncoord, Ecoord)  
+
+write.xlsx(as.data.frame(dec), file = paste0(path_snd, "HELA/MUZTE_gps2_desetinne.xlsx"), 
+           row.names = F)
+
+deg <- df %>%  
+  filter(str_detect(gps, "°|\\*")) %>% 
+  mutate(Mgps = gsub("GPS:\\s|gps:\\s|Loc:\\s|kolem\\s|poblíž\\s|,\\spůvodně.*|
+                     s\\.\\sš\\.|v\\.\\sd|s\\.\\sš\\.|N|E", "", gps), 
+         N = gsub(",\\s.*", "", Mgps),
+         N = gsub("\\s", "", N),
+         E = gsub(".*,\\s", "", Mgps),
+         E = gsub("\\s", "", E),
+         MNstup = substr(N, 1,2),
+         # MNmin = gsub(".*°.*'.*", "", N)) 
+         MNmin = substr(N, 4,5), 
+         MNvte = gsub(".*\\'", "", N),
+         MNvte = substr(MNvte, 1, nchar(MNvte) -1), 
+         MEstup = substr(E, 1,2),
+         # MNmin = gsub(".*°.*'.*", "", N)) 
+         MEmin = substr(E, 4,5), 
+         MEvte = gsub(".*\\'", "", E),
+         MEvte = substr(MEvte, 1, nchar(MEvte) -1),
+         N = "N", 
+         E = "E",
+         sour = paste(MNstup,  MNmin, MNvte, MEstup, MEmin, MEvte)) 
+
+write.xlsx(as.data.frame(deg), file = paste0(path_snd, "HELA/MUZTE_gps2_degrees_A.xlsx"), row.names = F)
+
+# upravy v excelu a dodelani zde
+
+deg2 <- read_excel(paste0(path_snd, "HELA/MUZTE_gps2_degrees_A.xlsx")) %>% 
+  mutate(coord = gsub("°", "", coord)) %>% 
+  separate(coord, into=c("ss", "N", "vd", "E") , sep=" ", extra = "merge", remove = F) %>% 
+  mutate(Ncoord = paste0(ss, N),
+         Ecoord = paste0(vd, E),
+         Ecoord = gsub("E0", "E", Ecoord)) %>% 
+  select(porc, coord, Ncoord, Ecoord)
+
+write.xlsx(as.data.frame(deg2), file = paste0(path_snd, "HELA/MUZTE_gps2_degrees_B.xlsx"), 
+           row.names = F)
+
+```
+

@@ -860,8 +860,7 @@ if(file.exists(f2s)){
 
 ```
 
-### clean environment
-
+### clean environment 
 ```{r}
 rm(icz)
 rm(mus_icz)
@@ -881,6 +880,31 @@ rm(dupl2)
 
 # rm(ic)
 ```
+
+## preparovani rad 
+
+B, Li, M, T maji masu T = T{T}/{#####}
+potreba preparovat s pouzitim jen cisla taxonu (T)
+B0027/28366 parovat pouze s B0027
+
+```{r}
+
+t <- mus_ic %>% 
+  filter(rada %in% c("B", "Li", "M", "T")) %>% 
+  select(-MMUS_par, -MMUS_par2) %>% 
+  mutate(MMUS_par = gsub("/.*", "", predmet_cislo))
+
+par_t <- left_join(t, ces_ic, by = c("MMUS_par" = "MCES_par"), keep = T) %>% 
+  filter(!is.na(CES_cislo)) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, predmet_cislo, sp_id)
+
+fil <- paste0(path_proj, proj, "_KAT_B_Li_M_T.xlsx")
+
+write.xlsx(as.data.frame(par_t), file = fil, 
+           row.names=F, showNA = F)
+
+```
+
 
 # ***********************************************************************************
 

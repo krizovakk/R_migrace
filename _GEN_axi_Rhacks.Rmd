@@ -314,6 +314,20 @@ bot <- bot %>%
 select(-mus_invc, -(last_col(offset = 34):last_col()))
 ```
 
+#### Remove multiple colums
+
+typicky nazvy sloupcu z biolibu
+
+```{r}
+nam <- colnames(bl_sp)
+noquote(nam)
+nam2 <- paste0("-", nam)
+noquote(nam2)
+nam3 <- paste0(nam2, collapse = ",")
+nam3
+```
+
+
 #### Add prefix to column names
 
 ```{r}
