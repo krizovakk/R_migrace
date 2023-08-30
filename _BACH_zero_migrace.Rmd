@@ -1,6 +1,6 @@
 ---
-title: "MUZTE"
-subtitle: "Migrace dat"
+title: "PROJEKT"
+subtitle: "Migrace dat z BACH"
 author: "Katerina Krizova"
 date: "2023-02-08"
 output:
@@ -38,22 +38,6 @@ require(RODBC) # ::read_mdb
 require(odbc) # ::read_mdb
 require(xlsx) # write excel in sheets
 ```
-
-\newpage 
-
-# P O Z N A M K Y 
-
-! sepis si podrobnou migracni matici
-! pis poznamky do notes
-
-! str_trim pro celou bach tabulku !!  
-! zkontroluj duplicity puvodnich inventarnich cisel !!  
-
-! taxon ve formatu: r o d   d r u h   *s u b s p.*  p o d d r u h !!
-! vse, co se nesparuje nechat pouze v 'originalni jmeno'
-
-! slovniky - karta - doprovodne
-! kontrola: policko po policku, zda zadna informace nechybi
  
 \newpage 
 
@@ -61,7 +45,7 @@ require(xlsx) # write excel in sheets
 
 ```{r PROJECT SPECIFICATIONS AND PATHS}
 
-projekt <- "MUZTE"
+projekt <- ""
 
 path <-  "C:/Users/krizova/Documents/R/"
 path_proj <-  paste0("C:/Users/krizova/Documents/R/MIG/", projekt, "/") 
@@ -69,7 +53,6 @@ path_proj <-  paste0("C:/Users/krizova/Documents/R/MIG/", projekt, "/")
 path_data <-  paste0(path_proj, "data/")
 path_csv <-  paste0(path_proj, "csv/")
 path_kd <- paste0(path_proj, "kd/")
-
 
 # L O A D
 
@@ -100,24 +83,13 @@ mm <- as.data.frame(colnames(bach)) # zkopiruj do excelu a vytvor si migr. matic
 rm(mm)
 ```
 
-## sort unique
-
-vymenuj nazev sloupce dle potreby
-
-```{r}
-
-sort(unique(bach$publikace))
-
-```
-
-
-## biolib + ciselniky
+## BIOLIB, KATASTRY
 
 ```{r BIOSLOVNIKY}
 
 # B I O L I B   S L O V N I K
 
-biolib <- read.csv(paste0(path, "bioslov/BioLib_KKsummary_plantae.csv"), sep = ";") 
+biolib <- read.csv(paste0(path, "bioslov/BioLib_KKsummary_plantae.csv"), sep = ";")  # plantae obsahuje i mechy
 # bl_mech <- read.csv(paste0(path, "bioslov/BioLib_KKsummary_plantae.csv"), sep = ";") 
 
 bl_subsp <- biolib %>% filter(!is.na(poddruh_Nomen))
@@ -140,7 +112,13 @@ bl_kme <- biolib %>% filter(!is.na(kmen_Nomen)) %>% select(1:4) %>% distinct()
 # dbname <- paste0(path_data, "ciselnik_botanickych_druhu.mdb") 
 # con <- RODBC::odbcConnectAccess2007(dbname)      
 # botdru <- RODBC::sqlFetch(con, "data") 
+
+# K A T A S T R Y
+
+mus_KU <- read_excel(paste0(path_data, "MUZTE_mus_KU.xlsx")) %>% rename("MKU" = Název)
+
 ```
+
 
 # NASTAVENI
 
@@ -161,7 +139,7 @@ rucne, PB 1) Bezcévnaté 2) Tracheophyta
 
 # SLOVNIKY
 
-## A D R E S A R *-*-*-*-*-*
+## A D R E S A R
 
 *IMPORTNÍ ROZHRANÍ*: CSV Adresář osob  
 **MUSEION**: import_adresar.csv
@@ -272,8 +250,6 @@ u <- bach_adr %>% select("bach" = urcil,"mus" =  MURCIL)
 
 pracovni_adresar <- bind_rows(c,l,s,u) %>% distinct() %>% arrange(mus) %>% filter(mus != "")
 
-# pokracuj k ulozeni do sekce: # ! ! !   E X P O R T Y  C S V   ! ! !
-
 ```
 
 ### modified table
@@ -352,8 +328,7 @@ mus_tab <- mod_tab %>%
          # , rel_ZkrJm = puv
          )
 
-csv_adresar <- mus_tab # ulozit na pozdeji
-imp <- "BOTadresar"
+imp <- "adresar"
 
 # pokracuj k ulozeni do sekce: # ! ! !   E X P O R T Y  C S V   ! ! !
 
@@ -376,18 +351,6 @@ c) (kraj) - ?
 d) oblast - insertnim dotazem primo do databaze, neni importni brana
 
 ### analyza
-
-```{r LOKALITY, warning=FALSE}
-
-# kontrola katastru
-
-mus_KU <- read_excel(paste0(path_data, "MUZTE_mus_KU.xlsx")) %>% rename("MKU" = Název)
-# bachkat <- bach %>% select(katastr) %>% distinct()
-# kat_check <- left_join(bachkat, muskat, by = c("katastr" = "Název"), keep = T)
-
-# plyr::count(bach[,c('oblast','katastr', "lokalita_geo")]) # i s poctem
-# lll <- plyr::count(bach_lok[,c("MSTAT", "MKRAJ", "MOKRES", "MOBLAST", "MKATASTR", "lokalita_geo")]) %>% arrange(MOBLAST)
-```
 
 Diskuse nad oblastmi a katastry s pani Ilonou Pavelkovou vvvvvvvv
 
@@ -562,8 +525,6 @@ pracovni_lokality <- bach_lok %>% select(MLOKALITA, MSTAT, MOKRES, MOBLAST) %>% 
 # pokracuj k ulozeni do sekce: # ! ! !   E X P O R T Y  C S V   ! ! !
 
 
-
-
 # MS SQL insert query
 
 ins_obl <- pracovni_lokality %>% 
@@ -628,17 +589,11 @@ mus_tab <- mod_tab %>%
 
 mus_tab[mus_tab == ""] <- NA
 
-# oper_lokalita <- mus_tab
 imp <- "lokalita"
-
-
-# rm(fy)
-# rm(fy0)
-# rm(ku)
 
 ```
 
-## T A X O N *-*-*-*-*-*
+## T A X O N 
 
 ### analyza
 
@@ -998,6 +953,7 @@ mod_tab2 <- bind_rows(dupl_mod_tab, eleochar)
 # write.xlsx(as.data.frame(check1), paste0(path_proj, "diskuse/MUZTE_autori_k_diskusi.xlsx"), row.names = F)
 
 ```
+
 ### csv table
 
 *IMPORTNÍ ROZHRANÍ*: CSV Taxonu  
@@ -1039,19 +995,9 @@ imp <- "taxon_2kolo"
 
 # **************************************************************************************
 
-# MUS KARTA *-*-*-*-*-*
+# MUS KARTA
 
 *P O S T U P*
-
-**PREMOD:**   
-- zkousej zpracovat jednotlive kroky  
-
-**MOD:**  
-- uspesne kusy kodu skladej za sebe a upravuj pracovni tabulku  
-
-**CSV:**  
-- vytvor importni csv soubor pro finalni mograci
-
 
 *MINVC*
 maska:  \{S\}\{#####\}\/\{a\}  
@@ -1222,7 +1168,8 @@ mus_tab <- mod_tab %>%
     '40charakteristika' = lokalita_ekol, 
     '41puvodniPopisLokality' = X,
     '42nadmorskaVyska' = nadmvyska42, '43nalezPoznamka' = X,
-    '44dataceHodnota' = X, '45datacePoznamka' = X, 
+    '44dataceHodnota' = sber_d, # <- datum sberu !!!!!
+    '45datacePoznamka' = X, 
 # etikety
     '46textEtiketa' = X, '47typ' = X,
     '48cf' = X, '49var' = var, 
@@ -1299,6 +1246,7 @@ if(file.exists(save)){
   print("Import csv  W R I T T E N  !")
   }
 ```
+
 ## n-e-d-o-d-e-l-k-y
 
 ```{r}
@@ -1328,12 +1276,7 @@ write.table(dats, paste0(path_proj, "diskuse/MUZTE_botanika_dataceSberu.csv"),
             sep = ";", dec = ",",
             na = "", fileEncoding="cp1250")
 
-dats[11687,]
-
-
 ```
-
-
 
 # C L E A R   E N V 
 
@@ -1374,7 +1317,7 @@ rm(trans)
 
 # **************************************************************************************
 
-# IMPORT PK *-*-*-*-*-*
+# IMPORT PK
 
 ```{r}
 
@@ -1454,12 +1397,7 @@ mus_tab <- mod_tab %>%
 
 imp <- "PK"
 
-# bach0[1659,]
-
 ```
-
-
-
 
 # **************************************************************************************
 
@@ -1467,7 +1405,7 @@ imp <- "PK"
 
 bach
 
-## HISTORIE STAVU *-*-*-*-*-*
+## HISTORIE STAVU
 
 *IMPORTNÍ ROZHRANÍ*: CSV Historie Stavů Předmětu 
 *MUSEION*: import_histStavu.csv  
@@ -1503,7 +1441,7 @@ rm(dop_hist)
 ```
 
 
-## SBERATELE *-*-*-*-*-*
+## SBERATELE 
 
 *IMPORTNÍ ROZHRANÍ*: CSV Sberatele Predmetu 
 *MUSEION*: import_sberPtu.csv  
@@ -1584,7 +1522,6 @@ rm(dop_lok)
 
 ```
 
-
 # **************************************************************************************
 
 # E X P O R T Y    C S V
@@ -1642,31 +1579,7 @@ if(file.exists(modif_save)){
 
 ```
 
-
-
 # **************************************************************************************
 
 # KONFLIKTY PRI MIGRACI DAT
 
-Report pro klienta.  
-Nesrovnalosti v datech, vyjimky, apod.  
-
-## pis zde:
-
-1) v jednom pripade podskupina 'Tracheopyhta' -> opraveno na 'Tracheophyta'
-2) ADRESAR$create_uid: ztotozneno: 'Buša E.' -> 'Burša E.' ; 'svendova' a 'Svendova'
-3) ADRESAR$sberatel: ztotozneno: "Buša E." -> "Burša E." ; "Kousalová Š:" -> "Kousalová Š." ; Pavlíkovi P. A J. -> Pavlíkovi P. a J. ; D. Podstawková -> Podstawková D.
-4) ADRESAR$sberatel: ztotozneno: "Buša E." "BUrša E."-> "Burša E." ; Pavlíkovi P. A J. -> Pavlíkovi P. a J.
-5) ADRESAR$urcil: koupě invc: 1142
-
-6) NABYTI: "", "42/92", "dar", "koupě", "sběr", "Sběr", "sbšr", "Tracheophyta"
-
-7) datace sběru: 
-  03647 16.7.
-  03761 25.6.158
-  04479 5.5.197
-  05294 2.9.178
-  05295 2.9.178
-  05367 8.9.179
-  06145 4.5.1.983
-  09827 14/98

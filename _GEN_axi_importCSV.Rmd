@@ -850,7 +850,8 @@ mus_tab <- mod_tab %>%
     '40charakteristika' = lokalita_ekol, 
     '41puvodniPopisLokality' = X,
     '42nadmorskaVyska' = nadmvyska42, '43nalezPoznamka' = X,
-    '44dataceHodnota' = X, '45datacePoznamka' = X, 
+    '44dataceHodnota' = sber_d, # datace sberu !!! 
+    '45datacePoznamka' = X, 
 # etikety
     '46textEtiketa' = X, '47typ' = X,
     '48cf' = X, '49var' = var, 
@@ -901,6 +902,7 @@ mus_tab <- mod_tab %>%
     '117text10' = invc, '118rokPrirustku' = PCROK,
     '119kategorieTaxonuNazev' = MKATTAX, # povinne
     '120nadrizenyTaxonNom' = MNADTAX)
+
 oper_bio <- mus_tab
 imp <- "KATALOG_BIO"
 ```
@@ -1162,25 +1164,26 @@ Pokud nejsou stejne, Stala = Stala, Aktualni = Docasna
 
 ```{r ULOZENI PREDMETU}
 
-mus_tab <- modif_tab %>% 
-  select('1typKarty' = '1typKarty', # max. 1 znak, povinný, povolené hodnoty "K" a "P" (katalog / prirustek)
+mus_tab <- dop_lok %>% 
+  select('1typKarty' = typkarty1, # max. 1 znak, povinný, povolené hodnoty "K" a "P" (katalog / prirustek)
          '2evidencniCislo' = MINVC,
          '3poradiPredmetuPrirustku' = X,
          '4poradiPredmetuPrirustkuPomocne' = X,
          '5konvInventarniCislo' = X, 
          '6konvPrirustkoveCislo' = X, 
-         '7staleUlozeniKod' = MSTALA,
+         '7staleUlozeniKod' = stale7,
          '8docUlozeniDlouhodobeKod' = X,
          '9docUlozeniKratkodobeKod' = X,
-         '10poznamka' = X,
-         '11text1' = MAKTUAL,
+         '10poznamka' = pozn10,
+         '11text1' = X,
          '12text2' = X,
          '13text3' = X,
          '14text4' = X, 
          '15text5' = X)
 
-oper_ulozeniPtu <- mus_tab
-imp <- "ulozeniPtu"
+imp <- "ulozPtu"
+rm(dop_lok)
+
 ```
 
 ## CSV Vlastník předmětu akvizice  

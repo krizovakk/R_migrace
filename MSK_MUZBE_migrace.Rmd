@@ -1361,6 +1361,27 @@ Prirodovedna karta.
 
 ```{r CSV BIO}
 
+mod_tab <- bach %>% 
+  
+  mutate(dostal_dc = as.character(dostal_rc),
+         kubat_rc = as.character(kubat_rc),
+         typred1 = "BO",
+         pocetks22 = ifelse(is.na(pocet_kusu)|pocet_kusu == "", "1", pocet_kusu),
+         sirka28 = ifelse(is.na(Nst), NA, "N"),
+         delka32 = ifelse(is.na(Est), NA, "E"),
+         ctverec39 = sub(" ", "", ctverec),
+         nadmvyska42 = sub(" m", "", nvyska),
+         nabytikod59 = case_when(nabyti %in% c("sběr", "Sběr", "sbšr") ~ "O",
+                                 nabyti == "dar" ~ "D",
+                                 nabyti == "koupě" ~ "K",
+                                 TRUE ~ NA),
+         nabytidat60 = ifelse(nabyti_d %in% c("--", ";"),NA, nabyti_d),
+         podskup68 = case_when(pskup == "Tracheopyhta" ~ "Tracheophyta", 
+                               pskup == "Bezcévnaté" ~ "Bezcevnate", 
+                               TRUE ~ pskup)
+         )
+
+
 # ------------------------------------- P O K R A C U J   Z D E !!! 
 # ------------------------------------- D O P L N I T !!!
 
