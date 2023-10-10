@@ -164,7 +164,29 @@ fxdf <- xml_to_df("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml")
 
 ```{r PACKAGES}
 
+# packages and path
+
+install.packages("XML")
+require(XML)
+install.packages("xml2")
 require(xml2)
+install.packages("methods")
+require(methods)
+install.packages("tibble")
+require(tibble)
+
+path_dmz <- "C:/Users/krizova/Documents/R/piskoviste/dmz/"
+
+# load
+
+x1 <- XML::xmlParse(paste0(path_dmz, "2312116.xml")) # value
+x2 <- xml2::read_xml(paste0(path_dmz, "2312116.xml")) # list
+
+library(xml2)
+library(tidyverse)
+
+recs <- xml_find_all(x2, "//name")
+
 
 ```
 
@@ -614,4 +636,37 @@ write.xlsx(as.data.frame(deg2), file = paste0(path_snd, "HELA/MUZTE_gps2_degrees
            row.names = F)
 
 ```
+
+# NGP
+
+zkusebni nacteni zvlastne formatovaneho CSV
+
+```{r}
+
+dat <- read.table(paste0(path_snd, "NGP/pk_data.txt"), header = TRUE, sep = ",", fill = T, fileEncoding="cp1250")
+nab <- read.csv(paste0(path_snd, "NGP/nabyti.csv"), header = TRUE, sep = ",", fill = T, fileEncoding="cp1250")
+
+# 9.10.2023
+
+dat <- read.table("M:/03 klienti/narodni galerie - NG/ng zdroj dat/2023-SE/CKS komplet/CKS/sb_data.csv",
+                  fill = T, sep = ",", header = T)
+
+                header = TRUE, sep = ",", fill = T, quote = "", fileEncoding="utf-8")
+
+x <- dat %>% 
+  filter(str_detect(X, "[:alpha:]"))
+
+x <- dat %>% 
+  filter()
+
+```
+
+```{r POSL SMAZAT}
+ mutate(
+         Mcislo = ifelse(str_detect(cislo, "\\/"), gsub("\\/.*", "", cislo), cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+
 

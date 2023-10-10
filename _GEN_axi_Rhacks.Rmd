@@ -24,29 +24,49 @@ knitr::opts_chunk$set(echo = F, eval = F)
 
 ## I M P O R T / E X P O R T
 
-### Read txt
+### TXT
 
-read.table  
+read.table = [function](https://www.rdocumentation.org/packages/utils/versions/3.6.2/topics/read.table)
+read.csv = [function](https://www.rdocumentation.org/packages/utils/versions/3.6.2/topics/read.table)
+read_csv = [function]()
 
-```{r READ TABLE}
+~ ENCODING ~
+
+fileEncoding="cp1250"
+encoding="utf-8"
+
+#### Read txt
+
+```{r}
 df <- read.table("D:/VURV/R_hacks/data/simple_table_4read.txt", header = TRUE, sep = ";")
 ```
 
-
-### Read csv
+#### Read csv
 
 read.csv : sep is always "," 
 
-```{r READ CSV}
+```{r}
 df <- read.csv("D:/VURV/R_hacks/data/simple_table_4read.csv", header = TRUE, sep = ";")
 ```
 
+### XLSX
 
-### Read excel
+ ~ PACKAGES ~
+ 
+ readxl, xlsx, openxlsx
+ 
+ 
+ ~ FUNCTIONS ~
+ 
+ readxl::read_excel()
+ xlsx::read.xlsx()
+ 
+ xlsx::write.xlsx()
 
-```{r READ EXCEL}
+#### Read excel
 
-library("readxl")
+```{r}
+
 df <- read_excel("D:/VURV/R_hacks/data/simple_table_4read.xlsx" , sheet = 2, header = TRUE)
 ```
 
@@ -55,14 +75,14 @@ ISSUE: 'Warning: Expecting numeric in E1251 / R1251C5: got '41 (cm)'
 
 SOLUTION: df <- read_excel(paste0(path_snd, "muzbe_rozmery_ptaci.xlsx"), sheet = 1, **col_types="text"**)
 
-### Write excel
+#### Write excel
 
 ```{r}
 write.xlsx(x = ToothGrowth,                       
            file = "ToothGrowth.xlsx")
 ```
 
-### Write excel + sheets
+#### Write excel + sheets
 
 ```{r}
 exi <- paste0(path_ces, proj, "/", proj, "_KAT.xlsx")
@@ -81,8 +101,7 @@ if(file.exists(exi)){
   }
 ```
 
-
-### Write excel - memory issue
+#### Write excel - memory issue
 
 Error  
 pouzit funkci gc() = Grabage Collection -> vycisti pamet po ulozeni predchoziho listu  
@@ -106,6 +125,26 @@ if(file.exists(exi)){
   write.xlsx(as.data.frame(SAVE0), file= f2s, sheetName="puv. vypis CES", append=T, row.names=F, showNA = F)
   rm(exi)
   rm(f2s)
+  }
+```
+
+### Conditional SAVE
+
+
+```{r}
+
+f2s <- paste0(path_kk, proj, "_allXLSX.csv")
+
+if(file.exists(f2s)){
+  print("You've been here before.")
+  rm(f2s)
+} else {
+  write.table(df_filled, file = f2s, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  rm(f2s)
+  print("File saved!")
   }
 ```
 
@@ -475,6 +514,45 @@ vypis <- as.data.frame(list.files(c("D:/MUZBE/Obecné sbírky-4složky obrázků
 
 colnames(vypis)[1] <- "path"
 ```
+
+
+## L O O P S
+
+### @@@ Read all files from folder
+
+1) make a list of files
+
+```{r}
+Lxls <- list.files(path_data, pattern = "*.xlsx")  # *.txt *.jpg ...
+```
+
+2) create expty dataframe and specify col namens
+
+```{r}
+df_filled <- data.frame()
+# df_filled <- data.frame(matrix(ncol = 15, nrow = 0))
+
+colnam <- c("prirc","rok_prir","dat_nabyt")
+```
+ 
+3) read files and bind them 
+
+```{r}
+
+for(i in Lxls) {
+  a <- read_excel(paste0(path_data, i),
+                  col_types = "text",
+                  range = cell_cols("A:P"), na = " ") %>% # skip = 2 prepsano rangem
+    slice(-1)
+  names(a) <- colnam
+  a$zdroj <- paste(i) # add source txt file name
+  # print(count(a))
+  df_filled <- rbind(df_filled, a)
+  print(i)
+  # rm(a)
+}
+```
+
 
 
 ## J O I N S

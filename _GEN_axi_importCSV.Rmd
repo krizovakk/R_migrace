@@ -177,7 +177,7 @@ imp <- "podskupiny"
 
 ```{r ADRESAR}
 
-mus_tab <- modif_tab %>% 
+mus_tab <- mod_tab %>% 
   select('1typSubjektuKod' = typsubj1, # !! povinne !!
          '2subjektKod' = subjkod2,         # !! povinne !!
          '3subjektAlterKod' = X, 
@@ -280,7 +280,7 @@ imp <- "po"
 
 ```{r LOKALITA} 
 
-mus_tab <- modif_tab %>% 
+mus_tab <- mod_tab %>% 
   select(
     '1lokalitaNazev' = Lokalita_L,  # !! povinne !!
     '2okresNazev'= X,
@@ -305,7 +305,7 @@ imp <- "lokalita"
 
 ```{r MATERIAL}
 
-mus_tab <- modif_tab %>% 
+mus_tab <- mod_tab %>% 
   select(
     '1sbirkaCisloEvidInt' = '1sbirkaCisloEvidInt', '2podsbirkaCislo'= '2podsbirkaCislo',
     '3materialovaSkupinaKod' = X, 
@@ -368,7 +368,6 @@ oper_taxon <- mus_tab
 imp <- "taxon"
 ```
 
-SELECT "" As 1sbirkaCisloEvidInt, "" As 2podsbirkaCislo, "" As 3kodOboru, "" As 4nazevKategorie, "" As 5nomen, "" As 6nazev, "" As 7autor, "" As 8nadrizenyTaxon, "" As 9preferovanyTaxon, "" As 10Poznamka, "" As 11nazevKategorieNadrizenehoTaxo FROM TABULKA;
 
 ## Technika  
 
@@ -1050,7 +1049,7 @@ imp <- "obrazky"
 
 ```{r MATERIAL PREDMETU}
 
-mus_tab <- modif_tab %>% 
+mus_tab <- mod_tab %>% 
   select(
     '1SPCislo' = MINVC,                                # !! povinne !!
     '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     # !! povinne !!
@@ -1089,7 +1088,7 @@ Rozmery = slovnik -> rucne nebo CSV Rozmer
 
 ```{r ROZMERY PREDMETU}
 
-mus_tab <- modif_tab %>% 
+mus_tab <- mod_tab %>% 
   select(
     '1SPCislo' = MINVC,                                   # !! povinne !!
     '2sbirkaCisloEvidInt' = '2sbirkaCisloEvidInt',     

@@ -48,7 +48,8 @@ require(odbc) # ::read_mdb
 ```{r}
 
 # proj <- "GMUR"
-proj <- "OMCV"
+# proj <- "OMCV"
+proj <- "MUZEUMDC"
 
 path_ces <- "C:/Users/krizova/Documents/R/CES/"
 
@@ -56,6 +57,9 @@ if(proj == "GMUR"){
   path_proj <- "M:/03 klienti/kraj ustecky/galerie moderniho umeni v roudnici nad labem - GMUR/gmur_ces/"
 } else if(proj == "OMCV"){
   path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum v chomutove, p. o. - OMCV/omcv_ces/"
+} else if(proj == "MUZEUMDC"){
+  path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum v decine, p.o. - MUZEUMDC/muzeumdc ces_2023/"
+  print("Project found!")
 } else{
   print("No project found!")
 }
@@ -70,29 +74,13 @@ if(proj == "GMUR"){
             R {C = chyba; Z = zmena cislovani}
 3. sloupec = typ cisla {P = prirustkove; I = inventarni}
             
-```{r LOAD CES TXT ONE BY ONE, warning = F, eval = F}
-
-# TEST
-
-gra <- read.table(paste0(path_ces, proj, "/Další_-_Grafiky.txt"),
-                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
-kre <- read.table(paste0(path_ces, proj, "/Další_-_Kresby.txt"),
-                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
-obr <- read.table(paste0(path_ces, proj, "/Další_-_Obrazy.txt"),
-                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
-soc <- read.table(paste0(path_ces, proj, "/Další_-_Sochy.txt"),
-                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
-uum <- read.table(paste0(path_ces, proj, "/Další_-_Užité_umění.txt"),
-                   header = F, sep = ";", fill = T, check.names = F, fileEncoding="cp1250", skip = 4)
-```
-
-
 ```{r LOAD CES TXT LOOP , warning = F}
 
 # FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT 
 
 # Ltxt <- list.files(paste0(path_ces, proj), pattern = "*.txt")  # Identify file names
-Ltxt <- list.files(paste0(path_proj, "CES"), pattern = "*.txt")  # Identify file names
+# Ltxt <- list.files(paste0(path_proj, "CES"), pattern = "*.txt")  # Identify file names
+Ltxt <- list.files(paste0(path_proj, "vypisCES"), pattern = "*.txt")  # Identify file names
 df_filled <- data.frame()
 colnam <- c("zmena","duvod","typ_cisla","cislo",
                 "s5","s6", "s7", "s8",
@@ -100,8 +88,12 @@ colnam <- c("zmena","duvod","typ_cisla","cislo",
     
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
+a <- read.table(paste0(path_proj, "vypisCES/", Ltxt[1]),
+                  skip = 4, header = F, sep = ";", fill = T, 
+                  check.names = F, fileEncoding="cp1250")
+
 for(i in Ltxt) {
-  a <- read.table(paste0(path_proj, "CES/", i),
+  a <- read.table(paste0(path_proj, "vypisCES/", i),
                   skip = 4, header = F, sep = ";", fill = T, 
                   check.names = F, fileEncoding="cp1250")
   names(a) <- colnam
@@ -118,25 +110,7 @@ for(i in Ltxt) {
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-# CHECK AND CLEAR ENVIRONMENT
-
-print(count(df_filled))
-rm(a)
-rm(i)
-rm(colnam)
-rm(Ltxt)
-rm(rows_to_change)
-
-# SAVE COMBINED TXT
-
-# exi <- paste0(path_ces, proj, "/", proj, "_allTXT.csv")
-# 
-# if(file.exists(exi)){
-#   print("File already exists !!!")
-# } else {
-#   f2s = exi
-#   rm(exi)
-#   }
+# SAVE ALL TXT
 
 f2s <- paste0(path_ces, proj, "/", proj, "_allTXT.csv")
 
@@ -149,70 +123,2116 @@ if(file.exists(f2s)){
             sep = ";", dec = ",", 
             na = "", fileEncoding="cp1250")
   rm(f2s)
-  }
+}
 
-ces <- df_filled
+# CHECK AND CLEAR ENVIRONMENT
 
-# OR -> read saved
-
-# ces <- read.csv(paste0(path_ces, proj, "/OMCV_allTXT.csv"),
-#                 header = T, fill =T, sep = ";",
-#                 fileEncoding="cp1250")
-
+CORE_ces <- df_filled
 rm(df_filled)
-# 
+rm(a)
+rm(i)
+rm(colnam)
+rm(rows_to_change)
+
 ```
 
-## Check CES txt
+# Complete CES and MUS
 
 ```{r CES PROCESSING}
 
-ces <- ces %>% discard(~all(is.na(.) | . == "")) # drop empy columns
-ces[ces == ""] <- NA
+# CES
 
-# kody podsbirek
+CORE_ces <- CORE_ces %>% discard(~all(is.na(.) | . == "")) # drop empy columns
+CORE_ces[CORE_ces == ""] <- NA
 
-ces <- ces %>% 
-  mutate(zdroj_kod = case_when(zdroj == "Archeologická.txt" ~ "Ar",
-                               zdroj == "Botanická.txt" ~ "Bo",
-                               zdroj == "Jiná_-_Cín.txt" ~ "Cí",
-                               zdroj == "Etnografická.txt" ~ "Et",
-                               zdroj == "Jiná_-_Faleristika.txt" ~ "Fa",
-                               zdroj == "Fotografie,_filmy,_videozáznamy_a_jiná_média.txt" ~ "Fi",
-                               zdroj == "Geologická.txt" ~ "Ge",
-                               zdroj == "Jiná_-_Hodiny.txt" ~ "Ho",
-                               zdroj == "Další_-_Lapidárium.txt" ~ "La",
-                               zdroj == "Jiná_-_Lékárna.txt" ~ "Le",
-                               zdroj == "Militária.txt" ~ "ZM",
-                               zdroj == "Jiná_-_Místní_tisky.txt" ~ "Mt",
-                               zdroj == "Jiná_-_Místní_tisky_časopisy.txt" ~ "Mč",
-                               zdroj == "Jiná_-_Miniatury.txt" ~ "Mi",
-                               zdroj == "Jiná_-_Nábytek.txt" ~ "Ná",
-                               zdroj == "Negativy_a_diapozitivy.txt" ~ "Ng",
-                               zdroj == "Jiná_-_Nové_dějiny.txt" ~ "Nd",
-                               zdroj == "Numizmatická.txt" ~ "Nu",
-                               zdroj == "Písemnosti_a_tisky.txt" ~ "Pt",
-                               zdroj == "Jiná_-_Pohlednice.txt" ~ "Pe",
-                               zdroj == "Další_-_Porcelán.txt" ~ "Pc",
-                               zdroj == "Další_-_Posamenty.txt" ~ "Ps",
-                               zdroj == "Jiná_-_Sbírka_rašeliny.txt" ~ "Rš",
-                               zdroj == "Další_-_Sklo.txt" ~ "Sk",
-                               zdroj == "Jiná_-_Staré_tisky.txt" ~ "St",
-                               zdroj == "Jiná_-_Textil.txt" ~ "Tx",
-                               zdroj == "Jiná_-_Terče.txt" ~ "Te",
-                               zdroj == "Věda,_technika_a_průmyslová_výroba.txt" ~ "Vt",
-                               zdroj == "Výtvarného_umění.txt" ~ "Vu",
-                               TRUE ~ "???"))
+APND_ces_pair <- data.frame()
+APND_ces_mis <- data.frame()
+APND_ces_vr <- data.frame()
 
+sort(unique(CORE_ces$zmena))
+sort(unique(CORE_ces$duvod))
+sort(unique(CORE_ces$typ_cisla))
 
-sort(unique(ces$zmena))
-sort(unique(ces$duvod))
-sort(unique(ces$typ_cisla))
-ic <- ces %>% filter(typ_cisla == "I") 
-pr <- ces %>% filter(typ_cisla == "P")
-count(ic)+count(pr) == count(ces) # TRUE 
+# MUS
+
+CORE_mus_pk <- read_excel(paste0(path_proj, "vypisMUSEION/muzeumdc_exportPK.xlsx"), 
+                  sheet = 1, col_types="text") %>% 
+  mutate(id = floor(as.numeric(id)), # upravy formatu cisel a vytvoreni MMUS_par pro parovani
+         id =  as.character(id),
+         poradovecislo = trunc(as.numeric(poradovecislo)),
+         poradovecislo = as.character(poradovecislo),
+         MMUS_par = cislo) %>% 
+   relocate(MMUS_par, .before = cislo)
+
+CORE_mus_ka <- read_excel(paste0(path_proj, "vypisMUSEION/muzeumdc_exportKAT.xlsx"), 
+                  sheet = 1, col_types="text") 
 
 ```
+
+# ***********************************************************************************
+
+# MUZEUMDC:
+
+9.10.2023 zacinam
+
+## CES PRIRC
+
+### ces_pr
+
+nejprve pro jeden soubor, pote udelat smycku podle pole 'zdroj' ?
+
+#### 01 Archeologicka n=163
+
+N 112 -> p 109 m 3
+VR 51
+
+```{r}
+
+podsb_ces <- "Archeologická.txt"
+podsb_mus <- "Archeologie"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus) 
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N")  %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = ifelse(str_detect(cislo, "\\/"), gsub("\\/.*", "", cislo), cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr) 
+
+```
+
+#### 02 Botanicka n=30
+
+N 30 -> p 30 m 0
+VR 0
+
+```{r}
+
+podsb_ces <- "Botanická.txt"
+podsb_mus <- "Příroda - botanika"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus) 
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N")  %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = ifelse(str_detect(cislo, "\\/"), gsub("\\/.*", "", cislo), cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+
+
+
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr) 
+
+```
+
+#### 03 Archeologická-fond_Archeologického_ústavu n=19
+
+N 17 -> p 15 m 2
+VR 2
+
+```{r}
+
+podsb_ces <- "Další_-_Archeologická-fond_Archeologického_ústavu.txt"
+podsb_mus <- "Fond Archeologického ústavu"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus) 
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = ifelse(str_detect(cislo, "\\/"), gsub("\\/.*", "", cislo), cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("FAÚ", Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr) 
+
+```
+
+#### 04 Bohoslužebné_náčiní n=89
+
+N 80 -> p 52 m 28
+VR 9
+
+```{r}
+
+podsb_ces <- "Další_-_Bohoslužebné_náčiní.txt"
+podsb_mus <- "Bohoslužebné náčiní"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus) 
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = ifelse(str_detect(cislo, "\\/"), gsub("\\/.*", "", cislo), cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr) 
+
+```
+
+#### 05 Grafika n=85
+
+N 41 -> p 41 m 0
+VR 44
+
+```{r}
+
+podsb_ces <- "Další_-_Grafika.txt"
+podsb_mus <- "Grafika"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus) %>% 
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("^D\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("D", Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr) 
+
+```
+
+
+#### 06 Keramika n=170
+
+N 104 -> p 99 m 5
+VR 66
+
+```{r}
+
+podsb_ces <- "Další_-_Keramika.txt"
+podsb_mus <- "Keramika"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr) 
+
+```
+
+#### 07 Nabytek n=96
+
+N 93 -> p 89 m 4
+VR 3
+
+```{r}
+
+podsb_ces <- "Další_-_Nábytek.txt"
+podsb_mus <- "Nábytek"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr) 
+
+```
+
+#### 08 Obrazy n=57
+
+N 1 -> p 1 m 0
+VR 56
+
+```{r}
+
+podsb_ces <- "Další_-_Obrazy.txt"
+podsb_mus <- "Obrazy"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 1
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+
+#### 09 Plastika n=14
+
+N 0 -> p 0 m 0
+VR 14
+
+```{r}
+
+podsb_ces <- "Další_-_Plastika.txt"
+podsb_mus <- "Plastika"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("D", Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 10 Plavba n=114
+
+N 59 -> p 59 m 0
+VR 55
+
+```{r}
+
+podsb_ces <- "Další_-_Plavba.txt"
+podsb_mus <- "Plavba"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+
+#### 11 Pohlednice n=2378
+
+N 2337 -> p 2260 m 77
+VR 41
+
+```{r}
+
+podsb_ces <- "Další_-_Pohlednice.txt"
+podsb_mus <- "Pohlednice"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+
+#### 12 Rumburk - staré tisky n=885
+
+N 885 -> p 0 m 885
+VR 0
+
+!!! V MUS vubec neni !!!
+
+```{r}
+
+podsb_ces <- "Další_-_Rumburk_staré_tisky.txt"
+podsb_mus <- "Rumburk - staré tisky"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("^R\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("R", Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+
+#### 13 Sklo n=171
+
+N 54 -> p 53 m 1
+VR 117
+
+```{r}
+
+podsb_ces <- "Další_-_Sklo.txt"
+podsb_mus <- "Sklo"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 14 Entomologie n=0
+
+N 0 -> p 0 m 0
+VR 0
+
+!!! Zadne prirustky !!!
+
+```{r}
+
+podsb_ces <- "Entomologická.txt"
+podsb_mus <- "Příroda - entomologie"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N")  %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 15 Etnografie n=57
+
+N 46 -> p 46 m 0
+VR 11
+
+```{r}
+
+podsb_ces <- "Etnografická.txt"
+podsb_mus <- "Národopis"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N")  %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 16 Fotografie n=743
+
+N 719 -> p 703 m 16
+VR 24
+
+```{r}
+
+podsb_ces <- "Fotografie,_filmy,_videozáznamy_a_jiná_média.txt"
+podsb_mus <- "Fotografie"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N")  %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### D 17 Historicka n=4589
+
+N 3818 -> p 3390 m 431
+VR 771
+
+!!! D =  duplicity v rel přes MMUS_par !!!
+
+```{r}
+
+podsb_ces <- "Historická.txt"
+podsb_mus <- "Historie"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### D 18 Historicky dokument n=2152
+
+N 2113 -> p 2086 m 28
+VR 39
+
+!!! D =  duplicity v rel přes MMUS_par !!!
+
+```{r}
+
+podsb_ces <- "Jiná_-_Historický_dokument.txt"
+podsb_mus <- "Historický dokument"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 19 Muzeum Rumburk n=10592
+
+N 10263 -> p 3454 m 6809
+VR 329
+
+```{r}
+
+podsb_ces <- "Jiná_-_Muzeum_Rumburk.txt"
+podsb_mus <- "Muzeum Rumburk"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("^R\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("R", Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### D 20 Muzeum Varnsdorf n=10755
+
+N 7508 -> p 7494 m 17
+VR 329
+
+```{r}
+
+podsb_ces <- "Jiná_-_Muzeum_Varnsdorf.txt"
+podsb_mus <- "Muzeum Varnsdorf"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N")  %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("^V\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("V", Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 21 Knihy n=528
+
+N 0 -> p 0 m 0
+VR 528
+
+```{r}
+
+podsb_ces <- "Knihy.txt"
+podsb_mus <- "Knihy"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N")  %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("^V\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("A", Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 22 Mineralogická n=0
+
+N 0 -> p 0 m 0
+VR 0
+
+!!! Zadne prirustky !!!
+
+```{r}
+
+podsb_ces <- "Mineralogická.txt"
+podsb_mus <- "Příroda - mineralogie"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### D 23 Negativy n=3044
+
+N 1165 -> p 1166 m 0
+VR 1879
+
+```{r}
+
+podsb_ces <- "Negativy_a_diapozitivy.txt"
+podsb_mus <- "Negativy"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>%
+  # 
+  # # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv 
+  # 
+  # mutate(
+  #        Mcislo = gsub("\\/.*", "", cislo),
+  #        Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+  #        Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+  #        Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+  #        MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+  # 
+  # # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par = cislo)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 24 Numismatika n=6973
+
+N 5643 -> p 5643 m 0
+VR 1330
+
+```{r}
+
+podsb_ces <- "Numizmatická.txt"
+podsb_mus <- "Numismatika"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv
+
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>%
+
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par = cislo)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 25 Paleontologie n=0
+
+N 0 -> p 0 m 0
+VR 0
+
+!!! Zadne prirustky !!!
+
+```{r}
+
+podsb_ces <- "Paleontologická.txt"
+podsb_mus <- "Příroda - paleontologie"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv
+
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>%
+
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par = cislo)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 26 Zoologie n=4
+
+N 0 -> p 0 m 0
+VR 4
+
+!!! Zadne NOVE prirustky !!!
+
+```{r}
+
+podsb_ces <- "Zoologická.txt"
+podsb_mus <- "Příroda - zoologie"
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+rem <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>%
+  filter(zdroj == podsb_ces) # kontrola poctu zaznamu, protoze N = 0
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") %>% 
+
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  vvvvvvvvvvv
+
+  mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>%
+
+  # !!! toto se mezi podsbirkami lisi -> URPAVIT !!!  ^^^^^^^^^^^^
+  
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par = cislo)
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+#### 99 pomocna n=13950
+
+N 0 -> p 0 m 0
+VR 4
+
+parujeme APND_ces_mis
+
+```{r}
+
+# podsb_ces <- "Zoologická.txt"
+podsb_mus <- "pomocná"
+
+n <- APND_ces_mis %>% select(-MMUS_par, -MUS_cislo, -id, -cisloCES, -nazev)
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# PAR POM
+
+rel <- left_join(n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND ---TO DO ---
+
+# APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair)
+# APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis)
+# APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr)
+
+```
+
+
+
+
+
+
+
+
+
+
 # ***********************************************************************************
 
 Druhe kolo konsolidace dat CES a MUS pro OMCV.  
