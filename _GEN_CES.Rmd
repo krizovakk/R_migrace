@@ -244,6 +244,7 @@ count(pk_n)+count(pk_vr) == count(n) # TRUE
 count(ap_pair)+count(ap_mis) == count(rel) # TRUE
 count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
 
+print(c(count(n), count(pk_n), count(ap_pair), count(ap_mis), count(pk_vr)))
 # ----------------------------------------------------------------------------------------
 # APPEND
 
@@ -299,10 +300,6 @@ pk_n <- CORE_ces %>%
   
   select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
 
-
-
-
-
 # ----------------------------------------------------------------------------------------
 # PAROVANI
 
@@ -318,6 +315,8 @@ ap_mis <- rel %>% filter(is.na(MMUS_par))
 count(pk_n)+count(pk_vr) == count(n) # TRUE
 count(ap_pair)+count(ap_mis) == count(rel) # TRUE
 count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+print(c(count(n), count(pk_n), count(ap_pair), count(ap_mis), count(pk_vr)))
 
 # ----------------------------------------------------------------------------------------
 # APPEND
@@ -389,6 +388,8 @@ ap_mis <- rel %>% filter(is.na(MMUS_par))
 count(pk_n)+count(pk_vr) == count(n) # TRUE
 count(ap_pair)+count(ap_mis) == count(rel) # TRUE
 count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+print(c(count(n), count(pk_n), count(ap_pair), count(ap_mis), count(pk_vr)))
 
 # ----------------------------------------------------------------------------------------
 # APPEND
@@ -923,7 +924,7 @@ VR 41
 
 podsb_ces <- "Další_-_Pohlednice.txt"
 podsb_mus <- "Pohlednice"
-
+ 
 n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
  
 # ----------------------------------------------------------------------------------------

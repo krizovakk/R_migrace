@@ -1,0 +1,584 @@
+---
+title: "Kontrola CES × MUSEION"
+subtitle: "zjištěný stav k"
+date: "`r Sys.Date()`"
+author: "Katerina Krizova"
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: F
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("stringi")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+# install.packages("xlsx")
+require(tidyverse)
+require(readxl)
+require(xlsx) # write excel in sheets
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+
+```
+
+\newpage 
+
+# PATHS AND PROJ INFO
+
+```{r}
+
+proj <- "MUZEUMDC"
+
+path_ces <- "C:/Users/krizova/Documents/R/CES/"
+
+if(proj == "GMUR"){
+  path_proj <- "M:/03 klienti/kraj ustecky/galerie moderniho umeni v roudnici nad labem - GMUR/gmur_ces/"
+} else if(proj == "OMCV"){
+  path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum v chomutove, p. o. - OMCV/omcv_ces/"
+} else if(proj == "MUZEUMDC"){
+  path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum v decine, p.o. - MUZEUMDC/muzeumdc ces_2023/"
+  print("Project found!")
+} else{
+  print("No project found!")
+}
+
+```
+
+# LOAD CES TXT LOOP
+
+1.sloupec = Změna {N = nove, platne; V = vyrazeni; R = ruseni}
+2.sloupec = Duvod (pro N vypusteno)
+            V {N = neupotrebitelnost; P = prebytecnost; R = rozepsani; O = omyl}
+            R {C = chyba; Z = zmena cislovani}
+3. sloupec = typ cisla {P = prirustkove; I = inventarni}
+            
+```{r LOAD CES TXT LOOP , warning = F}
+
+# FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT 
+
+# Ltxt <- list.files(paste0(path_ces, proj), pattern = "*.txt")  # Identify file names
+# Ltxt <- list.files(paste0(path_proj, "CES"), pattern = "*.txt")  # Identify file names
+Ltxt <- list.files(paste0(path_proj, "vypisCES"), pattern = "*.txt")  # Identify file names
+df_filled <- data.frame()
+colnam <- c("zmena","duvod","typ_cisla","cislo",
+                "s5","s6", "s7", "s8",
+                "s9","s10","s11","s12")
+    
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+a <- read.table(paste0(path_proj, "vypisCES/", Ltxt[1]),
+                  skip = 4, header = F, sep = ";", fill = T, 
+                  check.names = F, fileEncoding="cp1250")
+
+for(i in Ltxt) {
+  a <- read.table(paste0(path_proj, "vypisCES/", i),
+                  skip = 4, header = F, sep = ";", fill = T, 
+                  check.names = F, fileEncoding="cp1250")
+  names(a) <- colnam
+  rows_to_change <- a$zmena == "N"
+  a[rows_to_change,3:12] <- a[rows_to_change,2:12] # shitf columns with N
+  a[rows_to_change,2] <- NA
+  a$zdroj <- paste(i) # add source txt file name
+  a <- a %>% filter(str_detect(zmena, ("^N$|^V$|^R$")))  # filter only relevant rows !!!
+  # print(unique(a$zdroj))
+  print(count(a))
+  df_filled <- rbind(df_filled,a)
+  print(i)
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# SAVE ALL TXT
+
+f2s <- paste0(path_ces, proj, "/", proj, "_allTXT.csv")
+
+if(file.exists(f2s)){
+  print("TXT already saved")
+  rm(f2s)
+} else {
+  write.table(df_filled, file = f2s, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  rm(f2s)
+}
+
+# CHECK AND CLEAR ENVIRONMENT
+
+CORE_ces <- df_filled
+rm(df_filled)
+rm(a)
+rm(i)
+rm(colnam)
+rm(rows_to_change)
+
+```
+
+# CES AND MUS
+
+Uprav CORE soubory ( = zdrojove, zakladni).
+Vytvor APND soubory ( = do nich zapisuj vysledky).
+
+```{r CES PROCESSING}
+
+# CES
+
+CORE_ces <- CORE_ces %>% discard(~all(is.na(.) | . == "")) # drop empy columns
+CORE_ces[CORE_ces == ""] <- NA
+
+APND_ces_pair <- data.frame()
+APND_ces_mis <- data.frame()
+APND_ces_vr <- data.frame()
+
+sort(unique(CORE_ces$zmena))
+sort(unique(CORE_ces$duvod))
+sort(unique(CORE_ces$typ_cisla))
+
+# MUS
+
+CORE_mus_pk <- read_excel(paste0(path_proj, "vypisMUSEION/muzeumdc_exportPK.xlsx"), 
+                  sheet = 1, col_types="text") %>% 
+  mutate(id = floor(as.numeric(id)), # upravy formatu cisel a vytvoreni MMUS_par pro parovani
+         id =  as.character(id),
+         poradovecislo = trunc(as.numeric(poradovecislo)),
+         poradovecislo = as.character(poradovecislo),
+         MMUS_par = cislo) %>% 
+   relocate(MMUS_par, .before = cislo)
+
+CORE_mus_ka <- read_excel(paste0(path_proj, "vypisMUSEION/muzeumdc_exportKAT.xlsx"), 
+                  sheet = 1, col_types="text") 
+
+```
+
+# Vyber podsbirku
+
+nazev podsbirky
+cisla znamenaji:
+  1) celkem prirustku 
+  2) novych prirustku 
+  3) sparovanych novych 
+  4) nesparovanych novych 
+  5) vyrazenych nebo zrusenych
+
+```{r}
+
+# 01 Archeologie 163 112 112 0 51
+
+podsb_ces <- "Archeologická.txt"
+podsb_mus <- "Archeologie"
+code <- "arc"
+
+# 02 Botanicka 30 30 30 0 0 
+
+podsb_ces <- "Botanická.txt"
+podsb_mus <- "Příroda - botanika"
+code <- "bot"
+
+# 03 Archeologická-fond_Archeologického_ústavu 19 17 15 2 2 
+
+podsb_ces <- "Další_-_Archeologická-fond_Archeologického_ústavu.txt"
+podsb_mus <- "Fond Archeologického ústavu"
+code <- "fau"
+
+# 04 Bohoslužebné_náčiní 89 80 52 28 9
+
+podsb_ces <- "Další_-_Bohoslužebné_náčiní.txt"
+podsb_mus <- "Bohoslužebné náčiní"
+code <- "boh"
+
+# 05 Grafika 85 41 41 0 44
+
+podsb_ces <- "Další_-_Grafika.txt"
+podsb_mus <- "Grafika"
+code <- "gra"
+
+# 06 Keramika 170 104 100 4 66
+
+podsb_ces <- "Další_-_Keramika.txt"
+podsb_mus <- "Keramika"
+code <- "ker"
+
+# 07 Nabytek 96 93 89 4 3
+
+podsb_ces <- "Další_-_Nábytek.txt"
+podsb_mus <- "Nábytek"
+code <- "nab"
+
+# 08 Obrazy 57 1 1 0 56
+
+podsb_ces <- "Další_-_Obrazy.txt"
+podsb_mus <- "Obrazy"
+code <- "obr"
+
+# 09 Plastika 14 0 0 0 14
+
+podsb_ces <- "Další_-_Plastika.txt"
+podsb_mus <- "Plastika"
+code <- "pla"
+
+# 10 Plavba 114 59 59 0 55
+
+podsb_ces <- "Další_-_Plavba.txt"
+podsb_mus <- "Plavba"
+code <- "plb"
+
+# 11 Pohlednice 2378 2337 2260 77 41
+
+podsb_ces <- "Další_-_Pohlednice.txt"
+podsb_mus <- "Pohlednice"
+code <- "poh"
+
+# 12 Rumburk - staré tisky 885 885 0 885 0              !!! V MUS vubec neni !!!
+
+podsb_ces <- "Další_-_Rumburk_staré_tisky.txt"
+podsb_mus <- "Rumburk - staré tisky"
+code <- "rst"
+
+# Sklo 171 54 53 1 117
+
+podsb_ces <- "Další_-_Sklo.txt"
+podsb_mus <- "Sklo"
+code <- "skl"
+
+# 14 Entomologie 0 0 0 0 0                              !!! Zadne prirustky !!!
+
+podsb_ces <- "Entomologická.txt"
+podsb_mus <- "Příroda - entomologie"
+code <- "ent"
+
+# 15 Etnografie 57 46 46 0 11
+
+podsb_ces <- "Etnografická.txt"
+podsb_mus <- "Národopis"
+code <- "etn"
+
+# 16 Fotografie 743 719 703 16 24
+
+podsb_ces <- "Fotografie,_filmy,_videozáznamy_a_jiná_média.txt"
+podsb_mus <- "Fotografie"
+code <- "fot"
+
+# D 17 Historicka 4589 3818 3393 428 771
+
+podsb_ces <- "Historická.txt"
+podsb_mus <- "Historie"
+code <- "his"
+
+# D 18 Historicky dokument 2152 2113 2086 28 39
+
+podsb_ces <- "Jiná_-_Historický_dokument.txt"
+podsb_mus <- "Historický dokument"
+code <- "hsd"
+
+# 19 Muzeum Rumburk 10592 10263 3707 6556 329
+
+podsb_ces <- "Jiná_-_Muzeum_Rumburk.txt"
+podsb_mus <- "Muzeum Rumburk"
+code <- "mur"
+
+# D 20 Muzeum Varnsdorf 10755 7508 7494 17 3247
+
+podsb_ces <- "Jiná_-_Muzeum_Varnsdorf.txt"
+podsb_mus <- "Muzeum Varnsdorf"
+code <- "muv"
+
+# 21 Knihy 528 0 0 0 528
+
+podsb_ces <- "Knihy.txt"
+podsb_mus <- "Knihy"
+code <- "kni"
+
+# 22 Mineralogická 0 0 0 0 0
+
+podsb_ces <- "Mineralogická.txt"
+podsb_mus <- "Příroda - mineralogie"
+code <- "min"
+
+# D 23 Negativy 3044 1165 1166 0 1879
+
+podsb_ces <- "Negativy_a_diapozitivy.txt"
+podsb_mus <- "Negativy"
+code <- "neg"
+
+# 24 Numismatika 6973 5643 5627 17 1330
+
+podsb_ces <- "Numizmatická.txt"
+podsb_mus <- "Numismatika"
+code <- "num"
+
+# 25 Paleontologie 0 0 0 0 0
+
+podsb_ces <- "Paleontologická.txt"
+podsb_mus <- "Příroda - paleontologie"
+code <- "pal"
+
+# 26 Zoologie 4 0 0 0 4
+
+podsb_ces <- "Zoologická.txt"
+podsb_mus <- "Příroda - zoologie"
+code <- "zoo"
+
+```
+
+# PK NOVE
+
+## @ paruj prirustky
+
+```{r}
+
+n <- CORE_ces %>% filter(zdroj == podsb_ces) %>% filter(typ_cisla == "P") 
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus) %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# CES "V" a "R"
+
+pk_vr <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena %in% c("R", "V"))
+
+# CES "N"
+
+pk_n <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "N") 
+
+if (code %in% c("arc", "bot", "boh", "ker", "nab", "plb", "poh", "skl", "ent", "etn",
+                "fot", "his", "hsd", "min", "num", "pal", "zoo")) {
+  pk_n <- pk_n %>% 
+    mutate(
+         Mcislo = gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = gsub(".*\\/|\\s.*", "", cislo),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+     select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+}  else if (code %in% c("fau")){
+    pk_n <- pk_n %>% 
+      mutate(
+         Mcislo =  gsub("\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = gsub(".*\\/|\\s.*", "", cislo),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("FAÚ", Mcislo0, "/", Mrok19)) %>% 
+     select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+}  else if (code %in% c("gra", "obr", "pla")){
+    pk_n <- pk_n %>% 
+      mutate(
+         Mcislo = gsub("^D\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = gsub(".*\\/|\\s.*", "", cislo),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("D", Mcislo0, "/", Mrok19)) %>% 
+     select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+}  else if (code %in% c("rst", "mur")){
+    pk_n <- pk_n %>% 
+      mutate(
+         Mcislo = gsub("^R\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = gsub(".*\\/|\\s.*", "", cislo),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("R", Mcislo0, "/", Mrok19)) %>% 
+     select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+}  else if (code %in% c("muv")){
+    pk_n <- pk_n %>% 
+      mutate(
+         Mcislo = gsub("^V\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = gsub(".*\\/|\\s.*", "", cislo),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("V", Mcislo0, "/", Mrok19)) %>% 
+     select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+}  else if (code %in% c("kni")){
+    pk_n <- pk_n %>% 
+      mutate(
+         Mcislo = gsub("^V\\s|\\/.*", "", cislo),
+         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
+         Mrok = gsub(".*\\/|\\s.*", "", cislo),
+         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         MCES_par = paste0("A", Mcislo0, "/", Mrok19)) %>% 
+     select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
+}  else if (code %in% c("neg")){
+    pk_n <- pk_n %>% 
+     select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par = cislo)
+} else {
+  print("failed")
+}
+
+# ----------------------------------------------------------------------------------------
+# PAROVANI
+
+rel <- left_join(pk_n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(pk_n)+count(pk_vr) == count(n) # TRUE
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(pk_n) # TRUE
+
+print(c(count(n), count(pk_n), count(ap_pair), count(ap_mis), count(pk_vr)))
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+APND_ces_vr <- bind_rows(APND_ces_vr, pk_vr) 
+
+```
+
+## zalohuj mezivysledek
+
+```{r}
+
+zaloha_APND_ces_pair <- APND_ces_pair # 27034
+zaloha_APND_ces_mis <- APND_ces_mis # 8063
+
+```
+
+## pomocna
+
+```{r}
+
+podsb_mus <- "pomocná"
+
+n <- APND_ces_mis %>% select(-MMUS_par, -MUS_cislo, -id, -cisloCES, -nazev)
+ 
+# ----------------------------------------------------------------------------------------
+# MUS
+
+mus <- CORE_mus_pk %>% 
+  filter(nazev == podsb_mus)  %>%
+  mutate(MMUS_par = sub("\\s.*", "", cislo))
+
+# ----------------------------------------------------------------------------------------
+# PAR POM
+
+rel <- left_join(n, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+ap_pair <- rel %>% filter(!is.na(MMUS_par))
+ap_mis <- rel %>% filter(is.na(MMUS_par))
+
+# CHECK
+
+count(ap_pair)+count(ap_mis) == count(rel) # TRUE
+count(ap_pair)+count(ap_mis) == count(n) # TRUE
+
+dupl <- rel %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+# ----------------------------------------------------------------------------------------
+# APPEND
+
+APND_ces_pair <- bind_rows(APND_ces_pair, ap_pair) 
+APND_ces_mis <- bind_rows(APND_ces_mis, ap_mis) 
+
+```
+
+# duplicity
+
+```{r}
+
+dupl <- APND_ces_pair %>% 
+  group_by(MCES_par) %>% 
+  filter(n() != 1)
+
+singl <- APND_ces_pair %>% 
+  group_by(MCES_par) %>% 
+  filter(n() == 1)
+
+count(dupl)+count(singl) == count(APND_ces_pair)
+
+```
+
+
+## uloz vysledky
+
+```{r}
+
+# DUPLICITY
+
+f2s <- paste0(path_ces, proj, "/", proj, "_PK_N_duplicity.csv")
+
+if(file.exists(f2s)){
+  print("You've been here before!")
+  rm(f2s)
+} else {
+  write.table(dupl, file = f2s,
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Report saved.")
+  rm(f2s)
+}
+
+# SPAROVANE
+
+f2s <- paste0(path_ces, proj, "/", proj, "_PK_N_sparovano.csv")
+
+if(file.exists(f2s)){
+  print("You've been here before!")
+  rm(f2s)
+} else {
+  write.table(singl, file = f2s,
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Report saved.")
+  rm(f2s)
+  }
+
+# NENALEZENE
+
+f2s <- paste0(path_ces, proj, "/", proj, "_PK_N_nenalezeno.csv")
+
+if(file.exists(f2s)){
+  print("You've been here before!")
+  rm(f2s)
+} else {
+  write.table(APND_ces_mis, file = f2s,
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  print("Report saved.")
+  rm(f2s)
+  }
+
+
+```
+
