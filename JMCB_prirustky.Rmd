@@ -61,6 +61,8 @@ path_kk <- "M:/03 klienti/kraj jihocesky/jihoceske muzeum v ceskych budejovicich
 
 Lxls <- list.files(path_data, pattern = "*.xlsx")  # Identify file names
 
+Lxls <- "M:/03 klienti/kraj jihocesky/jihoceske muzeum v ceskych budejovicich - JMCB/03 migrace/jmcb migrace 2023/zdrojdat/1916.xlsx"
+
 eda <- data.frame()
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -78,6 +80,11 @@ for(i in Lxls) {
 }
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+a <- read_excel("M:/03 klienti/kraj jihocesky/jihoceske muzeum v ceskych budejovicich - JMCB/03 migrace/jmcb migrace 2023/zdrojdat/1916.xlsx",
+              sheet = 1, col_names=FALSE)
+       #        range = cell_cols("A:P")) %>% 
+       # slice(2)
 
 ```
 

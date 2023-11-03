@@ -651,7 +651,7 @@ nab <- read.csv(paste0(path_snd, "NGP/nabyti.csv"), header = TRUE, sep = ",", fi
 dat <- read.table("M:/03 klienti/narodni galerie - NG/ng zdroj dat/2023-SE/CKS komplet/CKS/sb_data.csv",
                   fill = T, sep = ",", header = T)
 
-                header = TRUE, sep = ",", fill = T, quote = "", fileEncoding="utf-8")
+                # header = TRUE, sep = ",", fill = T, quote = "", fileEncoding="utf-8")
 
 x <- dat %>% 
   filter(str_detect(X, "[:alpha:]"))
@@ -661,12 +661,154 @@ x <- dat %>%
 
 ```
 
-```{r POSL SMAZAT}
- mutate(
-         Mcislo = ifelse(str_detect(cislo, "\\/"), gsub("\\/.*", "", cislo), cislo),
-         Mcislo0 = str_pad(Mcislo, 4, pad = "0"),
-         Mrok = ifelse(str_detect(cislo, "\\/"), gsub(".*\\/", "", cislo), NA),
-         Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
-         MCES_par = paste0(Mcislo0, "/", Mrok19)) %>% 
+# HELA NG-PK
+
+```{r}
+
+path_snd <- "C:/Users/krizova/Documents/R/piskoviste/HELA/"
+
+# df <- read_excel(paste0(path_snd, "NGpolozkyproslouceni.xlsx")) # daval navic mezi dva radky odstavec
+df <- read.xlsx(paste0(path_snd, "NGpolozkyproslouceni.xlsx"), sheetIndex = 1) # vyreseno
+df$numcena1 <- sub(",", ".", df$X1MCENA) # desetinna carka nahrazena teckou
+df <- df %>% mutate(numcena2 = ifelse(is.na(df$numcena1), 0, df$numcena1)) # kde je NA, dej cena =0
+df$numcena <- as.numeric(df$numcena2) # preved cenu na cislo,aby se dala scitat
+
+ngpk <- df %>% 
+  group_by(MPRIRC) %>% # group
+  arrange(MPRIRC, poradi) %>% # serad v ramci skupiny podle poradi
+  summarise(
+            CENA = sum(numcena), # secti cenu
+            INVC = paste(invc, collapse = ", "), # zretez INVC a oddel je carkou
+            Polozka1popis = paste(SLOUCENYPOPISpomocny, collapse = "\n\n")) # zretez popisy a oddel je prazdnym odstavcem
+  
+view(ngpk)  
+
+# check start
+
+summary(unique(df$MPRIRC))
+check <- df %>% group_by(MPRIRC) %>% mutate(check_cena = sum(numcena)) %>% 
+  filter(check_cena > 0) 
+
+# check end
+
+write.xlsx(as.data.frame(ngpk), file = paste0(path_snd, "NGPK_sloucenaPole2.xlsx"), row.names = F)
+
+```
+
+# DEMZ prirustky
+
+databaze: M:\03 klienti\DEMZ\demz_migraceDK.accdb
+tabulky: lcl_prirustek1  lcl_prirustek2  lcl_prirustek3  lcl_prirustek4
+
+```{r}
+
+# load db
+
+require(RODBC)
+
+dbname <- "M:/03 klienti/DEMZ/demz_migraceDK.accdb"
+con <- RODBC::odbcConnectAccess2007(dbname)      
+RODBC::sqlTables(con)
+# tab0 <- RODBC::sqlFetch(con, "lcl_prirustek1")
+tab0 <- RODBC::sqlFetch(con, "lcl_prirustek2")
+# tab0 <- RODBC::sqlFetch(con, "lcl_prirustek3")
+# tab0 <- RODBC::sqlFetch(con, "lcl_prirustek4")
+
+# eda
+
+rady <- tab0 %>% select(maska, MU_maska) %>% distinct()
+
+# prirustek1
+
+tab1 <- tab0 %>% 
+  mutate(KKporc = case_when(maska == "####/{AZ}####" ~ str_extract(cislo, "....$"),
+                            # maska == "####/####" ~ mapply(gsub, pattern=rok, x=cislo, replacement=""),
+                            maska == "####/####" ~ gsub("^.*\\/", "", cislo),
+                            maska == "{AZ}####/####" ~ str_extract(cislo, "....$"),
+                            maska == "####/#####" ~ str_extract(cislo, ".....$"),
+                            maska == "####/#####/?" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), 
+                            maska == "####-#####" ~ str_extract(cislo, ".....$"),
+                            # maska == "####/{AZ}{AZ}###" ~ str_extract(cislo, ".....$"), ???
+                            maska == "{AZ}####/#####" ~ str_extract(cislo, ".....$"),
+                            maska == "{AZ}####/#####/#" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo),
+                            maska == "{AZ}####/######" ~ substr(cislo, 7, 12),
+                            maska == "{AZ}####/#####/##" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo),
+                            maska == "{AZ}####/#####/###" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo),
+                            maska == "{AZ}####/#####" ~ str_extract(cislo, ".....$"),
+                            
+                            maska == "####/#####/{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), # funkcni prikaz pro "mezi dvema lomitky"!!
+                            maska == "####/#####/{AZ}{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), 
+                            maska == "####/#####/{AZ}{AZ}{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), 
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), 
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), 
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), 
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), 
+                            maska == "####/#####-{AZ}" ~ sub("^.*\\/([0-9]+)-.*$", "\\1", cislo),
+                            maska == "####/#####-{AZ}?)" ~ sub("^.*\\/([0-9]+)-.*$", "\\1", cislo),
+                            maska == "####/#####{AZ}" ~ substr(cislo, 6, 10),
+                            maska == "####/####/{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo),
+                            # maska == "" ~ ,
+                            # maska == "" ~ ,
+                            TRUE ~ "NESPLNIL PODMINKY"),
+        KKsubc = case_when(maska == "####/#####/?" ~ sub("^.*\\/.*\\/", "", cislo),
+                           maska == "{AZ}####/#####/#" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "{AZ}####/#####/##" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "{AZ}####/#####/###" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####-{AZ}" ~ sub("^.*\\/.*-", "", cislo),
+                            maska == "####/#####-{AZ}?)" ~ sub("^.*\\/.*-", "", cislo),
+                            maska == "####/#####{AZ}" ~ str_extract(cislo, ".$"),
+                            maska == "####/####/{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            TRUE ~ NA))
+        
+# prirustek2
+
+tab2 <- tab0 %>% 
+  mutate(KKporc = case_when(
+                            str_detect(maska, "#+\\/#+") ~ str_extract(cislo, "(?<=\\/)\\d+"), # A
+                            maska == "##/####" ~ str_extract(cislo, "^.."),                    # B
+                            str_detect(maska, "#+") ~ cislo,                                   # C
+                            str_detect(maska, ".+\\/#+\\/.+") ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), # D
+                            # str_detect(maska, "^#+\\/[:upper]#+") ~ str_extract(cislo, "\\d+$"), # E
+                            TRUE ~ "NESPLNIL PODMINKY"))
+
+        KKsubc = case_when(maska == "####/#####/?" ~ sub("^.*\\/.*\\/", "", cislo),
+                           maska == "{AZ}####/#####/#" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "{AZ}####/#####/##" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "{AZ}####/#####/###" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            maska == "####/#####-{AZ}" ~ sub("^.*\\/.*-", "", cislo),
+                            maska == "####/#####-{AZ}?)" ~ sub("^.*\\/.*-", "", cislo),
+                            maska == "####/#####{AZ}" ~ str_extract(cislo, ".$"),
+                            maska == "####/####/{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
+                            TRUE ~ NA))                                                        
 
 
+```
+
+masky se subcislem (pravdepodobne)
+
+\\{AZ}####/##### -> #### = soucast rady ; ##### = porc
+\\{AZ}####/#####/# -> #### = soucast rady ; ##### = porc ; # = subc
+
+masky, ktere maji jen jeden zaznam nebo jsou chybne
+
+\\####/#####/?
+\\####/{AZ}{AZ}###
+\\{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}?{AZ}
+\\{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}? {AZ}?{AZ}{AZ}{AZ}{AZ}? {AZ}{AZ}{AZ}{AZ}{AZ}{AZ}?{AZ}
+\\{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}?{AZ}? {AZ}{AZ}{AZ}{AZ}{AZ}
+\\{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}
+\\####/#####-{AZ}?)

@@ -167,6 +167,111 @@ rm(df_filled)
 
 ```
 
+```{r STATS 4 DOCS}
+
+t <- nrow(CORE_ces)
+p <- nrow(CORE_ces[CORE_ces$typ_cisla == "P",])
+i <- nrow(CORE_ces[CORE_ces$typ_cisla == "I",])
+p+i == t
+
+print(c(t, p, i))
+
+# prirustky table1
+
+cesp <- CORE_ces %>% filter(typ_cisla == "P")
+cesp$zdroj <- as.factor(cesp$zdroj)
+cesp$zmena <- as.factor(cesp$zmena)
+cesp$duvod <- as.factor(cesp$duvod)
+summary(cesp) 
+
+nrow(CORE_ces[CORE_ces$typ_cisla == "P"&CORE_ces$zmena == "N",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "P"&CORE_ces$zmena == "V",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "P"&CORE_ces$zmena == "R",])
+
+stat_p <- data.frame()
+
+for (i in Ltxt) {
+  a <- cesp %>% filter(zdroj == i)
+  n <- nrow(a[a$zmena == "N",])
+  v <- nrow(a[a$zmena == "V",])
+  vr <- nrow(a[a$zmena == "V"&a$duvod == "R",])
+  vo <- nrow(a[a$zmena == "V"&a$duvod == "O",])
+  r <- nrow(a[a$zmena == "R",])
+  rc <- nrow(a[a$zmena == "R"&a$duvod == "C",])
+  tot <- nrow(a)
+  out <- c(i, n, v, vr, vo, r, rc, tot)
+  stat_p <- rbind(stat_p, out)
+  print(i)
+}
+
+colnames(stat_p) <- c("Zdrojový soubor", "N", "V", "(V-R)", "(V-O)", "R", "(R-C)", "Celkem")
+write.table(stat_p, "clipboard", sep="\t", row.names=FALSE)
+
+# graf PK
+
+clip <- read.delim("clipboard") # excel statistiky, list 3
+
+ggplot(clip, aes(name, value, fill = ind))+
+  geom_bar(position='dodge', stat="identity")+
+  # scale_fill_manual("", values = c("celk" = "royalblue4", "spar" = "cyan4"))+
+  labs(x = "podsbírka", y = "počet záznamů z CES", fill = "", title = "Chronologická evidence")+
+  ylim(0,11500)+
+  scale_fill_discrete(labels=c('celkem', 'spárováno'))+
+  theme_classic(base_size = 18)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave(paste0(path_ces, proj, "/PK_plot.png"), device = "png", width = 10, height = 8, dpi = 300)
+
+# katalog table 1
+
+cesp <- CORE_ces %>% filter(typ_cisla == "I")
+cesp$zdroj <- as.factor(cesp$zdroj)
+cesp$zmena <- as.factor(cesp$zmena)
+cesp$duvod <- as.factor(cesp$duvod)
+summary(cesp) 
+
+nrow(CORE_ces[CORE_ces$typ_cisla == "I",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "I"&CORE_ces$zmena == "N",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "I"&CORE_ces$zmena == "V",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "I"&CORE_ces$zmena == "R",])
+
+
+stat_p <- data.frame()
+
+for (i in Ltxt) {
+  a <- cesp %>% filter(zdroj == i)
+  n <- nrow(a[a$zmena == "N",])
+  v <- nrow(a[a$zmena == "V",])
+  vn <- nrow(a[a$zmena == "V"&a$duvod == "N",])
+  r <- nrow(a[a$zmena == "R",])
+  rc <- nrow(a[a$zmena == "R"&a$duvod == "C",])
+  rz <- nrow(a[a$zmena == "R"&a$duvod == "Z",])
+  tot <- nrow(a)
+  out <- c(i, n, v, vn, r, rc, rz, tot)
+  stat_p <- rbind(stat_p, out)
+  print(i)
+}
+
+colnames(stat_p) <- c("Zdrojový soubor", "N", "V", "(V-N)", "R", "(R-C)", "(R-Z)", "Celkem")
+write.table(stat_p, "clipboard", sep="\t", row.names=FALSE)
+
+# graf KAT
+
+clip <- read.delim("clipboard") # excel statistiky, list 2
+
+ggplot(clip, aes(name, value, fill = ind))+
+  geom_bar(position='dodge', stat="identity")+
+  # scale_fill_manual("", values = c("celk" = "royalblue4", "spar" = "cyan4"))+
+  labs(x = "podsbírka", y = "počet záznamů z CES", fill = "", title = "Systematická evidence")+
+  ylim(0,13000)+
+  scale_fill_discrete(labels=c('celkem', 'spárováno'))+
+  theme_classic(base_size = 18)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave(paste0(path_ces, proj, "/KAT_plot.png"), device = "png", width = 10, height = 8, dpi = 300)
+```
+
+
 # --------> Vyber podsbirku <--------
 
 ```{r}
@@ -332,6 +437,16 @@ code <- "zoo"
 
 # PK 
 
+## definice prirustkovych knih
+
+```{r}
+def_pk <- CORE_mus_pk %>% 
+  select(nazev, podsbirka, radaPK) %>% 
+  distinct() %>% 
+  arrange(nazev)
+view(def_pk)
+```
+
 ## @ paruj prirustky
 
 ```{r}
@@ -402,9 +517,9 @@ if (code %in% c("arc", "bot", "boh", "ker", "nab", "plb", "poh", "skl", "ent", "
     pk <- pk %>% 
       mutate(
          Mcislo = gsub("^R\\s|\\/.*", "", cislo),
-         Mcislo0 = str_pad(Mcislo, 5, pad = "0"),
          Mrok = gsub(".*\\/|\\s.*", "", cislo),
          Mrok19 = ifelse(str_detect(Mrok, "^\\d\\d\\s|^\\d\\d$"), paste0("19", Mrok), Mrok),
+         Mcislo0 = ifelse(Mrok19 == "1985", str_pad(Mcislo, 5, pad = "0"), str_pad(Mcislo, 4, pad = "0")),
          MCES_par = paste0("R", Mcislo0, "/", Mrok19)) %>% 
      select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par)
 }  else if (code %in% c("muv")){
@@ -448,9 +563,10 @@ spa <- rel %>% filter(!is.na(MMUS_par)) %>% group_by(MCES_par) %>% filter(n() ==
   mutate(status = "sparovano") %>% arrange(zmena)
 dupl <- rel %>% filter(!is.na(MMUS_par)) %>% group_by(MCES_par) %>% filter(n() !=  1) %>% 
   mutate(status = "duplicitni") %>% arrange(zmena) 
-nespa <- rel %>% filter(is.na(MMUS_par)) %>% mutate(status = "nesparovano") %>% arrange(MMUS_par)
+neMUS <- rel %>% filter(is.na(MMUS_par)) %>% mutate(status = "nenalezeno v MUS") %>% arrange(MCES_par)
+neCES <- rel %>% filter(is.na(MCES_par)) %>% mutate(status = "nenalezeno v CES") %>% arrange(MMUS_par)
 
-x_save <- bind_rows(spa, dupl, nespa)
+x_save <- bind_rows(spa, dupl, neMUS, neCES)
 
 # !!! Pokud upravujes, jdi odtud na sekci O P R A V Y  pro ulozeni. !!!
 
@@ -461,10 +577,10 @@ n <- PODSB_zazn %>% filter(zmena == "N")
 v <- PODSB_zazn %>% filter(zmena == "V")
 r <- PODSB_zazn %>% filter(zmena == "R")
 
-ap_stats <- cbind(podsb_mus, "PK", nrow(PODSB_zazn), nrow(n), nrow(v), nrow(spa), nrow(dupl), nrow(nespa), nrow(r)) 
+ap_stats <- cbind(podsb_mus, "PK", nrow(PODSB_zazn), nrow(n), nrow(v), nrow(spa), nrow(dupl), nrow(neMUS), nrow(neCES), nrow(r)) 
 APND_stats <- rbind(APND_stats, ap_stats) 
 
-APND_pk_nespa <- rbind(APND_pk_nespa, nespa) 
+APND_pk_nespa <- rbind(APND_pk_nespa, neMUS) 
 
 # ----------------------------------------------------------------------------------------
 # SAVE
@@ -482,7 +598,6 @@ gc(verbose = T)
 write.xlsx(as.data.frame(pk_rus), file = x_pk_rus, append = T, sheetName = podsb_mus, row.names = F, showNA = F)
 
 print("Pokracuj na katalog.")
-
 
 ```
 
@@ -573,9 +688,10 @@ spa <- rel %>% filter(!is.na(MMUS_par)) %>% group_by(MCES_par) %>% filter(n() ==
   mutate(status = "sparovano") %>% arrange(MMUS_par)
 dupl <- rel %>% filter(!is.na(MMUS_par)) %>% group_by(MCES_par) %>% filter(n() !=  1) %>% 
   mutate(status = "duplicitni") %>% arrange(MMUS_par)
-nespa <- rel %>% filter(is.na(MMUS_par)) %>% mutate(status = "nesparovano") %>% arrange(MMUS_par)
+neMUS <- rel %>% filter(is.na(MMUS_par)) %>% mutate(status = "nenalezeno v MUS") %>% arrange(MMUS_par)
+neCES <- rel %>% filter(is.na(MCES_par)) %>% mutate(status = "nenalezeno v CES") %>% arrange(MCES_par)
 
-x_save <- bind_rows(spa, dupl, nespa)
+x_save <- bind_rows(spa, dupl, neMUS, neCES)
 
 # ----------------------------------------------------------------------------------------
 # STATS
@@ -584,10 +700,10 @@ n <- PODSB_zazn %>% filter(zmena == "N")
 v <- PODSB_zazn %>% filter(zmena == "V")
 r <- PODSB_zazn %>% filter(zmena == "R")
 
-ap_stats <- cbind(podsb_mus, "KAT", nrow(PODSB_zazn), nrow(n), nrow(v), nrow(spa), nrow(dupl), nrow(nespa), nrow(r)) 
+ap_stats <- cbind(podsb_mus, "KAT", nrow(PODSB_zazn), nrow(n), nrow(v), nrow(spa), nrow(dupl), nrow(neMUS), nrow(neCES), nrow(r)) 
 APND_stats <- rbind(APND_stats, ap_stats) 
 
-APND_ka_nespa <- rbind(APND_ka_nespa, nespa) 
+APND_ka_nespa <- rbind(APND_ka_nespa, neMUS)
 
 # ----------------------------------------------------------------------------------------
 # SAVE
@@ -605,6 +721,9 @@ gc(verbose = T)
 write.xlsx(as.data.frame(ka_rus), file = x_ka_rus, append = T, sheetName = podsb_mus, row.names = F, showNA = F)
 
 view(APND_stats)
+rm(code)
+rm(podsb_ces)
+rm(podsb_mus)
 
 print("Vyber dalsi podsbirku.")
 
@@ -617,10 +736,10 @@ print("Vyber dalsi podsbirku.")
 ```{r}
 
 nam <- c("podsbirka", "evidence", "pocet zazn. CES", "novych", "vyrazenych", 
-          "sparovanych", "duplicit", "nenalezenych", "zrusenych")
+          "sparovanych", "duplicit", "nenalezenych v MUS", "nenalezenych v CES", "zrusenych")
 colnames(APND_stats) <- nam
 
-f2s <- paste0(path_ces, proj, "/", proj, "_statistiky.xlsx")
+f2s <- paste0(path_ces, proj, "/", proj, "_statistiky2.xlsx")
 
 write.xlsx(as.data.frame(APND_stats), file= f2s, row.names=FALSE)
 
@@ -689,12 +808,13 @@ ka_pom_spa <- rel %>% filter(!is.na(MMUS_par)) %>% group_by(MCES_par) %>% filter
   mutate(status = "sparovano") %>% arrange(MMUS_par)
 ka_pom_dupl <- rel %>% filter(!is.na(MMUS_par)) %>% group_by(MCES_par) %>% filter(n() !=  1) %>% 
   mutate(status = "duplicitni") %>% arrange(MMUS_par)
-ka_pom_nespa <- rel %>% filter(is.na(MMUS_par)) %>% mutate(status = "nesparovano") %>% arrange(MMUS_par)
+ka_pom_neMUS <- rel %>% filter(is.na(MMUS_par)) %>% mutate(status = "nenalezeno v MUS") %>% arrange(MCES_par)
+ka_pom_neCES <- rel %>% filter(is.na(MCES_par)) %>% mutate(status = "nenalezeno v CES") %>% arrange(MMUS_par)
 
-ka_x_save <- bind_rows(ka_pom_spa, ka_pom_dupl, ka_pom_nespa)
+ka_x_save <- bind_rows(ka_pom_spa, ka_pom_dupl, ka_pom_neMUS, ka_pom_neCES)
 
 ```
-## Uloz pomocnou
+## uloz pomocnou
 
 ```{r}
 
@@ -716,18 +836,44 @@ if(file.exists(f2s)){
 
 # O P R A V Y
 
+## knihy
+
 Knihy měly špatně definované MCES_par
 
 ```{r}
-
-
 
 write.xlsx(as.data.frame(x_save), file = paste0(path_ces, proj, "/", proj, "_PK_Knihy-oprava.xlsx"), row.names = F, showNA = F)
 
 ```
 
+## muzeum rumburk
 
+Muzeum Rumburk má v PK občas 4 místa, občas 5
+-> upraven hlavni kod:
+5 mist ma jen rok 1985
 
+```{r}
 
+write.xlsx(as.data.frame(x_save), file = paste0(path_ces, proj, "/", proj, "_PK_MUR-oprava.xlsx"), row.names = F, showNA = F)
+
+```
+
+## pk historie
+
+nektera cisla jsou ve vypisu jako nesparovana
+vypis je obsahuje, jsou jen nahlaseny do jine podsbirky
+zkusit je najit a doplnit do output excelu, aby si s tim uzivatele mohli nejak nalozit
+
+```{r}
+
+clip <- read.delim("clipboard") # cisla, ktera nebyla nalezena (ve sloupci)
+
+rel <- left_join(clip, CORE_mus_pk, by = c("hist" = "cislo"), keep = T) # snaha najit je v jinych podsbirkach
+  select(zdroj, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+  
+write.table(rel, "clipboard", sep="\t", row.names=FALSE)  # POZOR: clipboard je omezeny, mozna se nezkopiruje vsechno
+
+```
 
 
