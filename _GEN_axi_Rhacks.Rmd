@@ -49,6 +49,13 @@ read.csv : sep is always ","
 df <- read.csv("D:/VURV/R_hacks/data/simple_table_4read.csv", header = TRUE, sep = ";")
 ```
 
+#### Write to Clipboard
+
+```{r}
+write.table(df, "clipboard", sep = "\t", row.names = FALSE)
+```
+
+
 ### XLSX
 
  ~ PACKAGES ~
@@ -74,6 +81,28 @@ df <- read_excel("D:/VURV/R_hacks/data/simple_table_4read.xlsx" , sheet = 2, hea
 ISSUE: 'Warning: Expecting numeric in E1251 / R1251C5: got '41 (cm)'  
 
 SOLUTION: df <- read_excel(paste0(path_snd, "muzbe_rozmery_ptaci.xlsx"), sheet = 1, **col_types="text"**)
+
+#### Read multiple excel sheets
+
+potrebny balik "data.table"
+
+```{r}
+read_excel_allsheets <- function(filename, tibble = FALSE) {
+    # I prefer straight data.frames
+    # but if you like tidyverse tibbles (the default with read_excel)
+    # then just pass tibble = TRUE
+    sheets <- readxl::excel_sheets(filename)
+    x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X, col_types = "text"))
+    if(!tibble) x <- lapply(x, as.data.frame)
+    names(x) <- sheets
+    x
+}
+
+mysheets <- read_excel_allsheets(paste0(path_proj, "20xx.xlsx")) # specifikuj excel file
+# list_data <- Map(as.data.frame, mysheets) # nesjpis neni nutny krok
+df <- rbindlist(mysheets) # pripadne list_data
+```
+
 
 #### Write excel
 
@@ -193,6 +222,22 @@ ceiling(x) = rounds values up to nearest integer
 floor(x) = rounds values down to nearest integer
 trunc(x) = truncates (cuts off) decimal places from values
 
+### Date
+
+28138 -> 13.01.1977
+pokud mame oba formaty, resime pomoci vnorenzch ifelsu takto:
+
+```{r}
+df <- source %>% 
+  mutate(Mdat_ser = as.numeric(ifelse(str_detect(datumNabyti, "^.....$"), datumNabyti, NA)),
+         Mdat_trans = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y"),
+         datnab22 = ifelse(str_detect(datumNabyti, "^.....$"), Mdat_trans, 
+                           ifelse(str_detect(datumNabyti, "\\."), sub("\\.$", "", datumNabyti), datumNabyti)))
+```
+
+Mdat_ser = seriove datum
+Mdat_trans = transformovane datum
+
 
 \newpage
 
@@ -291,10 +336,32 @@ sep = sign for separation
 na.rm = skip columns containing NA  
 remove = keep or delete source columns  
 
+### Seq_along with letters
+
+```{r}
+# lowercase
+mutate(Msub = case_when(n()!=1 ~ letters[seq_along(porc)], TRUE ~ NA))
+
+# uppercase
+mutate(Msub = case_when(n()!=1 ~ LETTERS[seq_along(porc)], TRUE ~ NA))
+
+```
+
 
 \newpage
 
 ## D A T A F R A M E S
+
+### e n v i r o n m e n t
+
+#### remove df with name pattern
+
+remove all dataframes that contains "muz_" in their name
+
+```{r}
+rm(list = ls()[grepl("muz_", ls())])
+```
+
 
 ### g e n e r a l
 

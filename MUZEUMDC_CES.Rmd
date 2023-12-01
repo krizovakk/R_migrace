@@ -877,3 +877,93 @@ write.table(rel, "clipboard", sep="\t", row.names=FALSE)  # POZOR: clipboard je 
 ```
 
 
+# S Q L 
+
+nacteni sparovanych a vytvoreni prikazu
+
+## nacteni
+
+```{r}
+
+read_excel_allsheets <- function(filename, tibble = FALSE) {
+    # I prefer straight data.frames
+    # but if you like tidyverse tibbles (the default with read_excel)
+    # then just pass tibble = TRUE
+    sheets <- readxl::excel_sheets(filename)
+    x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X, col_types = "text", col_names = T,))
+    if(!tibble) x <- lapply(x, as.data.frame)
+    names(x) <- sheets
+    x
+}
+
+# ----------------- s w i t c h ----------------
+
+mysheets <- read_excel_allsheets("M:/03 klienti/kraj ustecky/oblastni muzeum v decine, p.o. - MUZEUMDC/muzeumdc ces_2023/KK/20231102_MUZEUMDC_PK_NV____kontrolaOK.xlsx")
+
+# mysheets <- read_excel_allsheets("M:/03 klienti/kraj ustecky/oblastni muzeum v decine, p.o. - MUZEUMDC/muzeumdc ces_2023/KK/20231101_MUZEUMDC_KAT_NV____kontrolaOK.xlsx")
+
+# ----------------- r e a d ----------------
+
+spa <- data.frame()
+
+for (i in mysheets) {
+  df <- as.data.frame(i)
+  a <- df %>% filter(status == "sparovano")
+  b <- a %>% select(zmena, duvod, CES_cislo, id) # PK
+  # b <- a %>% select(zmena, duvod, CES_cislo, sp_id) # KAT
+  spa <- rbind(spa, b)
+}
+
+
+```
+
+## prikaz
+
+UPDATE v MUSEIONu
+------ prirustky
+-- shoda (rozepsané)
+update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '1/2002' WHERE PRIRUSTEK.ID = 19450569;
+-- shoda (nové
+update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '1/2002' WHERE PRIRUSTEK.ID = 19450569;
+-- doplnění podsbírky	(shoda čísel, pokud je přírůstek ve více podsbírkách, tak vybrat jedn)	
+update PRIRUSTEK set podsbirka_id = 388059 WHERE PRIRUSTEK.ID = 19450569;
+
+
+```{r PRIRUSTKY}
+
+# rozepsane
+
+r <- spa %>% filter(duvod == "R") %>% 
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '", CES_cislo, "' WHERE PRIRUSTEK.ID = ", id, ";")) %>% 
+  select(prikaz)
+
+write.table(r, file = "M:/03 klienti/kraj ustecky/oblastni muzeum v decine, p.o. - MUZEUMDC/muzeumdc ces_2023/KK/updaty/MUZEUMDC_updt_PK_rozepsane.sql", 
+            quote = F, row.names = F, col.names = F)
+
+# nove
+
+n <- spa %>% filter(zmena == "N") %>% 
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '", CES_cislo, "' WHERE PRIRUSTEK.ID = ", id, ";")) %>% 
+  select(prikaz)          
+
+write.table(n, file = "M:/03 klienti/kraj ustecky/oblastni muzeum v decine, p.o. - MUZEUMDC/muzeumdc ces_2023/KK/updaty/MUZEUMDC_updt_PK_nove.sql", 
+            quote = F, row.names = F, col.names = F)
+
+```
+
+update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = 'B 1' WHERE PREDMET.ID = 21788625;
+
+```{r KATALOG}
+
+# rozepsane
+
+s <- spa %>%
+  mutate(prikaz = paste0("update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = '", CES_cislo, "' WHERE PREDMET.ID = ", sp_id, ";")) %>% 
+  select(prikaz)          
+
+write.table(s, file = "M:/03 klienti/kraj ustecky/oblastni muzeum v decine, p.o. - MUZEUMDC/muzeumdc ces_2023/KK/updaty/MUZEUMDC_updt_KAT.sql", 
+            quote = F, row.names = F, col.names = F)
+
+```
+
+

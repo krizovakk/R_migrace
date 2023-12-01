@@ -406,72 +406,119 @@ imp <- "technika"
 *IMPORTNÍ ROZHRANÍ*: CSV Prirustkova kniha
 *MUSEION*: import_PK.csv 
 
-## OBP 
-
 ```{r}
+
+# 105
 
 mus_tab <- mod_tab %>%
   select("1sbirkaCisloEvidInt" = sbirka1, # POV
          "2podsbirkaCislo" = podsb2, # POV
          "3ciselnaRadaKod" = cisrada3, # POV
-         "4prirustekCislo" = prirc,  # POV
-         "5inventarniCisla" = X, "6lokaceKod" = X, 
-         "7prirustekPlatnost" = X, "8prirustekDuvodNeplatnosti" = X,
-         "9prirustekVyrazeno" = X, "10prirustekOznaceni" = X,
-         "11prirustekPopisPrirustku" = X,  
-         "12prirustekRok" = prirrok12, # POV
+         "4prirustekCislo" = prirc4,  # POV
+         "5inventarniCisla" = invc5, 
+         "6lokaceKod" = X, 
+         "7prirustekPlatnost" = X, 
+         "8prirustekDuvodNeplatnosti" = X,
+         "9prirustekVyrazeno" = X, 
+         "10prirustekOznaceni" = ozn10,
+         "11prirustekPopisPrirustku" = popis11,  
+         "12prirustekRok" = rok12, # POV
          "13prirustekPocetKusu" = pocetks13, # POV
          "14prirustekObal" = X, 
          "15prirustekEvidovano" = evid15, 
          "16materialNazev" = X, 
          "17dataceHodnota" = X, "18stavNazev" = X, 
-         "19prirustekPopisStavu" = X, "20prirustekPoznamka" = X,
-         "21literaturaNazev" = X, "22nabytiPredmetuDatum" = X,
-         "23zpusobNabytiKod" = X, "24typDokladuNabytiKod" = X,
-         "25nabytiPredmetuDoklad" = X, "26menaKod" = X, 
-         "27nabytiPredmetuCena" = X, "28puvodniMajitelKod" = X,
-         "29nabytiPredmetuPoznamka" = X, 
-         "30typPredmetuKod" = typptukod30, # POV - "P"(obecný) nebo "PA"(archeologický)
+         "19prirustekPopisStavu" = X, 
+         "20prirustekPoznamka" = pozn20, # ------------------ poznamka k prirustku
+         "21literaturaNazev" = X, 
+         
+         #nabyti
+         "22nabytiPredmetuDatum" = datnab22,
+         "23zpusobNabytiKod" = zpnab23, 
+         "24typDokladuNabytiKod" = X,
+         "25nabytiPredmetuDoklad" = doklnab25, 
+         "26menaKod" = X, 
+         "27nabytiPredmetuCena" = cennab27, 
+         "28puvodniMajitelKod" = puvmaj28,
+         "29nabytiPredmetuPoznamka" = nabpozn29, # --------------- poznamka k nabyti
+         "30typPredmetuKod" = typ30, # POV - "P"(obecný) nebo "PA"(archeologický)
+         
+         # archeologie
          "31nalezArcheologieMisto" = X, "32nalezArcheologieKontext" = X,
          "33nalezArcheologieAkce" = X, "34vyzkumCislo" = X,
          "35lokalitaNazev" = X,  "36katastralniUzemiNazev" = X, 
          "37druhCislovaniParcelKod" = X, "38pozemekKod" = X,
-         "39nalezPredmetuPoznamka" = X, "40nalezPredmetuAdresa" = X, 
+         "39nalezPredmetuPoznamka" = X, # --------------- poznamka k nalezu
+         "40nalezPredmetuAdresa" = X, 
          "41nalezPredmetuOkres" = X, "42nalezPredmetuObec" = X, 
          "43nalezPredmetuCastObce" = X, "44nalezPredmetuMestskaCast" = X,
          "45nalezPredmetuCislo" = X, "46nalezPredmetuUlice" = X, 
          "47nalezPredmetuCisloOrientacni" = X, "48nalezPredmetuPSC" = X,
          "49statKod" = X, "50prirustekArcheologieText" = X, 
+         
+         # polozky
          "51polozkaPrirustku1PopisPredmetu" = X, "52cisloCES" = X, 
-         "53polozkaPrirustku1PocetKusu" = X,  # POV , muzeme nechat prazdne, vyplni se aut 1
+         "53polozkaPrirustku1PocetKusu" = X,  # POV , muzeme nechat prazdne, vyplni se aut 1 ; na karte pod Seznamem predmetu
          "54doplnkoveCislo1Cislo" = X,
          "55doplnkoveCislo1Text" = X, "56doplnkoveCislo2Cislo" = X, 
          "57doplnkoveCislo2Text" = X, "58doplnkoveCislo3Cislo" = X, 
          "59doplnkoveCislo3Text" = X, "60archivalieArchivalie" = X, 
          "61archivalieSignatura" = X, "62archivalieMarkant" = X, 
-         "63archivaliePoznamka" = X, "64vyrazeniPredmetuDatum" = X, 
-         "65duvodVyrazeniKod" = X, "66typDokladuVyrazeniKod" = X, 
-         "67vyrazeniPredmetuDoklad" = X, "68vyrazeniPredmetuMenaKod" = X, 
-         "69vyrazeniPredmetuCena" = X, "70zpusobUbytkuKod" = X, 
+         "63archivaliePoznamka" = X, # --------------- poznamka k archivalii
+         
+         # vyrazeni
+         "64vyrazeniPredmetuDatum" = vyrdat64, 
+         "65duvodVyrazeniKod" = X, 
+         "66typDokladuVyrazeniKod" = X, 
+         "67vyrazeniPredmetuDoklad" = vyrdok67, 
+         "68vyrazeniPredmetuMenaKod" = X, 
+         "69vyrazeniPredmetuCena" = X, 
+         "70zpusobUbytkuKod" = X, 
          "71vyrazeniPredmetuCisloCES" = X, "72novyMajitelKod" = X, 
-         "73vyrazeniPredmetuPoznamka" = X, "74predchoziMajitelSlovy" = X, 
+         "73vyrazeniPredmetuPoznamka" = X, # --------------- poznamka k vyrazeni
+         "74predchoziMajitelSlovy" = X, 
          "75prirustekUserInsert" = X, "76prirustekDatumInsert" = X, 
+         
+         # archeologie 2
          "77nalezArcheologieKontext2" = X, "78nalezArcheologieKontext3" = X, 
          "79nalezArcheologieKomponenta" = X, "80nalezArcheologieSouradniceSJTSK" = X, 
          "81nalezArcheologieCiziVyzkum" = X, "82nalezArcheologieNazevVyzkumu" = X, 
          "83nalezArcheologieRokVyzkumu" = X, "84nalezArcheologieFirmaVyzkumu" = X, 
          "85nalezArcheologieVedouciVyzkumu" = X, "86nabytiPredmetuRokAkvizice" = X, 
-         "87prispevatelKod" = X, "88text1" = X, "89text2" = X, "90text3" = X, "91text4" = X, "92text5" = X, 
+         "87prispevatelKod" = X, 
+         
+         # volne texty a priznaky 
+         "88text1" = text1_88, 
+         "89text2" = text2_89, 
+         "90text3" = text3_90,
+         "91text4" = X, 
+         "92text5" = X, 
          "93priznak1" = X, "94priznak2" = X, "95priznak3" = X, "96priznak4" = X, "97priznak5" = X,
-         "98datumZapisu" = datzapis98, 
-         "99text6" = X, "100text7" = X, "101text8" = X, "102text9" = X, "103text10" = X, 
+         "98datumZapisu" = datzap98, 
+         "99text6" = X, "100text7" = X, "101text8" = X, "102text9" = X, "103text10" = X,
          "104poradoveCislo" = porc104, 
-         "105poradoveCisloSub" = X)
+         "105poradoveCisloSub" = subc105)
 
 imp <- "PK"
 
+# @@@
+
+Lpk <- c("sbirka1", "podsb2", "cisrada3", "prirc4", "invc5", "lok6"," prirpla7", "prirpla8", "prirpla9", "ozn10",
+         "popis11", "rok12", "pocetks13", "obal14", "evid15", "mater16", "datace17", "stav18", "popstav19", "pozn20",
+         "liter21", "datnab22", "zpnab23", "typ24","doklnab25", "mena26", "cennab27", "puvmaj28", "nabpozn29", "typ30",
+         "armisto31", "arkontext32", "arakce33", "arvyzk34", "arlok35", "arku36", "arparc37", "arpoz38", "nalpozn39", "naladr40",
+         "nalokr41", "nalobec42", "nalcast43", "nalmc44", "nalcis45", "nalul46", "nalorc47", "nalpsc48", "stat49", "artext50",
+         "polpop51", "polCES52", "polks53", "poldopl1_54", " poldopl1_55", "poldopl2_56", "poldopl2_57", "poldopl3_58", "poldopl3_59", "archiv60",
+         "acvsign61", "acvmark62", "acvpozn63", "vyrdat64", "vyrduv65", "vyrtyp66", "vyrdok67", "vyrmena68", "vyrcena69", "zpub70",
+         "vyrCES71", "novaj72", "poznvyr73", "predchmaj74", "userins75", "datins76", "arkontext2_77", "arkontext3_78", "arkomp79", "arSJTSK80",
+         "arcizivyz81", "arnazevvyz82", "arrokvyz83", "arfirmavyz84", "arvedoucivyz85", "rokakvi86", "prisp87", 
+         "text1_88", "text2_89", "text3_90", "text4_91", "text5_92", 
+         "priz1_93", "priz2_94", "priz3_95", "priz4_96", "priz5_97", 
+         "datzap98", "text6_99", "text7_100", "text8_101", "text9_102", "text10_103", "porc104", "subc105") # 105
+
 ```
 
+## OBP 
 
 *IMPORTNÍ ROZHRANÍ*: CSV OBP  
 *MUSEION*: import_obp.csv  

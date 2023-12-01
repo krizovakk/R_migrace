@@ -700,25 +700,48 @@ write.xlsx(as.data.frame(ngpk), file = paste0(path_snd, "NGPK_sloucenaPole2.xlsx
 databaze: M:\03 klienti\DEMZ\demz_migraceDK.accdb
 tabulky: lcl_prirustek1  lcl_prirustek2  lcl_prirustek3  lcl_prirustek4
 
+## load
+
 ```{r}
 
 # load db
 
 require(RODBC)
 
-dbname <- "M:/03 klienti/DEMZ/demz_migraceDK.accdb"
+dbname <- "M:/03 klienti/DEMZ/demz_migracePK.accdb"
 con <- RODBC::odbcConnectAccess2007(dbname)      
 RODBC::sqlTables(con)
 # tab0 <- RODBC::sqlFetch(con, "lcl_prirustek1")
-tab0 <- RODBC::sqlFetch(con, "lcl_prirustek2")
+# tab0 <- RODBC::sqlFetch(con, "lcl_prirustek2")
 # tab0 <- RODBC::sqlFetch(con, "lcl_prirustek3")
 # tab0 <- RODBC::sqlFetch(con, "lcl_prirustek4")
 
+
+# tab1 <- RODBC::sqlFetch(con, "lcl_prirustek1") %>% select(spravce, rok, maska)
+tab1 <- RODBC::sqlFetch(con, "lcl_prirustek1")
+# tab2 <- RODBC::sqlFetch(con, "lcl_prirustek2") %>% select(spravce, rok, maska)
+tab2 <- RODBC::sqlFetch(con, "lcl_prirustek2")
+# tab3 <- RODBC::sqlFetch(con, "lcl_prirustek3") %>% select(spravce, rok, maska)
+tab3 <- RODBC::sqlFetch(con, "lcl_prirustek3") 
+# tab4 <- RODBC::sqlFetch(con, "lcl_prirustek4") %>% select(spravce, rok, maska)
+tab4 <- RODBC::sqlFetch(con, "lcl_prirustek4") 
+# tab5 <- RODBC::sqlFetch(con, "lcl_prirustek5")
+# tab5 <- RODBC::sqlFetch(con, "lcl_prirustek5")
+
+tab1$rok <- as.character(tab1$rok)
+tab2$rok <- as.character(tab2$rok)
+
+tab <- bind_rows(tab1, tab2, tab3, tab4)
+
 # eda
 
-rady <- tab0 %>% select(maska, MU_maska) %>% distinct()
+# rady <- tab0 %>% select(maska, MU_maska) %>% distinct()
 
-# prirustek1
+```
+
+## prirustek1
+
+```{r}
 
 tab1 <- tab0 %>% 
   mutate(KKporc = case_when(maska == "####/{AZ}####" ~ str_extract(cislo, "....$"),
@@ -747,9 +770,7 @@ tab1 <- tab0 %>%
                             maska == "####/#####-{AZ}?)" ~ sub("^.*\\/([0-9]+)-.*$", "\\1", cislo),
                             maska == "####/#####{AZ}" ~ substr(cislo, 6, 10),
                             maska == "####/####/{AZ}" ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo),
-                            # maska == "" ~ ,
-                            # maska == "" ~ ,
-                            TRUE ~ "NESPLNIL PODMINKY"),
+                            TRUE ~ "MIMO FORMAT"),
         KKsubc = case_when(maska == "####/#####/?" ~ sub("^.*\\/.*\\/", "", cislo),
                            maska == "{AZ}####/#####/#" ~ sub("^.*\\/.*\\/", "", cislo),
                             maska == "{AZ}####/#####/##" ~ sub("^.*\\/.*\\/", "", cislo),
@@ -766,49 +787,156 @@ tab1 <- tab0 %>%
                             maska == "####/#####{AZ}" ~ str_extract(cislo, ".$"),
                             maska == "####/####/{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
                             TRUE ~ NA))
-        
-# prirustek2
 
-tab2 <- tab0 %>% 
-  mutate(KKporc = case_when(
-                            str_detect(maska, "#+\\/#+") ~ str_extract(cislo, "(?<=\\/)\\d+"), # A
-                            maska == "##/####" ~ str_extract(cislo, "^.."),                    # B
-                            str_detect(maska, "#+") ~ cislo,                                   # C
-                            str_detect(maska, ".+\\/#+\\/.+") ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), # D
-                            # str_detect(maska, "^#+\\/[:upper]#+") ~ str_extract(cislo, "\\d+$"), # E
-                            TRUE ~ "NESPLNIL PODMINKY"))
+# save 
 
-        KKsubc = case_when(maska == "####/#####/?" ~ sub("^.*\\/.*\\/", "", cislo),
-                           maska == "{AZ}####/#####/#" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "{AZ}####/#####/##" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "{AZ}####/#####/###" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "####/#####/{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "####/#####/{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "####/#####/{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "####/#####/{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
-                            maska == "####/#####-{AZ}" ~ sub("^.*\\/.*-", "", cislo),
-                            maska == "####/#####-{AZ}?)" ~ sub("^.*\\/.*-", "", cislo),
-                            maska == "####/#####{AZ}" ~ str_extract(cislo, ".$"),
-                            maska == "####/####/{AZ}" ~ sub("^.*\\/.*\\/", "", cislo),
-                            TRUE ~ NA))                                                        
+prir <- "M:/03 klienti/DEMZ/KK_prirc_subc.xlsx"
+gc(verbose = T)
+write.xlsx(tab1, file = prir, append = T, sheetName = "prirustky1", row.names = F, showNA = F)        
+
+write.csv(tab1, file = "M:/03 klienti/DEMZ/KK_prirc_subc_1.csv", row.names = F)   
+
+## prirustek1
+
+```
+
+### insert
+
+```{r}
+
+porc1 <- tab0 %>% 
+  mutate(KKporc = case_when(str_detect(cislo, "\\/.*\\/") ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo),
+                            str_detect(cislo, "\\/.*-") ~ sub("^.*\\/([0-9]+)-.*$", "\\1", cislo),
+                            # str_detect(cislo, "\\/") ~ str_extract(cislo, "\\d+$"),
+                            # str_detect(cislo, "\\/") ~ sub("^.*\\/([0-9]+).*", "\\1", cislo),
+                            str_detect(cislo, "1953/00777v") ~ "00777",
+                            str_detect(cislo, "\\/") ~ str_extract(cislo, "\\d+$"),
+                            TRUE ~ "MIMO FORMAT"))
+
+ins1 <- porc1 %>% 
+  filter(KKporc != "MIMO FORMAT") %>% 
+  mutate(insert = paste0("update prirustek set poradovecislo = '", KKporc, "' where id = ", id, " and poradovecislo is null;")) %>% 
+  select(insert)
+
+write.csv(ins1, file = "M:/03 klienti/DEMZ/KK_insert_prirc1.csv", col.names = F, row.names = F, quote=F)  
+
+```
+### analyza muzei
+
+```{r}
+
+Lmuz_all <- c('AM','ANT','BAL','BET','BOJ','CIKER','CK','DET','DK','DMN','DS','DUB','EM','EMKE','FILA','GAL','GEL','GEM','HAN','HLO','HM','HON','HOR','HUM','HUT','CHOR','JASK','KEZ','KOM','KRAJ','KRAL','KYS','LES','LHB','LIPT','LMM','LT','LUB','MAK','MAS','MDU','MHUR','MICH','MIN','MJT','MK','MKKN','MKMS','MMB','MMH','MMP','MMSC','MMSTU','MMT','MNB','MOD','MPSG','MRK','MSS','MURK','MZK','NIT','NML','OB','OM','PB','PED','PEZ','PL','PM','PMZ','POP','POS','PRIE','PZ','RAJ','ROZ','SAR','SBM','SKAL','SM','SMBB','SMD','SMP','SNP','SNR','SPIS','SPM','STM','STUR','TATR','TEK','TILL','TOP','TREB','TRENC','TV','UHR','ULUV','VIH','VOD','VOJ','VS','VSM','ZKM','ZMT','ZSR')
+
+Lmuz_bold <- c('AM','ANT','BET','BOJ','CK','DET','DK','DS','DUB','EM','EMKE','FILA','GAL','GEM','HAN','HLO','HM','HOR','HUM','HUT','CHOR','JASK','KEZ','KOM','KRAJ','KRAL','KYS','LES','LHB','LIPT','LMM','LT','LUB','MAK','MAS','MHUR','MICH','MJT','MK','MKKN','MKMS','MMP','MMT','MNB','MOD','MPSG','MRK','MSS','MURK','MZK','NIT','NML','OB','OM','PB','PL','PM','PMZ','PRIE','PZ','RAJ','ROZ','SBM','SKAL','SM','SMBB','SMP','SNP','SNR','SPIS','STM','STUR','TILL','TOP','TREB','TRENC','ULUV','VIH','VOJ','VSM','ZMT','ZSR')
+
+stats <- data.frame()
+
+for (i in Lmuz_bold) {
+  a <- tab %>% filter(spravce == i)
+  b <- a %>% select(maska) %>% distinct()
+  c <- a %>% select(rok) %>% distinct()
+  d <- c(i, nrow(b), nrow(c))
+  stats <- rbind(stats, d)
+  d <- a %>% distinct()
+  assign(paste0("muz_", i), d) 
+}
+
+colnames(stats) <- c("spravce", "pocet masek", "pocet obdobi")
+stats$`pocet masek` <- as.numeric(stats$`pocet masek`)
+
+# rm(list = ls()[grepl("muz_", ls())])
 
 
 ```
 
-masky se subcislem (pravdepodobne)
+## prirustek2 a dal
 
-\\{AZ}####/##### -> #### = soucast rady ; ##### = porc
-\\{AZ}####/#####/# -> #### = soucast rady ; ##### = porc ; # = subc
+```{r}
 
-masky, ktere maji jen jeden zaznam nebo jsou chybne
+# prirustek2
 
-\\####/#####/?
-\\####/{AZ}{AZ}###
-\\{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}?{AZ}
-\\{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}? {AZ}?{AZ}{AZ}{AZ}{AZ}? {AZ}{AZ}{AZ}{AZ}{AZ}{AZ}?{AZ}
-\\{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}?{AZ}? {AZ}{AZ}{AZ}{AZ}{AZ}
-\\{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}{AZ}
-\\####/#####-{AZ}?)
+tab2 <- tab0 %>% 
+  mutate(KKporc = case_when(
+                            # str_detect(maska, "#+\\/#+") ~ str_extract(cislo, "(?<=\\/)\\d+"), # A
+                            str_detect(cislo, "\\d+\\/\\d+") ~ str_extract(cislo, "(?<=\\/)\\d+"), # A
+                            str_detect(cislo, "\\d+\\/\\w\\d+") ~ str_extract(cislo, "\\d+$"), # 1981/P00204
+                            str_detect(cislo, "DFNKDOZ|DFNKDOS") ~ str_extract(cislo, "\\d+$"), # DFNKDOS00275
+                            maska == "##/####" ~ str_extract(cislo, "^.."),                    # B
+                            str_detect(cislo, "\\d+") ~ cislo,                                   # C
+                            str_detect(maska, ".+\\/#+\\/.+") ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), # D
+                            # str_detect(maska, "^#+\\/[:upper]#+") ~ str_extract(cislo, "\\d+$"), # E
+                            TRUE ~ "NESPLNIL PODMINKY"),
+
+        KKsubc = case_when(
+                           # str_detect(cislo, "\\d+-\\d+$") ~ gsub("^.*\\/\\d+\\/", "", cislo),
+                           # str_detect(cislo, "\\d+\\/\\d+/\\d+") ~ str_extract(cislo, "\\d+$"),
+                           str_detect(cislo, "-\\d\\d\\d$") ~ str_extract(cislo, "...$"), # KH-1979/00006-001
+                           str_detect(cislo, "-\\w$") ~ str_extract(cislo, "\\w$"), # 2012/0019-F
+                           str_detect(cislo, "\\d+-\\d+$") ~ gsub("^.*\\/\\d+\\/", "", cislo),
+                           str_detect(cislo, "\\d+\\/\\d+/\\d+") ~ str_extract(cislo, "\\d+$"),
+                           TRUE ~ NA))                                                        
+# save
+
+prir <- "M:/03 klienti/DEMZ/KK_prirc_subc.xlsx"
+gc(verbose = T)
+
+# Restart R and,before loading the R packages, insert INTO A CONSOLE (!!!) :
+# options(java.parameters = "-Xmx8000m")
+# require(xlsx)
+
+write.xlsx(tab2, file = prir, append = T, sheetName = "prirustky2", row.names = F, showNA = F)        
+
+write.csv(tab2, file = "M:/03 klienti/DEMZ/KK_prirc_subc_2.csv", row.names = F)   
+
+# prirustek 3
+
+tab3 <- tab0 %>% 
+  mutate(KKporc = case_when(
+                            # str_detect(maska, "#+\\/#+") ~ str_extract(cislo, "(?<=\\/)\\d+"), # 
+                            str_detect(cislo, "\\d+\\/\\d+") ~ str_extract(cislo, "(?<=\\/)\\d+"), # 1969/0001 1952/00086b
+                            str_detect(cislo, "\\d+\\/\\d+\\/") ~ "tady", # 1952/00086b
+                            # str_detect(cislo, "\\d+\\/\\w\\d+") ~ str_extract(cislo, "\\d+$"), # 1981/P00204
+                            # str_detect(cislo, "DFNKDOZ|DFNKDOS") ~ str_extract(cislo, "\\d+$"), # DFNKDOS00275
+                            # maska == "##/####" ~ str_extract(cislo, "^.."),                    # B
+                            # str_detect(cislo, "\\d+") ~ cislo,                                   # C
+                            # str_detect(maska, ".+\\/#+\\/.+") ~ sub("^.*\\/([0-9]+)\\/.*$", "\\1", cislo), # D
+                            # # str_detect(maska, "^#+\\/[:upper]#+") ~ str_extract(cislo, "\\d+$"), # E
+                            TRUE ~ "NESPLNIL PODMINKY"))
+
+        KKsubc = case_when(
+                           # str_detect(cislo, "\\d+-\\d+$") ~ gsub("^.*\\/\\d+\\/", "", cislo),
+                           # str_detect(cislo, "\\d+\\/\\d+/\\d+") ~ str_extract(cislo, "\\d+$"),
+                           str_detect(cislo, "-\\d\\d\\d$") ~ str_extract(cislo, "...$"), # KH-1979/00006-001
+                           str_detect(cislo, "-\\w$") ~ str_extract(cislo, "\\w$"), # 2012/0019-F
+                           str_detect(cislo, "\\d+-\\d+$") ~ gsub("^.*\\/\\d+\\/", "", cislo),
+                           str_detect(cislo, "\\d+\\/\\d+/\\d+") ~ str_extract(cislo, "\\d+$"),
+                           TRUE ~ NA)                                                       
+# save
+        
+```
+
+## Dana - dalsi prisrustky 21/11
+
+"M:\03 klienti\DEMZ\VIH_prirustky.xlsx"
+zkontrolovat zaznamy s dvoumistnym rokem -> pravdepodobne budou chyby ve vypreparovanem roku apod
+cca 10 000
+
+```{r}
+
+path_snd <- "M:/03 klienti/DEMZ/"
+
+df <- read.xlsx(paste0(path_snd, "VIH_prirustky.xlsx"), sheetIndex = 1) # vyreseno
+
+dvou <- df %>% 
+  filter(!str_detect(maska, "\\{####\\}")) %>% 
+  filter(!str_detect(maska, "\\{###\\}")) %>% 
+  mutate(Mrok = gsub("^19", "", rok), 
+         Mcis = case_when(rada == "_" ~ paste0(poradovecislo, "/", Mrok),
+                          TRUE ~ paste0(rada, "/", poradovecislo, "/", Mrok))) %>% 
+  relocate(Mrok, .after = rok) %>% 
+  relocate(Mcis, .after = cislo) %>% 
+  filter(cislo != Mcis)
+
+```
+
+74155843 2/96/1 : rok 1999 -> ma byt 1996
