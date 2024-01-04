@@ -56,6 +56,33 @@ write.table(df, "clipboard", sep = "\t", row.names = FALSE)
 ```
 
 
+#### Memory issues
+
+\#Error in .jcall(cell, "V", "setCellValue", value) :  java.lang.OutOfMemoryError: GC overhead limit exceeded
+
+```{r CHATGPT}
+
+# Determine the number of rows and split point
+total_rows <- nrow(APND_pk_rus)
+split_points <- c(round(total_rows / 3), 2 * round(total_rows / 3))
+
+# Split the dataframe into two parts
+part1 <- APND_pk_rus[1:split_points[1], ]
+part2 <- APND_pk_rus[(split_points[1] + 1):split_points[2], ]
+part3 <- APND_pk_rus[(split_points[2] + 1):total_rows, ]
+
+# Save each part to Excel files
+gc()
+write.xlsx(part1, file = paste0(path_ces, proj, "/", proj, "_PK_R_part1.xlsx"))
+gc()
+write.xlsx(part2, file = paste0(path_ces, proj, "/", proj, "_PK_R_part2.xlsx"))
+gc()
+write.xlsx(part3, file = paste0(path_ces, proj, "/", proj, "_PK_R_part3.xlsx"))
+
+```
+
+
+
 ### XLSX
 
  ~ PACKAGES ~
@@ -177,6 +204,13 @@ if(file.exists(f2s)){
   }
 ```
 
+### Factor save to multiple CSV
+
+```{r}
+
+```
+
+
 
 ## N U M E R I C S
 
@@ -214,6 +248,13 @@ v <- as.data.frame(v) %>%
   mutate(por = seq_along(v),
          porplus = seq_along(v)+1)
 ```
+
+### Sequence in interval
+
+```{r}
+mutate(MinvcINT = mapply(function(MinvcOD, MinvcDO) paste(seq(MinvcOD, MinvcDO, by = 1), collapse = ";"), MinvcOD, MinvcDO)) %>% 
+```
+
 
 ### Round
 
@@ -352,6 +393,12 @@ mutate(Msub = case_when(n()!=1 ~ LETTERS[seq_along(porc)], TRUE ~ NA))
 
 ## D A T A F R A M E S
 
+### e d a 
+
+#### Any NA ?
+
+
+
 ### e n v i r o n m e n t
 
 #### remove df with name pattern
@@ -461,6 +508,11 @@ coalesce = [function](https://www.rdocumentation.org/packages/dplyr/versions/1.0
 ```{r}
 relocate(MINVC, .before = JineC_S) 
 relocate(MINVCDO, .after = MINVC)
+
+# more than 1, in this order
+
+relocate(Mrada, Mcislo,  Mcislo0, Msub_a, .after = prirc) 
+
 ```
 
 #### Shift columns 
@@ -531,6 +583,30 @@ data %>%
   group_by(name) %>% 
   filter(n() != 1)
 ```
+
+\newpage
+
+## R E G E X S
+
+### extract all numbers
+
+### extract all letters
+
+### case sensitiviy
+
+(?i)....
+
+```{r}
+str_detect(zpNabyti, "(?i)dar")
+```
+
+### replace more than one pattern
+
+```{r}
+str_replace_all(prirc, c("\\d+" = "", "\\/" = ""))
+```
+
+
 
 \newpage
 
@@ -643,6 +719,58 @@ left_join(biolib %>% dplyr::select('4nazevKategorie', '5nomen', '8nadrizenyTaxon
 \newpage
 
 # *REAL TASKS*
+
+## Auto mus_tab -> csv
+
+Je treba mit vytvoreny list policek, ktere maji byt ve vyslednem csv. Priklad: pro PK 'Lpk' obsahuje 105 nazvu poli pro CSV se 105 sloupci.
+
+Zaroven je treba, aby se v pracovni tabulce nachazely prislusne sloupce se stejnym nazvem.
+
+Funkce potom vyzobe a posklada vysledne CSV.
+
+```{r}
+
+# list sloupcu pro nove CSV
+
+Lpk <- c("sbirka1", "podsb2", "cisrada3", "prirc4", "invc5", "lok6","prirpla7", "prirpla8", "prirpla9", "ozn10",
+         "popis11", "rok12", "pocetks13", "obal14", "evid15", "mater16", "datace17", "stav18", "popstav19", "pozn20",
+         "liter21", "datnab22", "zpnab23", "typ24","doklnab25", "mena26", "cennab27", "puvmaj28", "nabpozn29", "typ30",
+         "armisto31", "arkontext32", "arakce33", "arvyzk34", "arlok35", "arku36", "arparc37", "arpoz38", "nalpozn39", "naladr40",
+         "nalokr41", "nalobec42", "nalcast43", "nalmc44", "nalcis45", "nalul46", "nalorc47", "nalpsc48", "stat49", "artext50",
+         "polpop51", "polCES52", "polks53", "poldopl1_54", " poldopl1_55", "poldopl2_56", "poldopl2_57", "poldopl3_58", "poldopl3_59", "archiv60",
+         "acvsign61", "acvmark62", "acvpozn63", "vyrdat64", "vyrduv65", "vyrtyp66", "vyrdok67", "vyrmena68", "vyrcena69", "zpub70",
+         "vyrCES71", "novaj72", "poznvyr73", "predchmaj74", "userins75", "datins76", "arkontext2_77", "arkontext3_78", "arkomp79", "arSJTSK80",
+         "arcizivyz81", "arnazevvyz82", "arrokvyz83", "arfirmavyz84", "arvedoucivyz85", "rokakvi86", "prisp87", 
+         "text1_88", "text2_89", "text3_90", "text4_91", "text5_92", 
+         "priz1_93", "priz2_94", "priz3_95", "priz4_96", "priz5_97", 
+         "datzap98", "text6_99", "text7_100", "text8_101", "text9_102", "text10_103", "porc104", "subc105")
+
+# vytvorit prazdny dataframe pro zapis
+
+n <- 32004 # pocet radku dle poctu zaznamu
+imp <- "dfOST_akt_invc" # jmeno importu
+   
+mus_tab <- data.frame(smazme = 1:n) # prazdny dataframe
+
+# tvorba CSV
+
+for(i in Lpk){
+  if(i %in% colnames(ee)){
+    ano <- ee %>% select(all_of(i))
+    mus_tab <- cbind(mus_tab, ano)
+    print("jo")
+  } else{
+    ne <- data.frame(rep(NA, n))
+    colnames(ne) <- i
+    mus_tab <- cbind(mus_tab, ne)
+    print("houby")}
+}
+
+mus_tab <- mus_tab %>% select(-smazme) 
+
+```
+
+
 
 ## Save mod_tab a mus_tab
 

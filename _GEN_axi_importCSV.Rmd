@@ -485,17 +485,17 @@ mus_tab <- mod_tab %>%
          "81nalezArcheologieCiziVyzkum" = X, "82nalezArcheologieNazevVyzkumu" = X, 
          "83nalezArcheologieRokVyzkumu" = X, "84nalezArcheologieFirmaVyzkumu" = X, 
          "85nalezArcheologieVedouciVyzkumu" = X, "86nabytiPredmetuRokAkvizice" = X, 
-         "87prispevatelKod" = X, 
+         "87prispevatelKod" = prispev87, 
          
          # volne texty a priznaky 
          "88text1" = text1_88, 
          "89text2" = text2_89, 
          "90text3" = text3_90,
-         "91text4" = X, 
-         "92text5" = X, 
+         "91text4" = text4_91, 
+         "92text5" = text5_92, 
          "93priznak1" = X, "94priznak2" = X, "95priznak3" = X, "96priznak4" = X, "97priznak5" = X,
          "98datumZapisu" = datzap98, 
-         "99text6" = X, "100text7" = X, "101text8" = X, "102text9" = X, "103text10" = X,
+         "99text6" = text6_99, "100text7" = X, "101text8" = X, "102text9" = X, "103text10" = X,
          "104poradoveCislo" = porc104, 
          "105poradoveCisloSub" = subc105)
 

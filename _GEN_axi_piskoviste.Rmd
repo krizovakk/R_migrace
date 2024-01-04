@@ -52,7 +52,7 @@ install.packages("tibble")
 require(tibble)
 
 # funkcni prikazy
-xml <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml", as_html = F) 
+xml <- xml2::read_xml("M:/03 klienti/online/ustav dejin umeni av - UDUAV/uduav migrace/zdrojdat/Historicka-fotografie_231207.xml", as_html = F) 
 xsd <- xml2::read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/priloha_c_1_CAIR_CEMUZ_e4g.xsd")
 
 xml2::xml_validate(xml1, xsd) # TRUE - what does this mean?
@@ -97,7 +97,7 @@ df_employees <- XML::xmlToDataFrame(nodes = XML::getNodeSet(xml, "//employee"))
 
 #----------------------------- B R N O -------------------------------------------
 
-xml <- XML::xmlParse("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml") 
+xml <- XML::xmlParse("M:/03 klienti/online/ustav dejin umeni av - UDUAV/uduav migrace/zdrojdat/Historicka-fotografie_231207.xml") 
 print(xml)
 
 # rootnode <- XML::xmlRoot(xml)
@@ -112,10 +112,10 @@ print(xml)
 
 install.packages("xml2")
 require(xml2)
-restaurant_license_xml <- as_list(read_xml("C:/Users/krizova/Documents/R/data/_piskoviste/10918171.xml"))
+restaurant_license_xml <- as_list(read_xml("M:/03 klienti/online/ustav dejin umeni av - UDUAV/uduav migrace/zdrojdat/Historicka-fotografie_231207.xml"))
 
 xml_df <- tibble::as_tibble(restaurant_license_xml) %>%
-  unnest_longer(import)
+  unnest_longer(DATABASE)
 
 lp_wider <- xml_df %>%
   dplyr::filter(import_id == "Podskup") %>%

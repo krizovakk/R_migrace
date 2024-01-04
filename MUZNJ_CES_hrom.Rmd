@@ -1,0 +1,630 @@
+---
+title: "Kontrola CES × MUSEION"
+subtitle: "zjištěný stav k"
+date: "`r Sys.Date()`"
+author: "Katerina Krizova"
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: F
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("stringi")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+# install.packages("xlsx")
+require(tidyverse)
+require(readxl)
+require(xlsx) # write excel in sheets
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+
+```
+
+\newpage 
+
+- nastavit cesty a projektove promenne
+
+CES
+- nacist vsechny txt s vypisy z CESu a spojit je do jednoho pracovniho seznamu cisel
+- zkontrolovat duplicity - sloupec, ktery je indikuje? rozdelit na konfliktni a nekonfliktni duplicity
+- rozdelit cislo na jednotlive sekce, zbavit vedoucich nul a spojit v MCES_par
+MUS
+- nacist vypisy z MUS (1 PK, 2 SE)
+- vytvorit MMUS_par
+REL
+- vytvorit relaci
+- filtrovat sparovane, nesparovane
+- ukladat
+
+# PATHS AND PROJ INFO
+
+```{r}
+
+proj <- "MUZNJ"
+
+path_ces <- "C:/Users/krizova/Documents/R/CES/"
+path_proj <- "M:/03 klienti/kraj moravskoslezsky/muzeum novojicinska - MUZNJ/06 muzNJ konsolidace-CES/"
+
+```
+
+# @ LOAD CES TXT LOOP
+
+1.sloupec = Změna {N = nove, platne; V = vyrazeni; R = ruseni}
+2.sloupec = Duvod (pro N vypusteno)
+            V {N = neupotrebitelnost; P = prebytecnost; R = rozepsani; O = omyl}
+            R {C = chyba; Z = zmena cislovani}
+3. sloupec = typ cisla {P = prirustkove; I = inventarni}
+            
+```{r LOAD CES TXT LOOP , warning = F}
+
+# FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT 
+
+Ltxt <- list.files(paste0(path_proj, "vypCES"), pattern = "*.txt")  # Identify file names
+df_filled <- data.frame()
+colnam <- c("zmena","duvod","typ_cisla","cislo",
+                "s5","s6", "s7", "s8",
+                "s9","s10","s11","s12")
+    
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+a <- read.table(paste0(path_proj, "vypCES/", Ltxt[1]),
+                  skip = 4, header = F, sep = ";", fill = T, 
+                  check.names = F, fileEncoding="cp1250")
+
+for(i in Ltxt) {
+  a <- read.table(paste0(path_proj, "vypCES/", i),
+                  skip = 4, header = F, sep = ";", fill = T, 
+                  check.names = F, fileEncoding="cp1250")
+  names(a) <- colnam
+  rows_to_change <- a$zmena == "N"
+  a[rows_to_change,3:12] <- a[rows_to_change,2:12] # shift columns with N
+  a[rows_to_change,2] <- NA
+  a$zdroj <- paste(i) # add source txt file name
+  a <- a %>% filter(str_detect(zmena, ("^N$|^V$|^R$")))  # filter only relevant rows !!!
+  # print(unique(a$zdroj))
+  print(count(a))
+  df_filled <- rbind(df_filled,a)
+  print(i)
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# SAVE ALL TXT
+
+f2s <- paste0(path_ces, proj, "/", proj, "_allTXT.csv")
+
+if(file.exists(f2s)){
+  print("TXT already saved")
+  rm(f2s)
+} else {
+  write.table(df_filled, file = f2s, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  rm(f2s)
+}
+
+# CHECK AND CLEAR ENVIRONMENT
+
+rm(a)
+rm(i)
+rm(colnam)
+rm(rows_to_change)
+
+```
+
+```{r READ ALREADY SAVED TXTX}
+
+df_filled <- read.csv("C:/Users/krizova/Documents/R/CES/MUZNJ/MUZNJ_allTXT.csv", header = T, sep = ";", fileEncoding="cp1250")
+
+```
+
+
+# CES EDITS
+
+Uprav CORE soubory ( = zdrojove, zakladni).
+Vytvor APND soubory ( = do nich zapisuj vysledky).
+
+pocty:
+
+CORE_ces 310369
+full_dupl 20002
+rus_dupl 
+
+```{r CES PROCESSING}
+
+# CES
+
+CORE_ces <- df_filled %>% discard(~all(is.na(.) | . == "")) # drop empy columns
+ 
+CORE_ces[CORE_ces == ""] <- NA
+
+sort(unique(CORE_ces$zmena))
+sort(unique(CORE_ces$duvod))
+sort(unique(CORE_ces$typ_cisla))
+
+# DUPLICITY
+
+check <- CORE_ces %>% 
+  group_by(typ_cisla, cislo, zmena) %>% 
+  mutate(is_dupl = case_when(n() != 1&zmena == "R" ~ "dupl", TRUE ~ NA)) %>% 
+  ungroup()
+
+SAVE_dupl <- check %>% filter(is_dupl == "dupl")
+# UPDT_ces <- check %>% filter(is.na(is_dupl))              # EXECUTE: nrow(SAVE_dupl)+nrow(UPDT_ces)==nrow(CORE_ces)
+
+UPDT_ces <- CORE_ces
+
+# PROCESS. EXCEL
+
+# temp <- as.data.frame(sort(unique(UPDT_ces$zdroj)))
+
+```
+
+# MUS EDITS
+
+```{r}
+
+CORE_mus_pk <- read_excel(paste0(path_proj, "vypMUS/muznj_MUSEION_PK.xlsx"), 
+                  sheet = 1, col_types="text") %>% 
+  mutate(id = floor(as.numeric(id)), # upravy formatu cisel a vytvoreni MMUS_par pro parovani
+         id =  as.character(id),
+         poradovecislo = trunc(as.numeric(poradovecislo)),
+         poradovecislo = as.character(poradovecislo))
+
+
+CORE_mus_ka <- read_excel(paste0(path_proj, "vypMUS/muznj_MUSEION_SP.xlsx"), 
+                  sheet = 1, col_types="text") %>% 
+    mutate(sp_id = floor(as.numeric(sp_id)), # upravy formatu cisel a vytvoreni MMUS_par pro parovani
+         sp_id = as.character(sp_id),
+         sp_porcislo = trunc(as.numeric(sp_porcislo)),
+         sp_porcislo = as.character(sp_porcislo))
+
+```
+
+rm(df_filled)
+rm(check)
+
+# ---------------------------------- PK 
+
+```{r}
+
+# ZRUSENE
+
+pk_rus  <- UPDT_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  # filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "R") 
+
+# CES PK EDITS
+
+pk <- UPDT_ces %>% filter(typ_cisla == "P") %>% 
+    mutate(Mrada = ifelse(str_detect(cislo, "\\s"), gsub("\\s.*$", "", cislo), NA),
+           Mcislo =ifelse(str_detect(cislo, "\\s"), gsub("^.*\\s", "", cislo), cislo)) %>% 
+    separate(Mcislo, into=c("Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) %>% 
+    unite(MCES_par, c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3"), sep = "/", na.rm = T, remove = FALSE) %>% 
+    select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par) %>%
+    filter(zmena!="R") 
+
+# MUS PK EDITS
+
+mus <- CORE_mus_pk %>%
+    mutate(Mrada = str_extract(cislo, "^[:alpha:]+"),
+           Mcislo = str_remove(cislo, "^[:alpha:]+")) %>% 
+    separate(Mcislo, into=c("Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) %>%
+    mutate(Mporc = gsub("^0+", "", Mporc), # --------------------------------------------------------------------- odstr. vedouci nuly
+           Msub1 = ifelse(str_detect(Msub1, "^0+$"), Msub1, gsub("^0+", "", Msub1)),
+           Msub2 = gsub("^0+", "", Msub2),
+           Msub3 = gsub("^0+", "", Msub3)) %>% 
+    unite(MMUS_par, c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3"), sep = "/", na.rm = T, remove = FALSE)
+
+# RELATE
+
+rel <- left_join(pk, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev) # EXECUTE: nrow(rel)==nrow(pk)
+
+APND_pk_spa <- rel %>% filter(!is.na(MMUS_par))
+
+# ANALYZE
+
+no <- sum(is.na(rel$MMUS_par))
+yo <- sum(!is.na(rel$MMUS_par))
+ratio <- round(sum(yo)/nrow(pk)*100, 2)
+ap_stats <- cbind(nrow(rel), yo, no, ratio) 
+APND_stats <- data.frame()
+APND_stats <- rbind(APND_stats, ap_stats)
+
+# NESPA 1
+
+nespa <- rel %>% filter(is.na(MMUS_par)) %>% 
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par) %>% 
+  separate(MCES_par, into=c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) 
+
+rel <- left_join(nespa, mus, by = c("Mrada", "Mporc", "Msub1", "Msub2"), keep = T) %>% 
+  select(zdroj, typ_cisla, zmena, duvod,CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+
+spa <- rel %>% filter(!is.na(MMUS_par))
+APND_pk_spa <- bind_rows(APND_pk_spa, spa)
+
+no <- sum(is.na(rel$MMUS_par))
+yo <- sum(!is.na(rel$MMUS_par))
+ratio <- round(sum(yo)/nrow(pk)*100, 2)
+ap_stats <- cbind(nrow(rel), yo, no, ratio) 
+APND_stats <- rbind(APND_stats, ap_stats)
+
+# NESPA 2
+
+# nespa <- rel %>% filter(is.na(MMUS_par)) %>%
+#   select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par) %>%
+#   separate(MCES_par, into=c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F)
+# 
+# rel <- left_join(nespa, mus, by = c("Mrada", "Mporc", "Msub1"), keep = T) %>%
+#   select(zdroj, typ_cisla, zmena, duvod,CES_cislo, MCES_par,
+#          MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+# 
+# rel <- left_join(nespa, mus, by = c("Mrada", "Mporc", "Msub1"), keep = T) %>%
+#   mutate(par = grepl(MCES_par, MMUS_par, fixed = TRUE))
+#   select(zdroj, typ_cisla, zmena, duvod,CES_cislo, MCES_par,
+#          MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev) 
+# 
+# 
+# spa <- rel %>% filter(!is.na(MMUS_par))
+# 
+# APND_pk_spa <- bind_rows(APND_pk_spa, spa)
+# 
+# no <- sum(is.na(rel$MMUS_par))
+# yo <- sum(!is.na(rel$MMUS_par))
+# ratio <- round(sum(yo)/nrow(pk)*100, 2)
+# ap_stats <- cbind(nrow(rel), yo, no, ratio)
+# APND_stats <- rbind(APND_stats, ap_stats)
+# # 
+# # NESPA 3
+# 
+# nespa <- rel %>% filter(is.na(MMUS_par)) %>% 
+#   select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par) %>% 
+#   separate(MCES_par, into=c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) 
+# 
+# rel <- left_join(nespa, mus, by = c("Mrada", "Mporc"), keep = T) %>% 
+#   select(zdroj, typ_cisla, zmena, duvod,CES_cislo, MCES_par,
+#          MMUS_par, MUS_cislo = cislo, id, cisloCES, nazev)
+# spa <- rel %>% filter(!is.na(MMUS_par))
+# 
+# APND_pk_spa <- bind_rows(APND_pk_spa, spa)
+# 
+# no <- sum(is.na(rel$MMUS_par))
+# yo <- sum(!is.na(rel$MMUS_par))
+# ratio <- round(sum(yo)/nrow(pk)*100, 2)
+# ap_stats <- cbind(nrow(rel), yo, no, ratio) 
+# APND_stats <- rbind(APND_stats, ap_stats)
+
+# REST
+
+nespa <- rel %>% filter(is.na(MMUS_par)) %>% 
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par) %>% 
+  separate(MCES_par, into=c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) 
+
+```
+# PK SQL
+
+APND_pk_spa -> rovnou do SQL dotazu
+
+UPDATE v MUSEIONu
+------ prirustky
+-- shoda (rozepsané)
+update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '1/2002' WHERE PRIRUSTEK.ID = 19450569;
+-- shoda (nové
+update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '1/2002' WHERE PRIRUSTEK.ID = 19450569;
+-- doplnění podsbírky	(shoda čísel, pokud je přírůstek ve více podsbírkách, tak vybrat jedn)	
+update PRIRUSTEK set podsbirka_id = 388059 WHERE PRIRUSTEK.ID = 19450569;
+
+
+```{r}
+# SQL 
+
+   # rozepsane
+
+r <- APND_pk_spa 
+  filter(duvod == "R") %>% 
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '", CES_cislo, "' WHERE PRIRUSTEK.ID = ", id, ";")) %>% 
+  select(prikaz)
+
+write.table(r, file = paste0(path_ces, proj, "/", proj, "_PK_updt_rozeps.sql"), 
+            quote = F, row.names = F, col.names = F)
+
+    # nove
+
+n <- APND_pk_spa
+  filter(zmena == "N") %>% 
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '", CES_cislo, "' WHERE PRIRUSTEK.ID = ", id, ";")) %>% 
+  select(prikaz)          
+
+write.table(n, file = paste0(path_ces, proj, "/", proj, "_PK_updt_nove.sql"), 
+            quote = F, row.names = F, col.names = F)
+```
+
+# PK NESPA DEAL
+
+```{r}
+
+nespa <- rel %>% filter(is.na(MMUS_par)) %>% 
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par) %>% 
+  mutate(Mrada = ifelse(str_detect(CES_cislo, "\\s"), gsub("\\s.*$", "", CES_cislo), NA),
+           Mcislo =ifelse(str_detect(CES_cislo, "\\s"), gsub("^.*\\s", "", CES_cislo), CES_cislo)) %>% 
+    separate(Mcislo, into=c("Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) %>% 
+  arrange(zmena, desc(duvod), Mrada, as.numeric(Mporc)) %>% 
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo) %>%
+  mutate(status = "nenalezeno v MUS", 
+         pozn = NA)
+ 
+Lzdroj <- unique(nespa$zdroj)
+
+x_pk <- paste0(path_ces, proj, "/", proj, "_malina.xlsx")
+
+# for (i in Lzdroj){
+#   a <- nespa %>% filter(zdroj == i)
+#   sheet_name = substr(i, 1,25)
+#   write.xlsx(as.data.frame(a), file = x_pk, sheetName = sheet_name, append = T, rowNames = F, showNA = F) # idealni reseni, ale nefunguje :((()))
+# }
+
+for (i in Lzdroj){
+  a <- nespa %>% filter(zdroj == i)
+  sheet_name = substr(i, 1,25)
+  write.xlsx(as.data.frame(a), file = paste0(path_ces, proj, "/", proj,"_", substr(i, 1,25), ".xlsx"), sheetName = sheet_name, append = T, rowNames = F, showNA = F)
+}
+
+```
+
+
+# ---------------------------------- KA
+
+```{r}
+
+# ZRUSENE
+
+ka_rus  <- UPDT_ces %>% 
+  filter(typ_cisla == "I") %>% 
+  # filter(zdroj == podsb_ces) %>% 
+  filter(zmena == "R") 
+
+# CES KA EDITS
+
+ka <- UPDT_ces %>% filter(typ_cisla == "I") %>% 
+    mutate(Mrada = ifelse(str_detect(cislo, "\\s"), gsub("\\s.*$", "", cislo), NA),
+           Mcislo =ifelse(str_detect(cislo, "\\s"), gsub("^.*\\s", "", cislo), cislo)) %>% 
+    separate(Mcislo, into=c("Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) %>% 
+    unite(MCES_par, c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3"), sep = "/", na.rm = T, remove = FALSE) %>% 
+    # select(zdroj, typ_cisla, zmena, duvod, CES_cislo = cislo, MCES_par) %>% 
+    filter(zmena!="R") 
+
+# MUS KA EDITS
+
+mus <- CORE_mus_ka %>%
+    mutate(Mrada = str_extract(predmet_cislo, "^[:alpha:]+"),
+           Mcislo = str_remove(predmet_cislo, "^[:alpha:]+")) %>% 
+    separate(Mcislo, into=c("Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) %>%
+    mutate(Mporc = gsub("^0+", "", Mporc), # --------------------------------------------------------------------- odstr. vedouci nuly
+           Msub1 = ifelse(str_detect(Msub1, "^0+$"), Msub1, gsub("^0+", "", Msub1)),
+           Msub2 = gsub("^0+", "", Msub2),
+           Msub3 = gsub("^0+", "", Msub3)) %>% 
+    unite(MMUS_par, c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3"), sep = "/", na.rm = T, remove = FALSE)
+
+# RELATE
+
+rel <- left_join(ka, mus, by = c("MCES_par" = "MMUS_par"), keep = T) %>% 
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par,
+         MMUS_par, MUS_cislo = predmet_cislo, sp_id, sp_cisloCES, nazev)
+
+APND_ka_spa <- rel %>% filter(!is.na(MMUS_par))
+
+# ANALYZE
+
+no <- sum(is.na(rel$MMUS_par))
+yo <- sum(!is.na(rel$MMUS_par))
+ratio <- round(sum(yo)/nrow(pk)*100, 2)
+ap_stats <- cbind(nrow(rel), yo, no, ratio) 
+APND_stats <- data.frame()
+APND_stats <- rbind(APND_stats, ap_stats)
+
+# NESPA 1 ---------> 0 sparovano
+
+# nespa <- rel %>% filter(is.na(MMUS_par)) %>% 
+#   select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par) %>% 
+#   separate(MCES_par, into=c("Mrada", "Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) 
+# 
+# rel <- left_join(nespa, mus, by = c("Mrada", "Mporc", "Msub1", "Msub2"), keep = T) %>% 
+#   select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par,
+#          MMUS_par, MUS_cislo = predmet_cislo, sp_id, sp_cisloCES, nazev)
+# 
+# spa <- rel %>% filter(!is.na(MMUS_par))
+# APND_ka_spa <- bind_rows(APND_ka_spa, spa)
+# 
+# no <- sum(is.na(rel$MMUS_par))
+# yo <- sum(!is.na(rel$MMUS_par))
+# ratio <- round(sum(yo)/nrow(pk)*100, 2)
+# ap_stats <- cbind(nrow(rel), yo, no, ratio) 
+# APND_stats <- rbind(APND_stats, ap_stats)
+
+```
+
+# KA SQL
+
+APND_ka_spa -> rovnou do SQL dotazu
+
+update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = 'B 1' WHERE PREDMET.ID = 21788625;
+
+```{r KATALOG}
+
+s <- APND_ka_spa %>%
+  mutate(prikaz = paste0("update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = '", CES_cislo, "' WHERE PREDMET.ID = ", sp_id, ";")) %>% 
+  select(prikaz)          
+
+write.table(s, file = paste0(path_ces, proj, "/", proj, "_KA_updt.sql"), 
+            quote = F, row.names = F, col.names = F)
+
+```
+
+# KA NESPA DEAL
+
+```{r}
+
+nespa <- rel %>% filter(is.na(MMUS_par)) %>% 
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo, MCES_par) %>% 
+  mutate(Mrada = ifelse(str_detect(CES_cislo, "\\s"), gsub("\\s.*$", "", CES_cislo), NA),
+           Mcislo =ifelse(str_detect(CES_cislo, "\\s"), gsub("^.*\\s", "", CES_cislo), CES_cislo)) %>% 
+    separate(Mcislo, into=c("Mporc", "Msub1", "Msub2", "Msub3") , sep="\\/", extra = "merge", remove = F) %>% 
+  arrange(zmena, desc(duvod), Mrada, as.numeric(Mporc)) %>% 
+  select(zdroj, typ_cisla, zmena, duvod, CES_cislo) %>%
+  mutate(status = "nenalezeno v MUS", 
+         pozn = NA)
+ 
+Lzdroj <- unique(nespa$zdroj)
+
+x_pk <- paste0(path_ces, proj, "/", proj, "_malina.xlsx")
+
+# for (i in Lzdroj){
+#   a <- nespa %>% filter(zdroj == i)
+#   sheet_name = substr(i, 1,25)
+#   write.xlsx(as.data.frame(a), file = x_pk, sheetName = sheet_name, append = T, rowNames = F, showNA = F) # idealni reseni, ale nefunguje :((()))
+# }
+
+for (i in Lzdroj){
+  a <- nespa %>% filter(zdroj == i)
+  sheet_name = substr(i, 1,25)
+  write.xlsx(as.data.frame(a), file = paste0(path_ces, proj, "/", proj,"_", substr(i, 1,25), ".xlsx"), sheetName = sheet_name, append = T, rowNames = F, showNA = F)
+}
+
+```
+
+# ---------------------------------- STAT
+
+```{r STATS 4 DOCS}
+
+t <- nrow(CORE_ces)
+p <- nrow(CORE_ces[CORE_ces$typ_cisla == "P",])
+i <- nrow(CORE_ces[CORE_ces$typ_cisla == "I",])
+p+i == t
+
+print(c(t, p, i))
+
+# prisrustky popis 1
+
+nrow(CORE_ces[CORE_ces$typ_cisla == "P"&CORE_ces$zmena == "N",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "P"&CORE_ces$zmena == "V",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "P"&CORE_ces$zmena == "R",])
+
+# prirustky table1
+
+cesp <- CORE_ces %>% filter(typ_cisla == "P")
+cesp$zdroj <- as.factor(cesp$zdroj)
+cesp$zmena <- as.factor(cesp$zmena)
+cesp$duvod <- as.factor(cesp$duvod)
+summary(cesp) 
+
+stat_p <- data.frame()
+
+for (i in Ltxt) {
+  a <- cesp %>% filter(zdroj == i)
+  n <- nrow(a[a$zmena == "N",])
+  v <- nrow(a[a$zmena == "V",])
+  vn <- nrow(a[a$zmena == "V"&a$duvod == "N",])
+  vo <- nrow(a[a$zmena == "V"&a$duvod == "O",])
+  vp <- nrow(a[a$zmena == "V"&a$duvod == "P",])
+  vr <- nrow(a[a$zmena == "V"&a$duvod == "R",])
+  r <- nrow(a[a$zmena == "R",])
+  rc <- nrow(a[a$zmena == "R"&a$duvod == "C",])
+  rz <- nrow(a[a$zmena == "R"&a$duvod == "Z",])
+  tot <- nrow(a)
+  out <- c(i, n, v, vn, vo, vp, vr, r, rc, rz, tot)
+  stat_p <- rbind(stat_p, out)
+  colnames(stat_p) <- c("Zdrojový soubor", "N", "V", "(V-N)", "(V-O)", "(V-P)", "(V-R)", "R", "(R-C)", "(R-Z)", "Celkem")
+  print(i)
+}
+
+write.table(stat_p, "clipboard", sep="\t", row.names=FALSE)
+
+# graf PK
+
+clip <- read.delim("clipboard") # excel statistiky, list 3
+
+ggplot(clip, aes(name, value, fill = ind))+
+  geom_bar(position='dodge', stat="identity")+
+  # scale_fill_manual("", values = c("celk" = "royalblue4", "spar" = "cyan4"))+
+  labs(x = "podsbírka", y = "počet záznamů z CES", fill = "", title = "Chronologická evidence")+
+  ylim(0,11500)+
+  scale_fill_discrete(labels=c('celkem', 'spárováno'))+
+  theme_classic(base_size = 18)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave(paste0(path_ces, proj, "/PK_plot.png"), device = "png", width = 10, height = 8, dpi = 300)
+
+# katalog popis 1
+
+nrow(CORE_ces[CORE_ces$typ_cisla == "I",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "I"&CORE_ces$zmena == "N",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "I"&CORE_ces$zmena == "V",])
+nrow(CORE_ces[CORE_ces$typ_cisla == "I"&CORE_ces$zmena == "R",])
+
+# katalog table 1
+
+cesp <- CORE_ces %>% filter(typ_cisla == "I")
+cesp$zdroj <- as.factor(cesp$zdroj)
+cesp$zmena <- as.factor(cesp$zmena)
+cesp$duvod <- as.factor(cesp$duvod)
+summary(cesp) 
+
+stat_p <- data.frame()
+
+for (i in Ltxt) {
+  a <- cesp %>% filter(zdroj == i)
+  n <- nrow(a[a$zmena == "N",])
+  v <- nrow(a[a$zmena == "V",])
+  vn <- nrow(a[a$zmena == "V"&a$duvod == "N",])
+  vo <- nrow(a[a$zmena == "V"&a$duvod == "O",])
+  vp <- nrow(a[a$zmena == "V"&a$duvod == "P",])
+  r <- nrow(a[a$zmena == "R",])
+  rc <- nrow(a[a$zmena == "R"&a$duvod == "C",])
+  rz <- nrow(a[a$zmena == "R"&a$duvod == "Z",])
+  tot <- nrow(a)
+  out <- c(i, n, v, vn, vo, vp, r, rc, rz, tot)
+  stat_p <- rbind(stat_p, out)
+  colnames(stat_p) <- c("Zdrojový soubor", "N", "V", "(V-N)", "(V-O)", "(V-P)", "R", "(R-C)", "(R-Z)", "Celkem")
+  print(i)
+}
+
+write.table(stat_p, "clipboard", sep="\t", row.names=FALSE)
+
+# graf KAT
+
+clip <- read.delim("clipboard") # excel statistiky, list 2
+
+ggplot(clip, aes(name, value, fill = ind))+
+  geom_bar(position='dodge', stat="identity")+
+  # scale_fill_manual("", values = c("celk" = "royalblue4", "spar" = "cyan4"))+
+  labs(x = "podsbírka", y = "počet záznamů z CES", fill = "", title = "Systematická evidence")+
+  ylim(0,13000)+
+  scale_fill_discrete(labels=c('celkem', 'spárováno'))+
+  theme_classic(base_size = 18)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave(paste0(path_ces, proj, "/KAT_plot.png"), device = "png", width = 10, height = 8, dpi = 300)
+```
