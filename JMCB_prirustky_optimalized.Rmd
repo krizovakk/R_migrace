@@ -1,0 +1,967 @@
+---
+title: "JMCB PK"
+author: "Kateřina Křížová"
+date: "`r Sys.Date()`"
+author: "Katerina Krizova"
+output:
+  pdf_document
+    toc: true
+    toc_depth: 2
+    number_sections: F
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("stringi")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+# install.packages("xlsx")
+# install.packages("data.table")
+# install.packages("Matrix")
+require(tidyverse)
+require(readxl)
+require(xlsx) # write excel in sheets
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+library(Matrix) 
+library(data.table) # ::rbindlist 
+
+```
+
+# PATHS ; PROJ INFO ; FCE
+
+```{r}
+
+proj <- "JMCB"
+
+path_proj <- "M:/03 klienti/kraj jihocesky/jihoceske muzeum v ceskych budejovicich - JMCB/03 migrace/jmcb migrace 2023/"
+path_kk <- paste0(path_proj, "KK_workspace/")
+
+# path_data <- "M:/03 klienti/kraj jihocesky/jihoceske muzeum v ceskych budejovicich - JMCB/2023_PK/zdrojdat/orig/"
+
+
+# _______________________________________ FUNKCE_________________________________________
+
+# Read and merge excel sheets (## READ)
+
+read_excel_allsheets <- function(filename, tibble = FALSE) {
+    # I prefer straight data.frames
+    # but if you like tidyverse tibbles (the default with read_excel)
+    # then just pass tibble = TRUE
+    sheets <- readxl::excel_sheets(filename)
+    x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X, col_types = "text", col_names = F,))
+    if(!tibble) x <- lapply(x, as.data.frame)
+    names(x) <- sheets
+    x
+}
+
+```
+
+ZDROJ DAT:
+
+df18 = 18xx
+df19 = 1900-1921 
+dfOST = 1953-1979 + 8-79 + 80-99 + 20xx
+
+
+# --------------------------------------- df18
+
+## READ
+
+```{r}
+mysheets <- read_excel_allsheets(paste0(path_kk, "18xx.xlsx")) # specifikuj excel file
+df18 <- as.data.frame(rbindlist(mysheets, fill = T))
+names(df18) <- df18[1,]
+df18 <- df18 %>% filter(is.na(rok)|rok!="rok") # vymaze vsechny radky, ktere jsou hlavicky puvodnich listu
+
+rm(mysheets)
+```
+
+## EDA
+
+```{r}
+
+n_df18 <- nrow(df18)
+
+eda <- df18
+
+any(is.na(eda$porc)) # TRUE
+any(is.na(eda$rokPK)) # FALSE
+
+# vedouci nuly a masky
+
+vednul <- b %>% 
+  group_by(rok) %>% 
+  summarise(maxcislo = max(porc104), maxsub = max(subc105, na.rm = TRUE)) %>% 
+  mutate(maxcislo_n = nchar(maxcislo),
+         maxsub_n = nchar(maxsub))
+
+write.table(vednul, "clipboard", sep = "\t", row.names = FALSE)
+
+```
+
+## POVINNE
+
+\sbirka1        -> sbirka dle MUSEIONu
+\podsb2         -> podsbirka KOD dle MUSEIONu
+\cisrada3       -> kod prirustkove knihy
+\prirc4         -> 
+\rok12          -> 
+\pocetks13      -> pokud neni definovano, je treba zadat [1]
+\evid15         -> pro moznost propojeni s invc nutne zadat [1]
+\typ30          -> hodnota "P"(obecný) nebo "PA"(archeologický)
+? ("polks53")
+\datzap98       -> pokud neni definovano, zadavame 31.12.[rok12]
+\porc104        -> poradove cislo prirustku
+
+```{r}
+
+df18$porc <- as.numeric(df18$porc) # abychom mohli doplnit cisla do mezer, kde je ted NA
+
+aa <- df18 %>% 
+  mutate(sbirka1 = "JCM",
+         podsb2 = "99",
+         cisrada3 = "Z", 
+         rok12 = rok,
+         pocetks13 = "1", # nedefinovano, davame automaticky 1
+         evid15 = "1",
+         typ30 = "P") %>% 
+  relocate(sbirka1, podsb2, cisrada3, typ30, .before = rok) %>% 
+  relocate(rok12, .after = rok) %>% 
+  # -------------------------------------------------- porc104, subc105
+  mutate(porc104 = porc) %>% 
+  group_by(rok) %>% 
+  fill(porc104, .direction = "down") %>% 
+  ungroup() %>% 
+  group_by(rok12, porc104) %>%
+  mutate(Msub = case_when(n()!=1 ~ seq_along(porc104), TRUE ~ NA), #seq_along(porc)-1 # Msub = gsub("^0$", NA, Msub),
+         subc105 = as.numeric(Msub)) %>%
+  relocate(porc104, subc105, Msub, .after = porc) %>% 
+  ungroup() %>% 
+  # -------------------------------------------------- vedouci nuly
+  group_by(rok12) %>% 
+  mutate(maxcp = max(porc104),
+         maxp = nchar(maxcp)) %>% relocate(maxcp, maxp, .after = porc) %>% 
+  mutate(maxcs = max(subc105, na.rm = TRUE),
+         maxs = nchar(maxcs)) %>% relocate(maxcs, maxs, .after = subc105) %>% 
+  ungroup() %>% 
+  # -------------------------------------------------- prirc4
+  mutate(Mp0 = str_pad(porc104, maxp, pad = 0),
+         Ms0 = str_pad(subc105, maxs, pad = 0),
+         cisrok = paste0(Mp0, "/", rok12)) %>% 
+  unite(prirc4, c("cisrok","Ms0"), sep = "-", na.rm = TRUE, remove = FALSE) %>% 
+  relocate(prirc4, .after = subc105) %>% 
+  select(-maxcp, -maxp, -maxcs, -maxs, -Msub, -cisrok) %>% 
+# -------------------------------------------------- datzap98
+  mutate(datzap98 = paste0("31.12.", rok12))
+ 
+
+```
+
+
+## NABYTI, POPIS, PUVOD
+
+uprava formatu datumu
+kontrola, zda je upraveny format odpovida formatu pro datum
+kde neodpovida -> rokakvi86 nebo nabpozn29 (???)
+
+```{r}
+
+bb <- aa %>%
+# -------------------------------------------------- datnab22 ; rokakvi86
+  mutate(Mdat = case_when(str_detect(datum, "^\\d+\\/\\d+\\s\\d+$") ~ str_replace_all(datum, "/| ", "."),
+                          str_detect(datum, "^\\d+\\/\\d+$") ~ paste0(str_replace(datum, "/", "."), ".", rok12),
+                          str_detect(datum, "^\\d+\\/\\s\\d+$") ~ paste0(str_replace(datum, "/ ", "."), ".", rok12),
+                          str_detect(datum, "^\\d+\\.\\s*\\d+\\.$") ~ paste0(str_replace(datum, " ", ""), rok12),
+                          TRUE ~ datum),
+         Mdat = ifelse(Mdat == "11//9", "11.9.1895", Mdat),    # rucni oprava jednoho zaznamu
+         is_valid_date = !is.na(as.Date(Mdat, format = "%d.%m.%Y")),
+         is_valid_date2 = ifelse(!is.na(datum), is_valid_date, NA),
+         datnab22 = ifelse(is_valid_date2 == "TRUE", Mdat, NA)) %>%
+  group_by(rok12, porc104) %>%
+  fill(datnab22, .direction = "down") %>%
+  ungroup() %>%
+  mutate(rokakvi86 = datum) %>%
+  relocate(datnab22, is_valid_date2, rokakvi86, .after = datum) %>%
+  select(-is_valid_date,-Mdat) %>% 
+# -------------------------------------------------- zpnab23
+  mutate(zpnab23 = case_when(str_detect(puvodCZ, "darováno|dar") ~ "D",
+                             str_detect(puvodCZ, "směna") ~ "X",
+                             str_detect(puvodCZ, "koupě|koupeno|zakoupeno") ~ "K",
+                             str_detect(puvodCZ, "nalezeno") ~ "N",
+                             TRUE ~ "J")) %>% # jiny
+  relocate(zpnab23, .after = puvodCZ) %>% 
+# -------------------------------------------------- nabpozn29
+  mutate(nabpozn29 = str_trim(paste(ifelse(!is.na(cenaHA), paste("cenaHA:", cenaHA), ""),
+                           ifelse(!is.na(cenaHA), paste("cenaHA:", cenaHA), ""), sep = "\n\n")),) %>% 
+# -------------------------------------------------- puvmaj28
+  mutate(puvmaj28 = str_trim(paste(ifelse(!is.na(puvodCZ), paste("puvodCZ:", puvodCZ), ""),
+                         ifelse(!is.na(puvod), paste("puvod:", puvod), ""), sep = "\n\n"))) %>%
+  relocate(puvmaj28, .after = puvodCZ) %>% 
+# -------------------------------------------------- popis11
+  mutate(popis11 = str_trim(paste(ifelse(!is.na(popisCZ), paste("popisCZ: ", popisCZ), ""),
+                         ifelse(!is.na(popis), paste("popis: ", popis), ""), sep = "\n\n"))) %>% 
+  relocate (popis11, .after = popisCZ)
+```
+
+## VYRAZENI
+
+```{r}
+
+cc <- bb %>% 
+# -------------------------------------------------- datvyr64 ; dokvyr67 ; poznvyr73
+  mutate(datvyr64 = gsub("^Odpis\\s|,\\sčj..*$", "", vyrazeni),
+         dokvyr67 = gsub("^.*,\\s", "", vyrazeni),
+         poznvyr73 = vyrazeni)
+```
+
+## TEXTY, PRIZNAKY, POZNAMKA
+
+text1 - umisteni
+text2 - umisteniCZ
+
+```{r}
+
+dd <- cc %>% 
+  mutate(text1_88 = ifelse(!is.na(umisteni), umisteni, ""),
+         text2_89 = ifelse(!is.na(umisteniCZ), umisteniCZ, ""),
+         pozn20 = str_trim(paste(ifelse(!is.na(poznamkaCZ), paste("poznamkaCZ:", poznamkaCZ), ""),
+                        ifelse(!is.na(poznamka), paste("poznamka:", poznamka), ""), sep = "\n\n")))
+
+```
+
+# --------------------------------------- df19
+
+## READ
+
+```{r}
+
+# path_kk <- "C:/Users/krizova/Documents/R/MIG/JMCB/"
+
+mysheets <- read_excel_allsheets(paste0(path_kk, "1900-1921.xlsx"))
+df19 <- as.data.frame(rbindlist(mysheets, fill = T))
+names(df19) <- df19[1,]
+df19 <- df19 %>% filter(datumNabyti!="datumNabyti") # vymaze vsechny radky, ktere jsou hlavicky puvodnich listu
+```
+
+## EDA
+
+```{r}
+
+n_df19 <- nrow(df19)
+
+eda <- df19
+
+any(is.na(eda$poradi)) # TRUE
+any(is.na(eda$rok)) # TRUE
+
+```
+
+## POVINNE
+
+\sbirka1        -> sbirka dle MUSEIONu
+\podsb2         -> podsbirka KOD dle MUSEIONu
+\cisrada3       -> kod prirustkove knihy
+\prirc4         -> 
+\rok12          -> 
+\pocetks13      -> pokud neni definovano, je treba zadat [1]
+\evid15         -> pro moznost propojeni s invc nutne zadat [1]
+\typ30          -> hodnota "P"(obecný) nebo "PA"(archeologický)
+? ("polks53")
+\datzap98       -> pokud neni definovano, zadavame 31.12.[rok12]
+\porc104        -> poradove cislo prirustku
+
+```{r}
+
+df19$poradi <- as.numeric(df19$poradi) # abychom mohli doplnit cisla do mezer, kde je ted NA
+
+aa <- df19 %>% 
+  mutate(sbirka1 = "JCM",
+         podsb2 = "99",
+         cisrada3 = "Z", 
+         # rok12 = rok, 
+         evid15 = "1",
+         typ30 = "P") %>% 
+  relocate(sbirka1, podsb2, cisrada3, typ30, .before = rok) %>% 
+  # -------------------------------------------------- rok12
+  mutate(rok12 = rok) %>% 
+  fill(rok12, .direction = "down") %>% 
+  relocate(rok12, .after = rok) %>%
+  # -------------------------------------------------- porc104, subc105
+  mutate(porc104 = poradi) %>% 
+  group_by(rok12) %>% 
+  fill(porc104, .direction = "down") %>% 
+  ungroup() %>% 
+  group_by(rok12, porc104) %>%
+  mutate(Msub = case_when(n()!=1 ~ seq_along(porc104), TRUE ~ NA), #seq_along(porc)-1 # Msub = gsub("^0$", NA, Msub),
+         subc105 = as.numeric(Msub)) %>%
+  relocate(porc104, subc105, Msub, .after = poradi) %>% 
+  ungroup() %>% 
+  # -------------------------------------------------- vedouci nuly
+  group_by(rok12) %>% 
+  mutate(maxcp = max(porc104, na.rm = TRUE),
+         maxp = nchar(maxcp)) %>% relocate(maxcp, maxp, .after = poradi) %>% 
+  mutate(maxcs = max(subc105, na.rm = TRUE),
+         maxcs = ifelse(maxcs == "-Inf", NA, maxcs),
+         maxs = nchar(maxcs),
+         maxs = ifelse(is.na(maxs), 0, maxs)) %>% 
+  relocate(maxcs, maxs, .after = subc105) %>% 
+  ungroup() 
+  # mutate(maxcp = max(porc104, na.rm = TRUE),
+  #        maxp = nchar(maxcp)) %>% relocate(maxcp, maxp, .after = porc104) %>% 
+  # mutate(maxcs = max(subc105, na.rm = TRUE),
+  #        maxcs = ifelse(maxcs == "-Inf", NA, maxcs),
+  #        maxs = nchar(maxcs),
+  #        maxs = ifelse(is.na(maxs), 0, maxs)) %>% 
+  # relocate(maxcs, maxs, .after = subc105) %>% 
+  # -------------------------------------------------- prirc4
+  mutate(Mp0 = str_pad(porc104, maxp, pad = 0),
+         Ms0 = str_pad(subc105, maxs, pad = 0),
+         cisrok = paste0(Mp0, "/", rok12)) %>% 
+  unite(prirc4, c("cisrok","Ms0"), sep = "-", na.rm = TRUE, remove = FALSE) %>% 
+  relocate(prirc4, .after = subc105) %>% 
+  select(-maxcp, -maxp, -maxcs, -maxs, -Msub, -cisrok) %>% 
+# -------------------------------------------------- pocektks13
+  mutate(pocetks13 = ifelse(is.na(pocetss), "1", 
+                            ifelse(str_detect(pocetKs, "^\\d+$"), pocetKs, "1"))) %>%
+  relocate(pocetks13, .after = pocetKs)
+# -------------------------------------------------- datzap98
+  mutate(datzap98 = paste0("31.12.", rok12))
+
+```
+
+# --------------------------------------- dfOST
+
+## READ
+
+df53 df68 df80 df20 -> sloucit
+
+```{r}
+
+# df53
+mysheets <- read_excel_allsheets(paste0(path_kk, "1953-1979.xlsx"))
+df53 <- as.data.frame(rbindlist(mysheets, fill = T))
+names(df53) <- df53[1,]
+names(df53)[16] = "xpozn"
+df53 <- df53 %>% filter(is.na(rokPK)|rokPK!="rokPK") %>% # n = 27579 
+    mutate(osoba = "")
+df53$rokPK <- as.numeric(df53$rokPK) 
+df53 <- df53 %>% filter(rokPK %in% 1953:1967) %>% # filtr roku
+    mutate(osoba = "", poradi = "")
+# df68
+df68 <- readxl::read_excel(paste0(path_proj, "68-79.xlsx"), sheet = 1, col_types = "text") %>% mutate(osoba = "", poradi = "")
+
+# df80
+df80 <- readxl::read_excel(paste0(path_proj, "80-99.xlsx"), sheet = 1, col_types = "text") %>% 
+  mutate(osoba = ziskal, datumNabyti = datunNabyti, poradi = "", Sign = Sign.) 
+  # filter(prirc != "Číslo přír.")
+
+# df20
+mysheets <- read_excel_allsheets(paste0(path_kk, "20xx.xlsx")) # specifikuj excel file
+df20 <- as.data.frame(rbindlist(mysheets))
+names(df20) <- df20[1,] # nacitame bez hlavicky -> nastaveni prvniho radku jako hlavicky
+df20 <- df20 %>% filter(is.na(poradi)|poradi!="poradi") %>% # n = 11689 -> vymaze vsechny radky, ktere jsou hlavicky puvodnich listu
+    mutate(Revize = revize,
+           rokPK = ifelse(rokPK == "20021", "2001", rokPK))
+
+# rbind
+
+sel53 <- df53 %>% select(poradi, prirc, rokPK, datumNabyti, Sign, invc, predmet, popis, pocetKs, zpNabyti, doklad, puvod, vyrazeni, Revize, podsbirka, jinecislo, osoba)
+sel68 <- df68 %>% select(poradi, prirc, rokPK, datumNabyti, Sign, invc, predmet, popis, pocetKs, zpNabyti, doklad, puvod, vyrazeni, Revize, podsbirka, jinecislo, osoba)
+sel80 <- df80 %>% select(poradi, prirc, rokPK, datumNabyti, Sign, invc, predmet, popis, pocetKs, zpNabyti, doklad, puvod, vyrazeni, Revize, podsbirka, jinecislo, osoba)
+sel20 <- df20 %>% select(poradi, prirc, rokPK, datumNabyti, Sign, invc, predmet, popis, pocetKs, zpNabyti, doklad, puvod, vyrazeni, Revize, podsbirka, jinecislo, osoba)
+
+later <- rbind(sel53, sel68, sel80, sel20)
+
+nrow(later) == nrow(sel53) + nrow(sel68) + nrow(sel80) + nrow(sel20) # TRUE
+
+
+rm(list = ls()[grepl("df", ls())]) # remove pracovni soubory df
+rm(list = ls()[grepl("sel", ls())]) # remove pracovni soubory sel
+rm(mysheets)
+dfOST <- later
+rm(later)
+
+```
+
+## EDA
+
+```{r}
+
+n_dfOST <- nrow(dfOST)
+
+eda <- dfOST
+
+any(is.na(eda$poradi))
+any(is.na(eda$prirc))
+any(is.na(eda$rokPK))
+
+```
+
+## POVINNE
+
+
+\sbirka1        -> sbirka dle MUSEIONu
+\podsb2         -> podsbirka KOD dle MUSEIONu
+\cisrada3       -> kod prirustkove knihy
+\prirc4         -> 
+\rok12          -> 
+\pocetks13      -> pokud neni definovano, je treba zadat [1]
+\evid15         -> pro moznost propojeni s invc nutne zadat [1]
+\typ30          -> hodnota "P"(obecný) nebo "PA"(archeologický)
+? ("polks53")
+\datzap98       -> pokud neni definovano, zadavame 31.12.[rok12]
+\porc104        -> poradove cislo prirustku
+
+```{r}
+
+# r1958 <- dfOST %>% filter(rokPK == "1958") %>% select(rokPK, poradi, prirc, podsbirka) %>% filter(prirc %in% c("980", "981", "981 a", "1073", "1073 a", "1094", "1094 a"))
+
+aa <- dfOST %>%
+# aa <- r1958 %>% 
+  mutate(sbirka1 = "JCM",
+         cisrada3 = "Z", 
+         evid15 = "1",
+         typ30 = "P") %>%
+  relocate(sbirka1, cisrada3, typ30, .before = poradi) %>%
+  # -------------------------------------------------- podsb2
+  mutate(podsb2 = ifelse(!is.na(podsbirka),
+                         case_when(podsbirka == "(20)" ~ "164",
+                                   podsbirka == "1" ~ "151",
+                                   podsbirka == "10" ~ "158",
+                                   podsbirka == "11" ~ "160",
+                                   podsbirka == "13" ~ "154",
+                                   podsbirka == "15" ~ "161",
+                                   podsbirka == "17" ~ "155",
+                                   podsbirka == "18" ~ "159",
+                                   podsbirka == "19" ~ "162",
+                                   podsbirka == "20" ~ "164",
+                                   podsbirka == "21" ~ "156",
+                                   podsbirka == "5" ~ "165",
+                                   podsbirka == "6" ~ "157",
+                                   podsbirka == "7" ~ "152",
+                                   podsbirka == "8" ~ "163",
+                                   podsbirka == "9" ~ "153",
+                                   TRUE ~ "99"), "99")) %>% relocate(podsb2, .after = podsbirka) %>%  # ostatni udaje (sporne podsb. atd) do pozn20
+  # -------------------------------------------------- rok12
+  mutate(Mrok = rokPK) %>% 
+  fill(Mrok, .direction = "down") %>% 
+  mutate(rok12 = Mrok) %>% # ----------------------------------------------------------------------- CHECK VALIDITY
+  relocate(rok12, .after = rokPK) %>% 
+  # -------------------------------------------------- porc104, subc105
+  mutate(porc104 = as.numeric(str_extract(prirc, "\\d+"))) %>% 
+  group_by(Mrok) %>% 
+  fill(porc104, .direction = "down") %>% 
+  ungroup() %>% 
+  group_by(Mrok, porc104) %>% 
+  mutate(Msub_a = str_trim(ifelse(str_detect(prirc, "a|b"), str_replace_all(prirc, c("\\d+" = "", "\\/" = "")), NA)),
+         Msub = as.character(case_when(n()!=1 ~ seq_along(porc104), TRUE ~ NA)),
+         subc105 = as.numeric(Msub),
+         Msub = ifelse(!is.na(Msub_a), Msub_a, Msub)) %>% 
+         # subc105 = as.numeric(case_when(Msub_a == "a" ~ "1",
+         #                     Msub_a == "b" ~ "2", TRUE ~ Msub))) %>% 
+  relocate(Msub_a, Msub, .after = porc104) %>% 
+  relocate(Mrok, porc104, subc105, .before = poradi) %>% 
+  ungroup() %>% 
+  # -------------------------------------------------- vedouci nuly
+  group_by(rok12) %>% 
+  mutate(maxcp = max(porc104, na.rm = TRUE),
+         maxp = nchar(maxcp)) %>% relocate(maxcp, maxp, .after = porc104) %>% 
+  mutate(maxcs = max(subc105, na.rm = TRUE),
+         maxcs = ifelse(maxcs == "-Inf", NA, maxcs),
+         maxs = nchar(maxcs),
+         maxs = ifelse(is.na(maxs), 0, maxs)) %>% 
+  relocate(maxcs, maxs, .after = subc105) %>% 
+  ungroup() %>% 
+  # -------------------------------------------------- prirc4 -------> az po popisu, kvuli popisum!
+  # mutate(Mrada = ifelse(str_detect(prirc, "Z"), "Z", NA),
+  #        Mp0 = str_pad(porc104, maxp, pad = 0),
+  #        Ms0 = str_pad(subc105, maxs, pad = 0),
+  #        cisrok = paste0(Mp0, "/", rok12)) %>% 
+  # unite(prirc4, c("cisrok","Ms0"), sep = "-", na.rm = TRUE, remove = FALSE) %>% 
+  # relocate(prirc4, .after = subc105) %>% 
+  # select(-maxcp, -maxp, -maxcs, -maxs, -Msub, -cisrok, -Mp0, -Ms0) %>% 
+# -------------------------------------------------- pocetks13
+  mutate(ozn10 = predmet) %>% relocate(ozn10, .after = predmet) %>%  
+# -------------------------------------------------- pocetks13
+  mutate(pocetks13 = ifelse(is.na(pocetKs), "1", 
+                            ifelse(str_detect(pocetKs, "^\\d+$"), pocetKs, "1")),
+         ind_pcks = ifelse(str_detect(pocetKs, "^\\d+$"), "OK", "doPOZN")) %>% 
+  relocate(pocetks13, .after = pocetKs) %>%
+# -------------------------------------------------- datzap98
+  mutate(datzap98 = paste0("31.12.", rok12))
+ 
+
+  
+check <- aa %>% select(rok12, maxcp, maxp, maxcs, maxs) %>% distinct() # kontrolni tabulka pro masky a vedouci nuly
+```
+
+## NABYTI, POPIS, PUVOD, PRIRC
+
+uprava formatu datumu -> zde nektere zaznamy datum ve formatu ##### -> nutno prevest
+kontrola, zda je upraveny format odpovida formatu pro datum
+kde neodpovida -> rokakvi86 nebo nabpozn29 (???)
+
+```{r}
+
+bb <- aa %>% 
+  # -------------------------------------------------- datnab22
+   mutate(Mdat_ser = as.numeric(ifelse(str_detect(datumNabyti, "^.....$"), datumNabyti, NA)),
+          Mdat_trans = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y"),
+          Mdat = case_when(str_detect(datumNabyti, "^.....$") ~ Mdat_trans,
+                          str_detect(datumNabyti, ",") ~ sub(",", ".", datumNabyti),
+                          str_detect(datumNabyti, "^r\\.") ~ paste0("01.01.", str_extract(datumNabyti, "\\d+")), 
+                          str_detect(datumNabyti, "^K") ~ sub("K", "", datumNabyti), 
+                          str_detect(datumNabyti, "\\.$") ~ sub("\\.$", "", datumNabyti), 
+                          str_detect(datumNabyti, "^19..$") ~ paste0("01.01.", datumNabyti),
+                          str_detect(datumNabyti, ".*X.*") ~ str_replace(datumNabyti, "X", "10"),
+                          TRUE ~ datumNabyti)) %>%
+   mutate(is_valid_date = !is.na(as.Date(Mdat, format = "%d.%m.%Y")),
+          is_valid_date2 = ifelse(!is.na(Mdat), is_valid_date, NA)) %>% relocate(Mdat, is_valid_date2, .after = datumNabyti) %>% 
+  mutate(datnab22 = ifelse(is_valid_date2 == "TRUE", Mdat, NA)) %>% 
+  relocate(datnab22, .after = datumNabyti) %>% 
+  select(-Mdat_ser, -Mdat_trans, -is_valid_date) %>% 
+  # -------------------------------------------------- zpnab23
+  mutate(zpnab23 = case_when(str_detect(zpNabyti, "(?i)koup|nákup") ~ "K",
+                             str_detect(zpNabyti, "Koupí od dědiců") ~ "B",
+                             str_detect(zpNabyti, "(?i)dar") ~ "D",
+                             str_detect(zpNabyti, "(?i)konf") & !str_detect(zpNabyti, "(?i)koup") ~ "F",
+                             str_detect(zpNabyti, "(?i)nalez|nález") ~ "N",
+                             str_detect(zpNabyti, "(?i)odkaz") ~ "O",
+                             str_detect(zpNabyti, "(?i)převod") ~ "P",
+                             str_detect(zpNabyti, "(?i)star.*fond") ~ "S",
+                             str_detect(zpNabyti, "(?i)pozůst") ~ "T",
+                             str_detect(zpNabyti, "(?i)výzkum") ~ "V",
+                             TRUE ~ NA)) %>% 
+  relocate(zpnab23, .after = zpNabyti) %>%
+  # -------------------------------------------------- doklnab25
+  mutate(doklnab25 = doklad) %>% relocate(doklnab25, .after = doklad) %>% 
+  # -------------------------------------------------- nabpozn29
+  mutate(nabpozn29 = ifelse(is.na(datumNabyti)&is.na(zpNabyti), "", # jinak se mi do prazdnych vkladalo pres paste tvrde NA
+                        paste(ifelse(!is.na(zpNabyti), paste("zpNabyti: ", zpNabyti), ""),
+                         ifelse(is_valid_date2 == FALSE, paste("datumNabyti:", datumNabyti), 
+                                ifelse(is.na(is_valid_date2), "", "")), sep = "\n\n"))) %>% 
+  # -------------------------------------------------- puvmaj28 ; prisp87
+  mutate(puvmaj28 = puvod,
+         prisp87 = osoba) 
+
+# POPIS slozitejsi kvuli nesrovnalostem mezi starsimi a novejsimy zaznamy
+
+bb$rok12 <- as.numeric(bb$rok12)
+bb$subc105 <- as.numeric(bb$subc105)
+
+nova <- bb %>% 
+  filter(Mrok %in% 1994:2016) %>% 
+ group_by(rok12, porc104) %>% 
+  mutate(Mpop = popis[1], 
+         Mpop = ifelse(str_detect(Mpop, "^1\\)"), NA, Mpop),
+         Mpop = ifelse(is.na(subc105), NA, Mpop)) %>% relocate(Mpop, .before = popis) %>% 
+  mutate(Mind = ifelse((is.na(popis[1]) & is.na(Mpop[1])) | (!is.na(popis[1]) & !is.na(Mpop[1])), TRUE, FALSE)) %>% relocate(Mind, .before = popis) %>% 
+  # mutate(Msub0 = ifelse((is.na(popis[1]) & is.na(Mpop[1])) | (!is.na(popis[1]) & !is.na(Mpop[1])), Msub-1, Msub)) %>% relocate(Msub0, .before = Msub)
+  mutate(Msub0 = ifelse(Mind == TRUE, subc105-1, subc105))  %>% relocate(Msub0, .before = popis) %>% 
+  mutate(Msub0 = ifelse(Msub0 == 0, NA, Msub0)) %>%  # subcislo nemuze byt nula, bude tedy prirc bez podlomeni a prirc s podlomenim 1...x
+  ungroup()
+      
+stara <- bb %>% 
+   filter(Mrok %in% 1953:1993) %>% 
+  mutate(Msub0 = subc105, 
+         Mind = FALSE,
+         Mpop = NA)
+
+nrow(stara)+nrow(nova)==nrow(bb)
+
+cc <- bind_rows(nova, stara) %>% 
+  mutate(subc105 = Msub0) %>% 
+ # -------------------------------------------------- popis11
+  mutate(popis11 = ifelse(Mpop != popis & !is.na(Mpop), paste0(Mpop, " ", popis), popis)) %>% relocate(popis11, .after = popis) %>% 
+  # select(-Mpop, -Mind, )
+  # -------------------------------------------------- prirc4
+  mutate(Mrada = ifelse(str_detect(prirc, "Z"), "Z", NA),
+         Mp0 = str_pad(porc104, maxp, pad = 0),
+         Ms0 = ifelse(!is.na(Msub_a), Msub_a, str_pad(subc105, maxs, pad = 0)),
+         cisrok = ifelse(is.na(Mrada), paste0(Mp0, "/", rok12), paste0(Mrada, Mp0, "/", rok12))) %>%
+  unite(prirc4, c("cisrok","Ms0"), sep = "-", na.rm = TRUE, remove = FALSE) %>%
+  relocate(prirc4, .after = subc105) %>%
+  select(-maxcp, -maxp, -maxcs, -maxs, -Msub, -cisrok, -Mp0, -Ms0, Mind, Mpop) 
+
+# check duplicity pricr4
+
+check <- cc %>% 
+  group_by(prirc4) %>% 
+  filter(n() != 1) # zadne duplicity v prirc ! ;-)
+
+```
+
+## VYRAZENI 
+
+```{r}
+
+dd <- cc %>% 
+  # -------------------------------------------------- datvyr64 ; dokvyr67 ; poznvyr73
+  mutate(vyrdat64 = str_extract(vyrazeni, "\\d+\\.\\s*\\d+\\.\\s*\\d{4}"),
+         vyrdok67 = str_extract(vyrazeni,"MK\\s*\\d+\\/\\d+|č.\\s*j.\\s*\\d+\\/\\d+|č.\\s*j.\\s*\\d+\\/\\d+|D\\s\\d+\\/\\d+|Kult\\.*\\s\\d+\\/\\d+|MK\\s*\\d+\\/\\d+\\sOM|č.\\s*j.\\s*\\d+\\/\\d+\\sOM|č.\\s*j.\\s*\\d+\\/\\d+.*G|D\\s\\d+\\/\\d+|Kult\\.*\\s\\d+\\/\\d+|č\\.*\\s*j\\.\\s*\\w+\\s*\\d+\\/\\d+"),
+        poznvyr73 = vyrazeni)%>% 
+  relocate(vyrdat64, vyrdok67, .after = vyrazeni)
+```
+
+## TEXTY, PRIZNAKY, POZNAMKA
+
+(text1 - umisteni
+text2 - umisteniCZ)
+text3 - jinecislo
+text4 = revize
+text5 = signatura
+
+
+```{r}
+
+ee <- dd %>% 
+  mutate(text3_90 = jinecislo) %>% relocate(text3_90, .after = jinecislo) %>%
+  mutate(text4_91 = Revize) %>% relocate(text4_91, .after = Revize) %>% 
+  mutate(text5_92 = Sign) %>% relocate(text5_92, .after = Sign) %>% 
+  mutate(pozn20 = paste(ifelse(ind_pcks == "doPOZN", paste("pocetKs:", pocetKs), ""),
+                                 ifelse(podsb2 == "99", paste("podsbirka:", podsbirka), ""), sep = "\n\n"),
+         puv_invc106 = invc)
+
+fin <- ee
+# rm(aa)
+# rm(bb)
+# rm(cc)
+# rm(dd)
+# rm(ee)
+```
+
+## INVENTARNI CISLA
+
+### filter
+
+```{r}
+
+finvc <- fin %>% 
+  mutate(type_invc = case_when(str_detect(invc, "^[A-Za-z]*\\s*\\d+$") ~ "single",
+                               str_detect(invc, "\\d+,\\s\\d+")&!str_detect(invc, "-") ~ "seznam",
+                               str_detect(invc, "^\\d+\\s*-\\s*\\d+$") ~ "interval",
+                               str_detect(invc, ",")&str_detect(invc, "\\d+\\s*-\\s*\\d+") ~ "sez+int",
+                               is.na(invc) ~ NA,
+                               TRUE ~ "tbd")) %>% 
+  relocate(type_invc, .after = invc)
+
+prehled <- finvc %>% select(prirc4, Sign, invc, type_invc) %>% filter(!is.na(invc))
+```
+
+
+### single -> hotovo
+
+Pokus o aktualizaci jiz namigrovanych prirustku.
+Zatim bereme jen ty zaznamy, kde je 1 invc na 1 prirc.
+
+celkový batch 51669
+single invc 36929
+single + valid Sign (def v MUS) 32004
+
+```{r}
+
+val_sign <- c("A", "B", "D", "F", "Fi", "Fo", "Fo", "G" ,"GK", "H", "K", "LA", "M" ,"ME", "Mi", "MP",
+              "N", "O", "P", "PM", "PP", "R", "S","ST", "UP", "V", "VS", "ZE", "ZV") # podsbirky, ktere maji v MUS definovanou masku
+
+mask5 <- c("A", "D", "F", "Fi", "Fo", "Fo", "G" ,"GK", "H", "K", "LA", "M" ,"ME", "Mi", "MP",
+              "N", "O", "P", "PM", "PP", "R", "S","ST", "UP", "V", "VS", "ZV")
+mask6 <- c("B", "ZE")
+
+sin <- finvc %>% 
+  mutate(type_invc = case_when(str_detect(invc, "^[A-Za-z]*\\s*\\d+$") ~ "single",
+                               TRUE ~ "tbp")) %>% 
+  relocate(type_invc, .after = invc) %>% 
+  filter(type_invc == "single") %>% 
+  filter(Sign %in% val_sign) %>% 
+  mutate(puv_invc106 = invc,
+         Minvc = str_extract(invc, "\\d+"),
+         Msub = str_extract(invc, "[A-Za-z]+$"),
+         Minvc0 = case_when(Sign %in% mask5 ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign %in% mask6 ~ paste0(Sign, str_pad(Minvc, 6, pad = "0")),
+                            TRUE ~ Minvc)) %>% 
+  unite(invc5, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(invc5, Minvc, Minvc0, Msub, .after = invc)
+
+prehled_sin <- sin %>% select(prirc4, invc, type_invc, invc5)
+
+```
+
+### seznam -> hotovo
+
+Pokus o aktualizaci jiz namigrovanych prirustku.
+v tomto kroku pracujeme se seznamy, tzn format d+, d+, d+ ...
+
+celkový batch  51669
+seznam invc 1203
+single + valid Sign (def v MUS) 
+
+```{r}
+
+sez <- finvc %>% 
+  filter(type_invc == "seznam") %>% 
+  filter(Sign %in% val_sign) %>% 
+  mutate(puv_invc106 = invc) %>% 
+  separate_rows(invc, sep = ",") %>% 
+  rename("numbers" = invc) %>% 
+  relocate(puv_invc106, numbers, .after = numbers) %>% 
+  mutate(numbers = str_trim(numbers),
+         numbers = ifelse(str_detect(numbers, "^[A-Za-z]+"), str_extract(numbers, "\\d+"), numbers),
+         Minvc0 = case_when(Sign %in% mask5 ~ paste0(Sign, str_pad(numbers, 5, pad = "0")),
+                            Sign %in% mask6 ~ paste0(Sign, str_pad(numbers, 6, pad = "0")),
+                            TRUE ~ puv_invc106),
+         Msub = str_extract(numbers, "[A-Za-z]+$")) %>% 
+  unite(Minvc_single, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(Minvc_single, .after = numbers) %>% 
+  group_by(prirc4) %>% 
+  mutate(invc5 = paste0(Minvc_single, collapse = ",")) %>% 
+  relocate(invc5, .after = numbers) %>% 
+  select(-numbers, -Minvc0, -Msub, -Minvc_single) %>% 
+  distinct() %>% 
+  ungroup()
+
+prehled_sez <- sez %>% select(prirc4, "invc" = puv_invc106, type_invc, invc5)
+           
+```
+
+### intervaly
+
+```{r}
+
+int <- finvc %>% filter(type_invc == "interval") %>% 
+  filter(Sign %in% val_sign) %>% 
+  separate(invc, into = c("start", "end"), sep = "-", remove = F) %>% 
+  mutate(start = as.numeric(start), end = as.numeric(end)) %>% 
+  mutate(is_valid_int = ifelse(start < end, TRUE, FALSE),
+         is_wrong_order = ifelse(is_valid_int == FALSE&nchar(start)==nchar(end), TRUE, FALSE),
+         temp_start = ifelse(is_wrong_order==T, end, start),
+         temp_end = ifelse(is_wrong_order==T, start, end),
+         alt_end = as.numeric(ifelse(nchar(temp_start)>nchar(temp_end), paste0(substring(temp_start, 1, nchar(temp_start)-nchar(temp_end)), temp_end), temp_end)),
+         is_wrong_order = ifelse(is_valid_int == FALSE&temp_start>alt_end, TRUE, FALSE)) %>% 
+  filter(is_wrong_order==FALSE) %>% 
+  mutate(Minvc = map2(temp_start, alt_end, ~toString(seq(.x, .y, by = 1)))) %>%
+  separate_rows(Minvc, sep = ",") %>% 
+  rename("numbers" = Minvc) %>% 
+  relocate(puv_invc106, numbers, .after = numbers) %>% 
+  mutate(numbers = str_trim(numbers),
+         numbers = ifelse(str_detect(numbers, "^[A-Za-z]+"), str_extract(numbers, "\\d+"), numbers),
+         Minvc0 = case_when(Sign %in% mask5 ~ paste0(Sign, str_pad(numbers, 5, pad = "0")),
+                            Sign %in% mask6 ~ paste0(Sign, str_pad(numbers, 6, pad = "0")),
+                            TRUE ~ puv_invc106),
+         Msub = str_extract(numbers, "[A-Za-z]+$")) %>% 
+  unite(Minvc_inter, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(Minvc_inter, .after = numbers) %>% 
+  group_by(prirc4) %>% 
+  mutate(invc5 = paste0(Minvc_inter, collapse = ",")) %>% 
+  relocate(invc5, .after = numbers) %>% 
+  select(-numbers, -Minvc0, -Msub, -Minvc_inter) %>% 
+  distinct() %>% 
+  ungroup() %>% 
+  relocate(invc5, .after = invc)  
+
+prehled_int <- int %>% select(prirc4, invc, type_invc, invc5)
+
+int2 <-int %>% 
+  mutate(is_wr_or = start > end) %>% 
+  relocate(is_wr_or, .after = end)
+
+```
+
+### prehledy
+
+celkem 51669 prirc
+42545 prirc ma zadano invc
+32004 single
+1203 seznam
+2372 intervaly
+
+```{r}
+
+print(paste0("Zbyva definovat ", 42545 - (32004+1203+2372), " inventarnich cisel."))
+
+prehled_rbin <- bind_rows(prehled_sin, prehled_sez, prehled_int) %>% select(-invc, -type_invc)
+
+check <- left_join(prehled, prehled_rbin, by = "prirc4") 
+
+# z MUSEIONu
+
+Nsin <- readxl::read_excel(paste0(path_kk, "JMCB_PK_invc_single_NEPROSLO.xlsx"), sheet = 1, col_types = "text") %>% 
+  select(-1, -2,-3, -4, -5)
+names(Nsin) <- Nsin[617,]
+
+Nsez <- readxl::read_excel(paste0(path_kk, "JMCB_PK_invc_seznam_NEPROSLO.xlsx"), sheet = 1, col_types = "text") %>% 
+  select(-1, -2,-3, -4, -5)
+names(Nsez) <- Nsez[94,]
+
+Nint <- readxl::read_excel(paste0(path_kk, "JMCB_PK_invc_intervaly_NEPROSLO.xlsx"), sheet = 1, col_types = "text") %>% 
+  select(-1, -2,-3, -4, -5)
+names(Nint) <- Nint[353,]
+
+NEPR <- bind_rows(Nsin, Nsez, Nint) %>% 
+  rename("chyba" = 1, "NEP_prirc4" = prirc4, "NEP_invc5" = invc5, "NEP_puv_invc106" = puv_invc106) %>%  
+  filter(sbirka1 != "sbirka1") %>%
+  select(NEP_prirc4, NEP_invc5, NEP_puv_invc106, chyba) 
+
+# velke spojeni
+
+# vysledek_full <- left_join(check, NEPR, by = c("prirc4" = "NEP_prirc4"), keep = T) %>% 
+#   mutate(status = ifelse(type_invc %in% c("sez+int", "tbd"), "nutna revize pole 'invc'",
+#            ifelse(is.na(chyba), "invc importovano do MUSEIONu", "neproslo - viz chyba")))
+
+vysledek_full <- left_join(check, NEPR, by = c("invc" = "NEP_puv_invc106"), keep = T) %>% 
+  mutate(status = ifelse(type_invc %in% c("sez+int", "tbd"), "nutna revize pole 'invc'",
+           ifelse(is.na(chyba), "invc importovano do MUSEIONu", "neproslo - viz chyba")))
+
+vysledek_clear <- vysledek_full %>% 
+  filter(status %in% c("nutna revize pole 'invc'", "neproslo - viz chyba")) %>% 
+  select(prirc4, Sign, invc, NEP_puv_invc106,  status, chyba) %>% 
+  distinct()
+
+write.xlsx(x = vysledek_clear,                       
+           file = paste0(path_kk, proj, "_NEZPRAC_invc.xlsx"))
+
+# vysledek_full <- full_join(check, NEPR, by = c("prirc4" = "NEP_prirc4"), keep = T)
+
+```
+
+
+# ------------------ S A V E ------------------ 
+
+```{r}
+
+# ------------------------------------------------------ switch
+# uprav dle excelu, ktery zpracovavas
+
+# n <- 2521
+# imp <- "df18"
+# 
+# n <- 3428
+# imp <- "df19"
+
+# n <- 51669
+# imp <- "dfOST"
+# ee <- cc
+
+# n <- 32004
+# imp <- "dfOST_akt_invc"
+# ee <- inv
+
+# n <- 1203
+# imp <- "dfOST_akt_invc_seznam"
+# df_save <- sez
+
+n <- 2372
+imp <- "dfOST_akt_invc_intervaly"
+df_save <- int
+# ------------------------------------------------------ switch
+
+# priprava tabulky
+
+Lpk <- c("sbirka1", "podsb2", "cisrada3", "prirc4", "invc5", "lok6","prirpla7", "prirpla8", "prirpla9", "ozn10",
+         "popis11", "rok12", "pocetks13", "obal14", "evid15", "mater16", "datace17", "stav18", "popstav19", "pozn20",
+         "liter21", "datnab22", "zpnab23", "typ24","doklnab25", "mena26", "cennab27", "puvmaj28", "nabpozn29", "typ30",
+         "armisto31", "arkontext32", "arakce33", "arvyzk34", "arlok35", "arku36", "arparc37", "arpoz38", "nalpozn39", "naladr40",
+         "nalokr41", "nalobec42", "nalcast43", "nalmc44", "nalcis45", "nalul46", "nalorc47", "nalpsc48", "stat49", "artext50",
+         "polpop51", "polCES52", "polks53", "poldopl1_54", " poldopl1_55", "poldopl2_56", "poldopl2_57", "poldopl3_58", "poldopl3_59", "archiv60",
+         "acvsign61", "acvmark62", "acvpozn63", "vyrdat64", "vyrduv65", "vyrtyp66", "vyrdok67", "vyrmena68", "vyrcena69", "zpub70",
+         "vyrCES71", "novaj72", "poznvyr73", "predchmaj74", "userins75", "datins76", "arkontext2_77", "arkontext3_78", "arkomp79", "arSJTSK80",
+         "arcizivyz81", "arnazevvyz82", "arrokvyz83", "arfirmavyz84", "arvedoucivyz85", "rokakvi86", "prisp87", 
+         "text1_88", "text2_89", "text3_90", "text4_91", "text5_92", 
+         "priz1_93", "priz2_94", "priz3_95", "priz4_96", "priz5_97",
+         "datzap98", "text6_99", "text7_100", "text8_101", "text9_102", "text10_103", "porc104", "subc105", "puv_invc106") # 105 ; 106 jen pro pozdejsi (invc)
+
+mus_tab <- data.frame(smazme = 1:n)
+
+for(i in Lpk){
+  if(i %in% colnames(df_save)){
+    ano <- df_save %>% select(all_of(i))
+    mus_tab <- cbind(mus_tab, ano)
+    print("jo")
+  } else{
+    ne <- data.frame(rep(NA, n))
+    colnames(ne) <- i
+    mus_tab <- cbind(mus_tab, ne)
+    print("houby")}
+}
+
+mus_tab <- mus_tab %>% select(-smazme) 
+
+```
+
+## full csv
+
+```{r}
+
+f2s <- paste0(path_kk, "import/", proj, "_import_", imp, ".csv")
+
+if(file.exists(f2s)){
+  print("You've been here before!")
+  rm(f2s)
+} else {
+  write.table(mus_tab, file = f2s,
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            # na = "", fileEncoding="cp1250")
+            na = "", fileEncoding = "UTF-8")
+  print("Import csv  W R I T T E N  !")
+  rm(f2s)
+}
+```
+
+## sample
+
+```{r}
+
+mus_tab$rok12 <- as.factor(mus_tab$rok12)
+
+df_list <- split(mus_tab, mus_tab$rok12)
+
+for (i in seq_along(df_list)) {
+  subset_df <- df_list[[i]]
+  group_name <- unique(subset_df$rok12)
+  # write.csv(subset_df, paste0(path_kk, "import/", proj, "_import_", group_name, ".csv"), row.names = FALSE)
+  write.table(subset_df, file = paste0(path_kk, "import/roky/", proj, "_import_", group_name, ".csv"),
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="UTF-8")
+}
+```
+
+## acc factor
+
+```{r}
+
+smpl <- paste0(imp, "_sample")
+
+sam <- mus_tab %>% slice(1:10) # TOP 10
+sam <- sample_n(mus_tab, 10) # RNDM SMPL
+
+f2s <- paste0(path_kk, "import/", proj, "_import_", smpl, ".csv")
+
+if(file.exists(f2s)){
+  print("You've been here before!")
+  rm(f2s)
+} else {
+  write.table(sam, file = f2s,
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="UTF-8")
+            # na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  rm(f2s)
+}
+```
+

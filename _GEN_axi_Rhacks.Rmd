@@ -138,7 +138,7 @@ write.xlsx(x = ToothGrowth,
            file = "ToothGrowth.xlsx")
 ```
 
-#### Write excel + sheets
+#### Write excel / more dataframes to sheets
 
 ```{r}
 exi <- paste0(path_ces, proj, "/", proj, "_KAT.xlsx")
@@ -156,6 +156,26 @@ if(file.exists(exi)){
   rm(f2s)
   }
 ```
+
+#### Write excel / levels to sheets
+
+```{r}
+
+install.packages("writexl")
+library(writexl)
+
+empty_data <- data.frame()
+write_xlsx(empty_data, path = paste0(path_proj, "vystupy/", proj, "_PK_NV.xlsx")) 
+  
+for (i in Lzdroj) {
+  subset_df <- save %>% filter(REL_zdroj == i)
+  shtnam <- i
+  write.xlsx(as.data.frame(subset_df), file = paste0(path_proj, "vystupy/", proj, "_PK_NV.xlsx"), 
+             sheetName = i, row.names = FALSE, append = TRUE)
+}
+ 
+```
+
 
 #### Write excel - memory issue
 
@@ -184,7 +204,9 @@ if(file.exists(exi)){
   }
 ```
 
-### Conditional SAVE
+### CSV SAVE
+
+#### Conditional SAVE
 
 
 ```{r}
@@ -204,12 +226,49 @@ if(file.exists(f2s)){
   }
 ```
 
-### Factor save to multiple CSV
+#### Factor save to multiple CSV
 
 ```{r}
 
+mus_tab$rok12 <- as.factor(mus_tab$rok12)
+
+df_list <- split(mus_tab, mus_tab$rok12)
+
+for (i in seq_along(df_list)) {
+  subset_df <- df_list[[i]]
+  group_name <- unique(subset_df$rok12)
+  # write.csv(subset_df, paste0(path_kk, "import/", proj, "_import_", group_name, ".csv"), row.names = FALSE)
+  write.table(subset_df, file = paste0(path_kk, "import/roky/", proj, "_import_", group_name, ".csv"),
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="UTF-8")
+}
+
 ```
 
+#### Sample (random)
+
+```{r}
+
+smpl <- paste0(imp, "_sample")
+
+sam <- sample_n(mus_tab, 10)
+
+f2s <- paste0(path_kk, "import/", proj, "_import_", smpl, ".csv")
+
+if(file.exists(f2s)){
+  print("You've been here before!")
+  rm(f2s)
+} else {
+  write.table(sam, file = f2s,
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="UTF-8")
+            # na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  rm(f2s)
+}
+```
 
 
 ## N U M E R I C S
@@ -290,6 +349,13 @@ Mdat_trans = transformovane datum
 
 mutate(Mpskp_len = nchar(pskup)) 
 ```
+
+### Substring
+
+```{r}
+
+```
+
 
 ### Similarity
 
@@ -429,7 +495,7 @@ ou <- taxon %>%
   replace(is.na(.), "")
 
 ou <- taxon %>%
-  mutate_all(~na_if(., ''))
+  mutate_all(~ ifelse(is.na(.), "", .))
 ```
 
 #### str_trim pro cely df

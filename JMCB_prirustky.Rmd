@@ -97,14 +97,7 @@ read_excel_allsheets <- function(filename, tibble = FALSE) {
 
 ```
 
-df18 = 18xx
-df19 = 1900-1921
-df53 = 1953-1979
-df68 = 68-79
-df80 = 80-99
-df20 = 20xx
-
-
+Đ
 
 # CREATE CSV
 
@@ -131,8 +124,7 @@ aa <- df18 %>%
          cisrada3 = "Z", 
          typ30 = "P",
          rok12 = rok,
-         pocetks13 = "1",
-         popisCZ = gsub("α", "alfa", popisCZ))
+         pocetks13 = "1"))
 
 # prirc 
 
@@ -430,6 +422,7 @@ nova <- later %>%
   mutate(Mind = ifelse((is.na(popis[1]) & is.na(Mpop[1])) | (!is.na(popis[1]) & !is.na(Mpop[1])), TRUE, FALSE)) %>% relocate(Mind, .before = Msub) %>% 
   # mutate(Msub0 = ifelse((is.na(popis[1]) & is.na(Mpop[1])) | (!is.na(popis[1]) & !is.na(Mpop[1])), Msub-1, Msub)) %>% relocate(Msub0, .before = Msub)
   mutate(Msub0 = ifelse(Mind == TRUE, Msub-1, Msub))  %>% relocate(Msub0, .before = Msub) %>% 
+  mutate(Msub0 = ifelse(Msub0 == 0, NA, Msub0)) %>%  # subcislo nemuze byt nula, bude tedy prirc bez podlomeni a prirc s podlomenim 1...x
   ungroup()
       
 stara <- later %>% 
@@ -486,12 +479,37 @@ rady <- ee %>% select(Mrok, Mrada) %>%
 
 ```
 
+### datum nabyti
+
+```{r}
+
+dat <- jednot %>% 
+  mutate(Mdat_ser = as.numeric(ifelse(str_detect(datumNabyti, "^.....$"), datumNabyti, NA)),
+         Mdat_trans = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y"),
+         Mdat = case_when(str_detect(datumNabyti, "^.....$") ~ Mdat_trans,
+                          str_detect(datumNabyti, ",") ~ sub(",", ".", datumNabyti),
+                          str_detect(datumNabyti, "^r\\.") ~ paste0("01.01.", str_extract(datumNabyti, "\\d+")), 
+                          str_detect(datumNabyti, "^K") ~ sub("K", "", datumNabyti), 
+                          str_detect(datumNabyti, "\\.$") ~ sub("\\.$", "", datumNabyti), 
+                          str_detect(datumNabyti, "^19..$") ~ paste0("01.01.", datumNabyti),
+                          str_detect(datumNabyti, ".*X.*") ~ str_replace(datumNabyti, "X", "10"),
+                          TRUE ~ datumNabyti)) %>%
+         # Mdat = ifelse(str_detect(datumNabyti, "^.....$"), Mdat_trans, 
+         #                   ifelse(str_detect(datumNabyti, "\\."), sub("\\.$", "", datumNabyti), datumNabyti))) %>% 
+   mutate(is_valid_date = !is.na(as.Date(Mdat, format = "%d.%m.%Y")),
+          is_valid_date2 = ifelse(!is.na(Mdat), is_valid_date, NA)) %>% relocate(Mdat, is_valid_date2, .after = datumNabyti) %>% 
+  mutate(datnab22 = ifelse(is_valid_date2 == "TRUE", Mdat, NA)) %>% 
+  relocate(datnab22, .after = datumNabyti) 
+
+```
+
+
 ### proces
 
 ```{r}
 
 # prirc
-aa <- jednot %>% 
+aa <- dat %>% 
   
   # assign
 
@@ -499,6 +517,7 @@ aa <- jednot %>%
   mutate(popis11 = Mpopis) %>% relocate(popis11, .after = popis) %>% 
   mutate(pocetks13 = ifelse(is.na(pocetKs), "1", 
                             ifelse(str_detect(pocetKs, "^\\d+$"), pocetKs, "1"))) %>% relocate(pocetks13, .after = pocetKs) %>% # tri sporne zaznamy, dat do poznamky (12) 6   (17) 9  (27) 25 + dva otazniky
+  mutate(evid15 = "1") %>% relocate(evid15, .after = pocetks13) %>% 
   mutate(doklnab25 = doklad) %>% relocate(doklnab25, .after = doklad) %>% 
   mutate(puvmaj28 = puvod) %>% relocate(puvmaj28, .after = puvod) %>% 
   mutate(porc104 = Mporadi, 
@@ -524,15 +543,10 @@ aa <- jednot %>%
          prirc4 = ifelse(!is.na(Mrada), paste0(Mrada, Mprirc), Mprirc)) %>% relocate(prirc4, .after = prirc) %>% 
   mutate(rok12 = Mrok) %>% relocate(rok12, .after = rokPK) 
 
-bb <- aa %>% 
-
-# nabyti
-  mutate(Mdat_ser = as.numeric(ifelse(str_detect(datumNabyti, "^.....$"), datumNabyti, NA)),
-         Mdat_trans = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y"),
-         datnab22 = ifelse(str_detect(datumNabyti, "^.....$"), Mdat_trans, 
-                           ifelse(str_detect(datumNabyti, "\\."), sub("\\.$", "", datumNabyti), datumNabyti))) %>% 
-  relocate(datnab22, .after = datumNabyti) %>% 
+bb <- aa %>% # datum nabyti reseno zvlast o sekci vyse
+  
   mutate(prisp87 = osoba, 
+         datzap98 = paste0("31.12.", rok12),  
          zpnab23 = case_when(str_detect(zpNabyti, "(?i)koup|nákup") ~ "K",
                              str_detect(zpNabyti, "Koupí od dědiců") ~ "B",
                              str_detect(zpNabyti, "(?i)dar") ~ "D",
@@ -575,20 +589,24 @@ bb <- aa %>%
                                    podsbirka == "9" ~ "153",
                                    TRUE ~ "99"), "99")) %>% relocate(podsb2, .after = podsbirka)  # ostatni udaje (sporne podsb. atd) do pozn20
 cc <- bb %>% 
-  # invc -----> nedavam nic! je treba resit masky a signatury a maj v tom bordel
-  mutate(invc5_tbd = ifelse(str_detect(invc, "^\\d+$"), invc, NA),
-         puv_invc106 = invc) %>% # sloupec navic do importniho rozhrani, aby nam info o invc zustalo v importu
-  # relocate(invc5, .after = invc) %>% 
+  
   # poznamky
   mutate(pozn20 = ifelse(is.na(pocetks13), paste("pocetKs:", pocetKs), NA),
-         nabpozn29 = ifelse(!is.na(zpNabyti), paste("zpNabyti: ", zpNabyti), NA),
-         poznvyr73 = ifelse(!is.na(vyrazeni), paste("vyrazeni: ", vyrazeni), NA))
+         nabpozn29 = ifelse(is.na(datumNabyti)&is.na(zpNabyti), "", # jinak se mi do prazdnych vkladalo pres paste tvrde NA
+                            paste(ifelse(!is.na(zpNabyti), paste("zpNabyti: ", zpNabyti), ""),
+                                    ifelse(is_valid_date2 == FALSE, paste("datumNabyti:", datumNabyti), 
+                                      ifelse(is.na(is_valid_date2), "", "")), sep = "\n\n")),
+         poznvyr73 = ifelse(!is.na(vyrazeni), paste("vyrazeni: ", vyrazeni), NA)) %>% 
+  relocate(nabpozn29, .after = datnab22) %>% 
+  select(-is_valid_date, -is_valid_date2, -Mdat)
+
 
 cc$Mrok <- as.factor(cc$Mrok)
-
-# cc$popis11 <- gsub("Φ", "průměr", cc$popis11)
-# cc$popis11 <- gsub("Ω", "alfa", cc$popis11)
 cc$popis11 <- gsub(";", ",", cc$popis11)
+
+
+
+
 
 # vzorek
 
@@ -596,12 +614,72 @@ cc$popis11 <- gsub(";", ",", cc$popis11)
 
 ```
 
-# SAVE CSV
+
+# inventarni cisla pro single hodnoty 
+
+Pokus o aktualizaci jiz namigrovanych prirustku.
+Zatim bereme jen ty zaznamy, kde je 1 invc na 1 prirc.
+
+celkový batch 51669
+single invc 36929
+single + valid Sign (def v MUS) 32004
 
 ```{r}
 
+val_sign <- c("A", "B", "D", "F", "Fi", "Fo", "Fo", "G" ,"GK", "H", "K", "LA", "M" ,"ME", "Mi", "MP",
+              "N", "O", "P", "PM", "PP", "R", "S","ST", "UP", "V", "VS", "ZE", "ZV")
+
+inv <- cc %>% 
+  mutate(type_invc = case_when(str_detect(invc, "^[A-Za-z]*\\s*\\d+$") ~ "single",
+                               TRUE ~ "tbp")) %>% 
+  relocate(type_invc, .after = invc) %>% 
+  filter(type_invc == "single") %>% 
+  filter(Sign %in% val_sign) %>% 
+  mutate(puv_invc106 = invc,
+         Minvc = str_extract(invc, "\\d+"),
+         Msub = str_extract(invc, "[A-Za-z]+$"),
+         Minvc0 = case_when(Sign == "A" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "B" ~ paste0(Sign, str_pad(Minvc, 6, pad = "0")),
+                            Sign == "D" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "F" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "Fi" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "Fo" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "Fo" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "G" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "GK" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "H" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "K" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "LA" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "M" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "ME" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "Mi" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "MP" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "N" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "O" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "P" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "PM" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "PP" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "R" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "S" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "ST" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "UP" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "V" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "VS" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            Sign == "ZE" ~ paste0(Sign, str_pad(Minvc, 6, pad = "0")),
+                            Sign == "ZV" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
+                            TRUE ~ Minvc)) %>% 
+  unite(invc5, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(invc5, Minvc, Minvc0, Msub, .after = invc)
+
+vzorek_inv <- inv %>% 
+  filter()
+
+```
 
 
+# SAVE CSV
+
+```{r}
 
 Lpk <- c("sbirka1", "podsb2", "cisrada3", "prirc4", "invc5", "lok6","prirpla7", "prirpla8", "prirpla9", "ozn10",
          "popis11", "rok12", "pocetks13", "obal14", "evid15", "mater16", "datace17", "stav18", "popstav19", "pozn20",
@@ -628,9 +706,13 @@ Lpk <- c("sbirka1", "podsb2", "cisrada3", "prirc4", "invc5", "lok6","prirpla7", 
 # imp <- "vzorek"
 # ee <- vzorek
 
-n <- 51669
-imp <- "dfOST"
-ee <- cc
+# n <- 51669
+# imp <- "dfOST"
+# ee <- cc
+
+n <- 32004
+imp <- "dfOST_akt_invc"
+ee <- inv
    
 mus_tab <- data.frame(smazme = 1:n)
 
@@ -647,24 +729,25 @@ for(i in Lpk){
     print("houby")}
 }
 
-mus_tab <- mus_tab %>% select(-smazme) %>% filter(rok12 != "1953")
+mus_tab <- mus_tab %>% select(-smazme) 
+
 
 # SAVE
 
-# f2s <- paste0(path_kk, "import/", proj, "_import_", imp, ".csv")
-# 
-# if(file.exists(f2s)){
-#   print("You've been here before!")
-#   rm(f2s)
-# } else {
-#   write.table(mus_tab, file = f2s,
-#             quote = T, row.names = F, 
-#             sep = ";", dec = ",", 
-#             na = "", fileEncoding="cp1250")
-#             # na = "", fileEncoding = "UTF-8")
-#   print("Import csv  W R I T T E N  !")
-#   rm(f2s)
-# }
+f2s <- paste0(path_kk, "import/", proj, "_import_", imp, ".csv")
+
+if(file.exists(f2s)){
+  print("You've been here before!")
+  rm(f2s)
+} else {
+  write.table(mus_tab, file = f2s,
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            # na = "", fileEncoding="cp1250")
+            na = "", fileEncoding = "UTF-8")
+  print("Import csv  W R I T T E N  !")
+  rm(f2s)
+}
 
 # SAVE 2
 
@@ -715,7 +798,8 @@ if(file.exists(f2s)){
   write.table(sam, file = f2s,
             quote = T, row.names = F, 
             sep = ";", dec = ",", 
-            na = "", fileEncoding="cp1250")
+            na = "", fileEncoding="UTF-8")
+            # na = "", fileEncoding="cp1250")
   print("Import csv  W R I T T E N  !")
   rm(f2s)
 }
@@ -839,7 +923,8 @@ generate_numbers <- function(min_val, max_val) {
 type <- ee %>% 
   select(prirc, Mprirc, prirc4, Sign, invc) %>% 
   drop_na(invc) %>% 
-  mutate(typ_cisla = ifelse(str_detect(invc, "\\d+\\s-\\s\\d+"), "interval", "jiny"))
+  mutate(ciste_intervaly = str_extract())
+  # mutate(typ_cisla = ifelse(str_detect(invc, "\\d+\\s-\\s\\d+"), "interval", "jiny"))
 
 
 # INTERVALY ----------------------------------------------------------------------------------------
@@ -868,7 +953,7 @@ jiny <- type %>%
   rename("numbers" = invc,
          "invc" = orig_invc)
 
-sort(unique(jiny$Sign))
+sort(unique(res$Sign))
 
 # MERGE ----------------------------------------------------------------------------------------
 
@@ -912,7 +997,7 @@ res <- mer %>%
                               Sign == "ZV" ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
                               TRUE ~ Minvc)) %>% 
   unite(fin_invc, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
-  select(-typ_cisla, -numbers, -Minvc, -Minvc0, -Msub)
+  select(-typ_cisla, -numbers, -Minvc, -Minvc0, -Msub, -Mprirc)
          
 
 ```

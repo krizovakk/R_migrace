@@ -406,6 +406,27 @@ imp <- "technika"
 *IMPORTNÍ ROZHRANÍ*: CSV Prirustkova kniha
 *MUSEION*: import_PK.csv 
 
+
+POVINNE UDAJE:
+
+\sbirka1        -> sbirka dle MUSEIONu
+\podsb2         -> podsbirka KOD dle MUSEIONu
+\cisrada3       -> kod prirustkove knihy
+\prirc4         -> 
+\rok12          -> 
+\pocetks13      -> pokud neni definovano, je treba zadat [1]
+\evid15         -> pro moznost propojeni s invc nutne zadat [1]
+\typ30          -> hodnota "P"(obecný) nebo "PA"(archeologický)
+? ("polks53")
+\datzap98       -> pokud neni definovano, zadavame 31.12.[rok12]
+\porc104        -> poradove cislo prirustku
+
+DULEZITE NOTICKY:
+
+subc105 musi byt vzdy cislo, i kdyz je podlomeni a, b
+subc105 nesmi byt 0
+
+
 ```{r}
 
 # 105
@@ -425,7 +446,7 @@ mus_tab <- mod_tab %>%
          "12prirustekRok" = rok12, # POV
          "13prirustekPocetKusu" = pocetks13, # POV
          "14prirustekObal" = X, 
-         "15prirustekEvidovano" = evid15, 
+         "15prirustekEvidovano" = evid15, # POVINNE [1]
          "16materialNazev" = X, 
          "17dataceHodnota" = X, "18stavNazev" = X, 
          "19prirustekPopisStavu" = X, 
@@ -494,7 +515,7 @@ mus_tab <- mod_tab %>%
          "91text4" = text4_91, 
          "92text5" = text5_92, 
          "93priznak1" = X, "94priznak2" = X, "95priznak3" = X, "96priznak4" = X, "97priznak5" = X,
-         "98datumZapisu" = datzap98, 
+         "98datumZapisu" = datzap98, # POVINNE, pokud chci E 1 -> pokud chci pripojit invc, musi byt vyplneno
          "99text6" = text6_99, "100text7" = X, "101text8" = X, "102text9" = X, "103text10" = X,
          "104poradoveCislo" = porc104, 
          "105poradoveCisloSub" = subc105)
