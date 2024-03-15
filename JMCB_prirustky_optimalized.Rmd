@@ -335,7 +335,7 @@ aa <- df19 %>%
   relocate(prirc4, .after = subc105) %>% 
   select(-maxcp, -maxp, -maxcs, -maxs, -Msub, -cisrok) %>% 
 # -------------------------------------------------- pocektks13
-  mutate(pocetks13 = ifelse(is.na(pocetss), "1", 
+  mutate(pocetks13 = ifelse(is.na(pocetKs), "1", 
                             ifelse(str_detect(pocetKs, "^\\d+$"), pocetKs, "1"))) %>%
   relocate(pocetks13, .after = pocetKs)
 # -------------------------------------------------- datzap98
@@ -356,16 +356,17 @@ mysheets <- read_excel_allsheets(paste0(path_kk, "1953-1979.xlsx"))
 df53 <- as.data.frame(rbindlist(mysheets, fill = T))
 names(df53) <- df53[1,]
 names(df53)[16] = "xpozn"
-df53 <- df53 %>% filter(is.na(rokPK)|rokPK!="rokPK") %>% # n = 27579 
+df53 <- df53 %>% filter(rokPK!="rokPK") %>% # n = 27579 
+# df53 <- df53 %>% filter(is.na(rokPK)|rokPK!="rokPK") %>% # n = 27579 
     mutate(osoba = "")
 df53$rokPK <- as.numeric(df53$rokPK) 
 df53 <- df53 %>% filter(rokPK %in% 1953:1967) %>% # filtr roku
     mutate(osoba = "", poradi = "")
 # df68
-df68 <- readxl::read_excel(paste0(path_proj, "68-79.xlsx"), sheet = 1, col_types = "text") %>% mutate(osoba = "", poradi = "")
+df68 <- readxl::read_excel(paste0(path_proj, "DK/68-79.xlsx"), sheet = 1, col_types = "text") %>% mutate(osoba = "", poradi = "")
 
 # df80
-df80 <- readxl::read_excel(paste0(path_proj, "80-99.xlsx"), sheet = 1, col_types = "text") %>% 
+df80 <- readxl::read_excel(paste0(path_proj, "DK/80-99.xlsx"), sheet = 1, col_types = "text") %>% 
   mutate(osoba = ziskal, datumNabyti = datunNabyti, poradi = "", Sign = Sign.) 
   # filter(prirc != "Číslo přír.")
 
@@ -430,7 +431,8 @@ any(is.na(eda$rokPK))
 
 # r1958 <- dfOST %>% filter(rokPK == "1958") %>% select(rokPK, poradi, prirc, podsbirka) %>% filter(prirc %in% c("980", "981", "981 a", "1073", "1073 a", "1094", "1094 a"))
 
-aa <- dfOST %>%
+aa <- subs %>%
+# aa <- dfOST %>%
 # aa <- r1958 %>% 
   mutate(sbirka1 = "JCM",
          cisrada3 = "Z", 
@@ -457,10 +459,10 @@ aa <- dfOST %>%
                                    podsbirka == "9" ~ "153",
                                    TRUE ~ "99"), "99")) %>% relocate(podsb2, .after = podsbirka) %>%  # ostatni udaje (sporne podsb. atd) do pozn20
   # -------------------------------------------------- rok12
-  mutate(Mrok = rokPK) %>% 
-  fill(Mrok, .direction = "down") %>% 
-  mutate(rok12 = Mrok) %>% # ----------------------------------------------------------------------- CHECK VALIDITY
-  relocate(rok12, .after = rokPK) %>% 
+  # mutate(Mrok = rokPK) %>% 
+  # fill(Mrok, .direction = "down") %>% 
+  # mutate(rok12 = Mrok) %>% # ----------------------------------------------------------------------- CHECK VALIDITY
+  # relocate(rok12, .after = rokPK) %>% 
   # -------------------------------------------------- porc104, subc105
   mutate(porc104 = as.numeric(str_extract(prirc, "\\d+"))) %>% 
   group_by(Mrok) %>% 
@@ -518,6 +520,7 @@ kde neodpovida -> rokakvi86 nebo nabpozn29 (???)
 ```{r}
 
 bb <- aa %>% 
+  filter(porc104 == 53) %>%  # oprava roku 1986
   # -------------------------------------------------- datnab22
    mutate(Mdat_ser = as.numeric(ifelse(str_detect(datumNabyti, "^.....$"), datumNabyti, NA)),
           Mdat_trans = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y"),
@@ -660,6 +663,13 @@ finvc <- fin %>%
   relocate(type_invc, .after = invc)
 
 prehled <- finvc %>% select(prirc4, Sign, invc, type_invc) %>% filter(!is.na(invc))
+
+opr1969 <- finvc %>% 
+  filter(porc104 > 546)
+
+summary(as.factor(opr1969$type_invc))
+summary(as.factor(finvc$type_invc))
+
 ```
 
 
@@ -681,13 +691,15 @@ mask5 <- c("A", "D", "F", "Fi", "Fo", "Fo", "G" ,"GK", "H", "K", "LA", "M" ,"ME"
               "N", "O", "P", "PM", "PP", "R", "S","ST", "UP", "V", "VS", "ZV")
 mask6 <- c("B", "ZE")
 
-sin <- finvc %>% 
+# sin <- opr1969 %>% 
+sin <- finvc %>%
   mutate(type_invc = case_when(str_detect(invc, "^[A-Za-z]*\\s*\\d+$") ~ "single",
                                TRUE ~ "tbp")) %>% 
   relocate(type_invc, .after = invc) %>% 
-  filter(type_invc == "single") %>% 
-  filter(Sign %in% val_sign) %>% 
-  mutate(puv_invc106 = invc,
+  # filter(type_invc == "single") %>% 
+  # filter(Sign %in% val_sign) %>% 
+  mutate(puv_invc106 = invc, 
+         text6_99 = invc,
          Minvc = str_extract(invc, "\\d+"),
          Msub = str_extract(invc, "[A-Za-z]+$"),
          Minvc0 = case_when(Sign %in% mask5 ~ paste0(Sign, str_pad(Minvc, 5, pad = "0")),
@@ -741,7 +753,8 @@ prehled_sez <- sez %>% select(prirc4, "invc" = puv_invc106, type_invc, invc5)
 
 ```{r}
 
-int <- finvc %>% filter(type_invc == "interval") %>% 
+int <- opr1969 %>% filter(type_invc == "interval") %>% 
+# int <- finvc %>% filter(type_invc == "interval") %>% 
   filter(Sign %in% val_sign) %>% 
   separate(invc, into = c("start", "end"), sep = "-", remove = F) %>% 
   mutate(start = as.numeric(start), end = as.numeric(end)) %>% 
@@ -863,9 +876,37 @@ write.xlsx(x = vysledek_clear,
 # imp <- "dfOST_akt_invc_seznam"
 # df_save <- sez
 
-n <- 2372
-imp <- "dfOST_akt_invc_intervaly"
-df_save <- int
+# n <- 2372
+# imp <- "dfOST_akt_invc_intervaly"
+# df_save <- int
+
+# n <- 1546
+# imp <- "opr_Z"
+# df_save <- rel_opr
+
+# n <- 4
+# imp <- "opr_1954"
+# df_save <- sin
+# 
+# n <- 33
+# imp <- "opr_1969_sin"
+# df_save <- sin
+
+# n <- 9
+# imp <- "opr_1969_int"
+# df_save <- int2
+
+# n <- 118
+# imp <- "opr_1969_full"
+# df_save <- opr1969
+
+# n <- 3
+# imp <- "opr_1991_2001_malaZ"
+# df_save <- sin
+
+n <- 14
+imp <- "opr_Z053_1986"
+df_save <- fin
 # ------------------------------------------------------ switch
 
 # priprava tabulky
@@ -898,6 +939,24 @@ for(i in Lpk){
 }
 
 mus_tab <- mus_tab %>% select(-smazme) 
+
+# 1969 below
+
+# # mus_1969_sin <- mus_tab # 33
+# # mus_1969_int <- mus_tab # 9
+# mus_1969_full <- mus_tab # 118, vcetne vyse zahrnutych
+# 
+# mus1969 <- bind_rows(mus_1969_sin, mus_1969_int, mus_1969_full) %>% 
+#   group_by(prirc4) %>% 
+#   mutate(is_dupl = ifelse(n()==1, F, T),
+#          to_remove = ifelse(is_dupl == T&is.na(invc5), T, F)) %>% 
+#   relocate(to_remove, is_dupl, .before = "sbirka1") %>% 
+#   filter(to_remove == F) %>% 
+#   select(-to_remove, -is_dupl)
+# 
+# mus_tab <- mus1969
+  
+  
 
 ```
 
@@ -965,3 +1024,103 @@ if(file.exists(f2s)){
 }
 ```
 
+# O P R A V Y
+
+opravy Z-kových čísel a špatného formátování v 1986
+
+```{r}
+
+opr <- readxl::read_excel(paste0(path_proj, "jmcb_prirc ke zruseni.xlsx"), sheet = "KK_opr", col_types = "text") %>% # 1567
+  filter(!is.na(spravne_prirc)) %>% 
+  select(cislo, info_invcisla, spravne_prirc) %>% 
+  mutate(nove_invc = gsub("; ", ",", info_invcisla))
+
+view(opr)
+
+fin_opr <- fin %>% mutate(prirc_par = gsub("Z", "", prirc4)) %>% relocate(prirc_par, .after = prirc4)
+
+rel_opr <- left_join(opr, fin_opr, by = c("cislo" = "prirc_par"), keep = T) %>% 
+  mutate(text6_99 = invc) %>% 
+  relocate(spravne_prirc, .after = prirc4) %>% 
+  relocate(nove_invc, text6_99, .after = invc) %>% 
+  mutate(prirc4 = spravne_prirc,
+         invc5 = nove_invc)
+
+check_prirc <- rel_opr %>% filter(prirc4 != spravne_prirc)  # 0, vyborne
+check_prirc <- rel_opr %>% filter(prirc4 != spravne_prirc)  # 0, vyborne
+
+```
+
+jednotlivosti
+
+```{r 464/1954}
+
+mysheets <- read_excel_allsheets(paste0(path_kk, "1953-1979.xlsx"))
+df53 <- as.data.frame(rbindlist(mysheets, fill = T))
+names(df53) <- df53[1,]
+names(df53)[16] = "xpozn"
+df53 <- df53 %>%  # n = 27579 
+# df53 <- df53 %>% filter(is.na(rokPK)|rokPK!="rokPK") %>% # n = 27579 
+    mutate(osoba = "",
+           Mrok = rokPK) %>% 
+  fill(Mrok, .direction = "down") %>% 
+  mutate(rok12 = Mrok,
+         poradi = "") %>% # ----------------------------------------------------------------------- CHECK VALIDITY
+  relocate(rok12, .after = rokPK)
+
+subs <- df53 %>% 
+  filter(rok12 == "1954") %>% 
+  filter(prirc %in% c("464", "465", "466", "467"))
+
+```
+
+```{r chybejici 1969}
+
+subs <- df53 %>% 
+  filter(rok12 == "1969") 
+
+# subs$prirc <- as.numeric(subs$prirc)
+
+```
+
+```{r chybejici 1991,2001 }
+
+sub91 <- df80 %>% 
+   mutate(osoba = "",
+           Mrok = rokPK) %>% 
+  fill(Mrok, .direction = "down") %>% 
+  mutate(rok12 = Mrok,
+         poradi = "") %>%
+  relocate(rok12, .after = rokPK) %>% 
+  filter(rok12 == "1991") %>% 
+  filter(prirc %in% c("z 146", "z 248"))
+
+# subs$prirc <- as.numeric(subs$prirc)
+
+sub01 <- df20 %>% 
+  mutate(osoba = "",
+           Mrok = rokPK) %>% 
+  fill(Mrok, .direction = "down") %>% 
+  mutate(rok12 = Mrok,
+         poradi = "") %>%
+  relocate(rok12, .after = rokPK) %>% 
+  filter(rok12 == "2001") %>% 
+  filter(prirc == "z 253")
+
+subs <- bind_rows(sub91, sub01)  
+  
+```
+
+```{r chybejici Z053/1986-###}
+
+subs <- df80 %>% 
+  mutate(osoba = "",
+           Mrok = rokPK) %>% 
+  fill(Mrok, .direction = "down") %>% 
+  mutate(rok12 = Mrok,
+         poradi = "") %>%
+  relocate(rok12, .after = rokPK) %>% 
+  filter(rok12 == "1986")
+
+
+```

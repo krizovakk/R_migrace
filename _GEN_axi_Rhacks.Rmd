@@ -24,6 +24,13 @@ knitr::opts_chunk$set(echo = F, eval = F)
 
 ## I M P O R T / E X P O R T
 
+### CLIPBOARD
+
+```{r}
+write.table(df, "clipboard", sep="\t", row.names=FALSE)
+```
+
+
 ### TXT
 
 read.table = [function](https://www.rdocumentation.org/packages/utils/versions/3.6.2/topics/read.table)
@@ -605,6 +612,10 @@ mus_tab_cvic <- mus_tab %>%
 ```{r}
 
 ch <- sample_n(df, 10) # n=10
+
+# random sample with selected columns
+
+sample_n(aa, 10) %>% select(rok, prirc, porc104, subc105, prirc4)
 ```
 
 #### Drop NA rows in spec col
@@ -656,7 +667,13 @@ data %>%
 
 ### extract all numbers
 
-### extract all letters
+### extract all (except) letters
+
+```{r}
+str_detect(invc, "[A-Za-z]")
+str_extract_all(invc, "[^a-zA-Z]")
+
+```
 
 ### case sensitiviy
 

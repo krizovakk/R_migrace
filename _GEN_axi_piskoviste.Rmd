@@ -940,3 +940,22 @@ dvou <- df %>%
 ```
 
 74155843 2/96/1 : rok 1999 -> ma byt 1996
+
+# HELA NG materialy
+
+```{r}
+
+path_ng <- "M:/03 klienti/narodni galerie - NG/ng zdroj dat/2023-SE/CKS komplet/CKS/"
+
+raw_dat <- read.csv(paste0(path_ng, "sb_data.csv"), header = TRUE, sep = ",")
+dat <- read.csv(paste0(path_ng, "sb_data.csv"), header = TRUE, sep = ",") %>% select(sb_data_id, invc, mat, nazev)
+mat <- read.csv(paste0(path_ng, "sb_mat.csv"), header = TRUE, sep = ",") %>% 
+  group_by(sb_data_id) %>% 
+  mutate(is_more = ifelse(n()!=1, "vice materialu", "jen jeden material")) %>% 
+  ungroup()
+
+cis <- read.csv(paste0(path_ng, "cis_mat.csv"), header = TRUE, sep = ";")
+
+mat2 <- left_join(mat, cis, by = c("hodnota" = "cis_mat_id"), keep = T) %>% filter(is_more == "vice materialu") %>%  arrange(sb_data_id)
+```
+

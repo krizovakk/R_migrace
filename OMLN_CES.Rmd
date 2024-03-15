@@ -250,9 +250,13 @@ CORE_mus_pk <- read_excel(paste0(path_ces, "/", proj, "/", proj, "_statistiky.xl
 MUS_pk <- CORE_mus_pk
 
 CORE_mus_ka <- read_excel(paste0(path_ces, "/", proj, "/", proj, "_statistiky.xlsx"), 
-                  sheet = "SQL_vyp_KA", col_types="text") 
+                  sheet = "SQL_vyp_KA", col_types="text") %>% 
+  mutate(Msub = ifelse(str_detect(predmet_cislo, "\\/"), gsub("^.*\\/0*", "", predmet_cislo), NA),
+    MMUS_par_a = ifelse(is.na(sp_porcislosub), paste0(radaPK, sp_porcislo), paste0(radaPK, sp_porcislo, "/", Msub)),
+    MMUS_par_b = paste0(radaPK, sp_porcislo))
 
-MUS_ka <- CORE_mus_ka
+MUS_ka <- CORE_mus_ka %>% 
+  select(MMUS_par_a, MMUS_par_b, "MUS_cislo" = predmet_cislo, "MUS_cisloCES" = sp_cisloCES, "MUS_id" = sp_id, "MUS_podsb" = podsbirka)
 
 ```
 
@@ -325,6 +329,8 @@ REL_pk_NV <- rel %>%
 
 # Warning: Detected an unexpected many-to-many relationship between `x` and `y`. ----> pridala jsem vyse check na duplicity
 
+REL_pk_NV$status <- as.factor(REL_pk_NV$status)
+summary(REL_pk_NV$status)
 
 ```
 
@@ -344,6 +350,7 @@ REL_pk_R <- left_join(CES_pk %>% filter(zmena == "R"), MUS_pk, by = c("MCES_par"
 ## excely
 
 ukladame jen pro potreby prezentace konfliktu -> vynechame sparovane
+list 'TBM' prepsat na 'Nenalezeno v CES'
 
 ```{r}
 # ---------------------------------------------------------------------------------- NV
@@ -383,35 +390,339 @@ write.xlsx(as.data.frame(REL_pk_R), file = paste0(path_proj, "vystupy/", proj, "
 
 ## sparovano + SQL
 
+POZOR
+
+U rozepsanych kontrolovat i to, zda k sobe maji pripojene alespon jedno inventarni cislo! Jinak se zaznam zamkne a nejde s nim dale pracovat!
+
+
 ```{r}
 
 pk_sparovano <- REL_pk_NV %>% filter(status == "sparovano") %>% arrange(MUS_prirc) %>% 
-  group_by(MMUS_par) %>% mutate(is_dup = ifelse(n()!= 1, "dupl", NA)) %>% 
-  mutate(Mnove_cisloCES = ifelse(CES_cislo == MUS_cisloCES, CES_cislo, 
-                                 ifelse(is.na(MUS_cisloCES), CES_cislo, "TBD !!!")),
-         updt_CES = ifelse(Mnove_cisloCES == "TBD !!!", CES_cislo, Mnove_cisloCES)) # -------------------------------> vyres TBD: v MUS uz CES cislo je, ale v jinem formatu, nez v CES
+  group_by(MMUS_par) %>% mutate(is_dup = ifelse(n()!= 1, "dupl", NA)) %>% ungroup() %>% 
+  mutate(Mnove_cisloCES = ifelse(CES_cislo == MUS_cisloCES, CES_cislo, "TBD !!!"),
+         Mnove_cisloCES = ifelse(is.na(MUS_cisloCES), CES_cislo, Mnove_cisloCES),
+         updt_CES = CES_cislo)
+         # updt_CES = ifelse(Mnove_cisloCES == "TBD !!!", CES_cislo, Mnove_cisloCES)) # -----------> vyres TBD: v MUS uz CES cislo je, ale v jinem formatu, nez v CES
+
+check <- pk_sparovano %>% 
+  group_by(MUS_id) %>% 
+  filter(n()!=1)
+write.table(check, "clipboard", sep="\t", row.names=FALSE)
+
+check2 <- pk_sparovano %>% filter(CES_cislo != Mnove_cisloCES)
 
 # ---------------------------------------------------------------------------------------- SQL
 
 # rozepsane
 
 r <- pk_sparovano %>% filter(duvod == "R") %>% 
-  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '", updt_CES, "' WHERE PRIRUSTEK.ID = ", MUS_id, ";")) %>% 
+  # filter(Mnove_cisloCES != "TBD !!!") %>% 
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '", updt_CES, "', PRIZNAK1 = 1 WHERE PRIRUSTEK.ID = ", MUS_id, ";")) %>% 
   select(prikaz)
 
-write.table(r, file = paste0(path_ces, proj, "/", proj, "PK_updt_rozeps.sql"), 
+write.table(r, file = paste0(path_proj, "vystupy/", proj, "_PK_updt_rozeps.sql"), 
             quote = F, row.names = F, col.names = F)
 
 # nove
 
 n <- pk_sparovano %>% filter(zmena == "N") %>% 
+  # filter(Mnove_cisloCES != "TBD !!!") %>% 
   mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '", updt_CES, "' WHERE PRIRUSTEK.ID = ", MUS_id, ";")) %>% 
   select(prikaz)          
 
-write.table(n, file = paste0(path_ces, proj, "/", proj, "PK_updt_nove.sql"), 
+write.table(n, file = paste0(path_proj, "vystupy/", proj, "_PK_updt_nove.sql"), 
             quote = F, row.names = F, col.names = F)
 
 ```
 
 
 # ---------------------------------- KA 
+
+CES obsahuje subcisla za lomitkem 'A 482/1
+
+MCES_par_a = Mrada, Mporc, "/" , Msubc
+MCES_par_b = Mrada, Mporc --------------------------> nakonec vyhodnoceno jako blbost, žejo. CES cislo menit nechci. 
+
+```{r}
+
+roky <- c("00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
+          "10", "11", "12", "13", "14", "15", "16", "17", "18") # roky, ktere je treba doplnit na format 2000+
+
+
+CES_ka <- CORE_ces %>% 
+  filter(typ_cisla == "I") %>%  
+  mutate(Mrada = ifelse(str_detect(cislo, "^[A-Za-z]"), str_extract(cislo, "^[A-Za-z]*"), NA),
+         Mrada = case_when(Mrada == "Ds" ~ "DS",
+                           Mrada == "Np" ~ "NP", 
+                           TRUE ~ Mrada),
+         Mc = str_trim(str_remove(cislo, "^[A-Za-z]+")),
+         Mporc = ifelse(str_detect(Mc, "\\/"), gsub("\\/.*$", "", Mc), Mc),
+         Msubc = ifelse(str_detect(Mc, "\\/"), gsub("^.*\\/", "", Mc), NA),
+         MCES_par_a = str_trim(ifelse(is.na(Mrada), paste0(Mporc, "/" , Msubc), paste0(Mrada, Mporc, "/" , Msubc))),
+         MCES_par_a = gsub("/NA", "", MCES_par_a),
+         MCES_par_b = str_trim(ifelse(is.na(Mrada), paste0(Mrada, Mporc), paste0(Mrada, Mporc))),
+         MCES_par_b = gsub("NA", "", MCES_par_b),
+         CES_podsb = case_when(zdroj == "Archeologická.txt" ~ "A",
+                                zdroj == "Botanická.txt" ~ "B",
+                                zdroj == "Další_-_Písemnosti.txt" ~ "P",
+                                zdroj == "Další_-_Regionální_knihovna_Lunensií.txt" ~ "L",
+                                zdroj == "Etnografická.txt" ~ "E",
+                                zdroj == "Geologická.txt" ~ "G",
+                                zdroj == "Jiná_-_Dějiny_současnosti.txt" ~ "DS",
+                                zdroj == "Jiná_-_Historická_fotografie.txt" ~ "Hf",
+                                zdroj == "Jiná_-_Historie.txt" ~ "H",
+                                zdroj == "Jiná_-_Nástroje_a_přístroje.txt" ~ "NP",
+                                zdroj == "Jiná_-_Sbírková_knihovna_Oblastního_muzea_v_Lounech,_příspěvkové_organizace.txt" ~ "S",
+                                zdroj == "Jiná_-_Textil.txt" ~ "T",
+                                zdroj == "Numizmatická.txt" ~ "Nm",
+                                zdroj == "Zoologická.txt" ~ "Z",
+                                ))  %>% 
+  select(CES_podsb, zdroj, typ_cisla, zmena, duvod, cislo, MCES_par_a)  #MCES_par_b vynechano -> blbost
+  
+View(CES_ka)
+
+```
+
+## NV
+
+```{r NEAKTUALNI}
+# ------------------- a
+
+rel_a <- left_join(CES_ka %>% filter(zmena != "R"), MUS_ka, by = c("MCES_par_a" = "MMUS_par_a"), keep = T) %>% 
+  group_by(MMUS_par_a) %>% 
+  mutate(is_podl = ifelse(n() == 1, F, T)) %>% 
+  relocate(is_podl, .before = MMUS_par_a)
+
+
+REL_ka_NV <- rel_a %>% 
+  mutate(status = case_when(!is.na(MMUS_par_a)&!is.na(MCES_par_a) ~ "sparovano", 
+                             is.na(MMUS_par_a) ~ "nenalezeno v MUSEIONu",
+                            is.na(MCES_par_a) ~ "nenalezeno v CES"),
+         REL_zdroj = ifelse(!is.na(CES_podsb), CES_podsb, "TBM")) %>% 
+         # REL_podsb = coalesce(podsbirka, CES_podsb)) %>%
+  select("MUS_id" = sp_id, "MUS_invc" = predmet_cislo, "MUS_cisloCES" = sp_cisloCES, "CES_cislo" = cislo, "MUS_podsb" = podsbirka, CES_podsb, REL_zdroj,
+         MMUS_par_a, MCES_par_a, MMUS_par_b, MCES_par_b, zmena, duvod, typ_cisla, status) %>% 
+  group_by(MUS_id) %>% 
+  mutate(is_REL_dupl = ifelse(n() == 1, "OK", 
+                              ifelse(is.na(MMUS_par_a), NA, "DUPL"))) %>% 
+  ungroup()
+
+# Warning: Detected an unexpected many-to-many relationship between `x` and `y`. ----> pridala jsem vyse check na duplicity
+
+REL_ka_NV$status <- as.factor(REL_ka_NV$status)
+summary(REL_ka_NV$status)
+
+# ------------------- b
+
+rel_b <- left_join(REL_ka_NV %>%
+                     filter(status != "sparovano") %>% 
+                     select(MUS_id, MUS_invc, MUS_cisloCES, MUS_podsb, MMUS_par_b, REL_zdroj, status), 
+                   CES_ka %>% 
+                     filter(zmena != "R"), 
+                   by = c("MMUS_par_b" = "MCES_par_b"), keep = T) 
+
+
+check <- rel_b %>% 
+  group_by(MUS_id) %>% 
+  filter(n()!=1)
+
+```
+
+## NV - 2.kolo
+
+A - nektera cisla jsou podlomena -> udelat druhe kolo parovani bez subcisla
+DS - CES cislo 'Ds ##', v MUS 'DS' ...
+G - jsou hlášena jednoslivá čísla pro hromadnou kartu
+H - nektera cisla jsou podlomena -> udelat druhe kolo parovani bez subcisla
+Hf - nektera cisla jsou podlomena -> udelat druhe kolo parovani bez subcisla
+L - nektera cisla jsou podlomena -> udelat druhe kolo parovani bez subcisla
+Nm -  -||-
+NP ´CES cislo 'Np ##', v MUS 'NP', +  udelat druhe kolo parovani bez subcisla
+S - nektera cisla jsou podlomena -> udelat druhe kolo parovani bez subcisla
+Z - nektera cisla jsou podlomena -> udelat druhe kolo parovani bez subcisla
+
+```{r AKTUALNI}
+
+rel <- left_join(CES_ka, MUS_ka , by = c("MCES_par_a" = "MMUS_par_a"), keep = T) %>% 
+  mutate(status = ifelse(!is.na(MCES_par_a)&!is.na(MMUS_par_a), "plne sparovano", "ne"))
+
+rel$status <- as.factor(rel$status)
+summary(rel$status) 
+
+spa_plne <- rel %>% filter(status == "plne sparovano")
+spa_ne <- rel %>% filter(status == "ne") %>% 
+  select(CES_podsb, zdroj, typ_cisla, zmena, duvod, cislo, MCES_par_a)
+
+rel2 <- left_join(spa_ne, MUS_ka,  by = c("MCES_par_a" = "MMUS_par_b"), keep = T) %>%
+   mutate(status = ifelse(!is.na(MCES_par_a)&!is.na(MMUS_par_b), "sparovano", "ne"))
+
+spa_cast <- rel2 %>% filter(status == "sparovano")
+spa_ne <- rel2 %>% filter(status == "ne")
+
+sparovano <- bind_rows(spa_plne, spa_cast)
+
+check <- sparovano %>% 
+  group_by(MUS_id) %>% 
+  filter(n() !=1)
+
+sparovano$status <- as.factor(sparovano$status)
+summary(sparovano$status)
+
+# check pred MUS_ID
+
+check_mus <- sparovano %>% 
+  # select(cislo, MUS_cislo, MUS_id) %>% 
+  distinct(cislo, MUS_id, .keep_all = TRUE)
+
+check <- check_mus %>% 
+  group_by(MUS_id) %>% 
+  filter(n() !=1)
+
+```
+
+
+```{r}
+REL_ka_spa <- sparovano # 48783 -> do SQL
+REL_ka_nespa <- spa_ne # 719 -> do EXCELU
+
+distMUS <- CORE_mus_ka %>% 
+   distinct(sp_cislo, sp_id, .keep_all = TRUE)
+REL_ne_v_ces <- left_join(distMUS, sparovano %>% select(MUS_id), by = c("sp_id" = "MUS_id"), keep = T) %>% 
+  filter(is.na(MUS_id)) # -> do EXCELU na list 'Nenalezenov CES'
+
+```
+
+
+```{r POSTUPNE}
+
+rel1 <- left_join(CES_ka, MUS_ka , by = c("MCES_par_a" = "MMUS_par_a"), keep = T) %>% 
+  mutate(status = ifelse(!is.na(MCES_par_a)&!is.na(MMUS_par_a), "sparovano", "ne"),
+         rel = "CES podl MUS podl")
+
+rel1$status <- as.factor(rel1$status)
+summary(rel1$status)                          #  8289     23169 
+spa1 <- rel1 %>% filter(status == "sparovano")
+nespa1 <- rel1 %>% filter(status == "ne")
+
+
+
+rel2 <- left_join(rel1 %>% filter(status == "ne") %>% 
+                    select(-MMUS_par_a, -MMUS_par_b, -MUS_cislo, -MUS_id, -MUS_cisloCES, -status), 
+                  MUS_ka, by = c("MCES_par_a" = "MMUS_par_b"), keep = T) %>% 
+  mutate(status = ifelse(!is.na(MCES_par_a)&!is.na(MMUS_par_b), "sparovano", "ne"),
+         rel = "CES podl MUS nepodl")
+
+rel2$status <- as.factor(rel2$status)
+summary(rel2$status)  
+spa2 <- rel2 %>% filter(status == "sparovano")
+
+
+
+rel3 <- left_join(rel2 %>% filter(status == "ne") %>% 
+                    select(-MMUS_par_a, -MMUS_par_b, -MUS_cislo, -MUS_id, -MUS_cisloCES, -status), 
+                  MUS_ka, by = c("MCES_par_b" = "MMUS_par_a"), keep = T) %>% 
+  mutate(status = ifelse(!is.na(MCES_par_b)&!is.na(MMUS_par_a), "sparovano", "ne"),
+         rel = "CES nepodl MUS podl")
+
+rel3$status <- as.factor(rel3$status)
+summary(rel3$status)  
+spa3 <- rel3 %>% filter(status == "sparovano")
+
+
+
+rel4 <- left_join(rel3 %>% filter(status == "ne") %>% 
+                    select(-MMUS_par_a, -MMUS_par_b, -MUS_cislo, -MUS_id, -MUS_cisloCES, -status), 
+                  MUS_ka, by = c("MCES_par_b" = "MMUS_par_b"), keep = T) %>% 
+  mutate(status = ifelse(!is.na(MCES_par_b)&!is.na(MMUS_par_b), "sparovano", "ne"),
+         rel = "CES nepodl MUS nepodl")
+
+rel4$status <- as.factor(rel4$status)
+summary(rel4$status)  
+spa4 <- rel4 %>% filter(status == "sparovano")
+
+nrow(spa1) + nrow(spa2) + nrow(spa3) + nrow(spa4)
+nrow(spa1) + nrow(spa2) + nrow(spa3) 
+
+
+check <- sparovano %>% 
+  group_by(MUS_id) %>% 
+  filter(n() !=1)
+
+sparovano <- bind_rows(spa1, spa2)
+
+```
+
+## R -- neni k reseni
+
+v systematicke evidenci nejsou zadne rusene zaznamy
+
+```{r}
+# 
+# REL_ka_R <- left_join(CES_ka %>% filter(zmena == "R"), MUS_ka, by = c("MCES_par" = "MMUS_par"), keep = T) 
+#   mutate(is_in_MUS = ifelse(!is.na(MMUS_par)&!is.na(MCES_par), TRUE, FALSE)) %>% 
+#   filter(is_in_MUS == TRUE) %>% 
+#   mutate_all(~ ifelse(is.na(.), "", .)) %>% 
+#   select(CES_podsb, typ_cisla, zmena, duvod, "CES_cislo" = cislo.x, "MUS_cisloCES" = cisloCES, "MUS_invc" = cislo.y,
+#          "MUS_id" = id, "MUS_podsb" = podsbirka)
+
+```
+
+## excely
+
+ukladame jen pro potreby prezentace konfliktu -> vynechame sparovane
+
+```{r}
+# ---------------------------------------------------------------------------------- NV
+save <- REL_ka_nespa %>% 
+  select(CES_podsb,typ_cisla, zmena, duvod, "CES_cislo" = cislo, MUS_cisloCES, MUS_cislo, MUS_id, MUS_podsb, status) 
+  # mutate_all(~ ifelse(is.na(.), "", .))
+
+save$CES_podsb <- as.factor(save$CES_podsb)
+Lzdroj <-sort(unique(save$CES_podsb))
+
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ save factor levels on separate excel sheets
+# install.packages("writexl")
+library(writexl)
+
+empty_data <- data.frame()
+write_xlsx(empty_data, path = paste0(path_proj, "vystupy/", proj, "_KA.xlsx")) 
+  
+
+for (i in Lzdroj) {
+  subset_df <- save %>% filter(CES_podsb == i)
+  shtnam <- i
+  gc()
+  write.xlsx(as.data.frame(subset_df), file = paste0(path_proj, "vystupy/", proj, "_KA.xlsx"), 
+             sheetName = i, row.names = FALSE, append = TRUE)
+}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+
+# # ---------------------------------------------------------------------------------- R
+# # prilozit REL_pk_R jako novy list
+# 
+# write.xlsx(as.data.frame(REL_pk_R), file = paste0(path_proj, "vystupy/", proj, "_PK.xlsx"), 
+#              sheetName = "Rušené v MUS", row.names = FALSE, append = TRUE)
+
+# # ---------------------------------------------------------------------------------- NENI V CES
+# prilozit REL_ne_v_ces jako novy list
+
+write.xlsx(as.data.frame(REL_ne_v_ces), file = paste0(path_proj, "vystupy/", proj, "_KA.xlsx"),
+             sheetName = "Nenalezeno v CES", row.names = FALSE, append = TRUE)
+
+```
+
+## sparovano + SQL
+
+```{r}
+
+s <- REL_ka_spa %>%
+  mutate(prikaz = paste0("update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = '", cislo, "' WHERE PREDMET.ID = ", MUS_id, ";")) %>% 
+  select(prikaz) %>% 
+  distinct()
+
+write.table(s, file = paste0(path_proj, "vystupy/", proj, "_KA_updt.sql"), 
+            quote = F, row.names = F, col.names = F)
+
+```
+
