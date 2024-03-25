@@ -659,6 +659,11 @@ data %>%
 data %>% 
   group_by(name) %>% 
   filter(n() != 1)
+
+# priznak
+data %>% 
+  group_by(name) %>% 
+  mutate(priznak = ifelse(n()!=1), 1, 0)
 ```
 
 \newpage
@@ -674,6 +679,15 @@ str_detect(invc, "[A-Za-z]")
 str_extract_all(invc, "[^a-zA-Z]")
 
 ```
+
+### extract part ending with space or EOF
+
+(?:\\s|$): This part matches either a whitespace character (\\s) or the end of the string ($). The (?: ... ) is a non-capturing group, which allows us to group the alternatives without capturing them as a separate match.
+
+```{r}
+extracted <- str_extract(text, "c\\.j\\..*?(?:\\s|$)")
+```
+
 
 ### case sensitiviy
 

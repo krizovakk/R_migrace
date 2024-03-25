@@ -524,7 +524,7 @@ imp <- "PK"
 
 # @@@
 
-Lpk <- c("sbirka1", "podsb2", "cisrada3", "prirc4", "invc5", "lok6"," prirpla7", "prirpla8", "prirpla9", "ozn10",
+Lpk <- c("sbirka1", "podsb2", "cisrada3", "prirc4", "invc5", "lok6"," prirpla7", "duvnepla8", "prirvyraz9", "ozn10",
          "popis11", "rok12", "pocetks13", "obal14", "evid15", "mater16", "datace17", "stav18", "popstav19", "pozn20",
          "liter21", "datnab22", "zpnab23", "typ24","doklnab25", "mena26", "cennab27", "puvmaj28", "nabpozn29", "typ30",
          "armisto31", "arkontext32", "arakce33", "arvyzk34", "arlok35", "arku36", "arparc37", "arpoz38", "nalpozn39", "naladr40",
