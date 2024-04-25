@@ -1,0 +1,332 @@
+---
+title: "OMGM batch zpracování karet k domigraci"
+author: "Kateřina Křížová"
+date: "2024-04-19"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("stringi")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+# install.packages("xlsx")
+# install.packages("data.table")
+# install.packages("Matrix")
+require(tidyverse)
+require(readxl)
+require(xlsx) # write excel in sheets
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+library(Matrix) 
+library(data.table) # ::rbindlist 
+
+```
+
+# PATHS ; PROJ INFO ; FCE
+
+```{r}
+
+proj <- "OMGM"
+
+path_k2 <- "M:/03 klienti/kraj ustecky/oblastni muzeum a galerie v moste, p.o. - OMGM/omgm-domigrace/karty 2/" # karty 2
+path_klib <- "M:/03 klienti/kraj ustecky/oblastni muzeum a galerie v moste, p.o. - OMGM/omgm-domigrace/karty Libkovice/" # karty Libkovice
+path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum a galerie v moste, p.o. - OMGM/omgm-domigrace/" # domigrace
+
+```
+
+# KARTY 2
+
+!! zkontroluj, jestli jsou data jen ve sloupcích A a B !!!
+
+-----> zkontrolovano: nacetly se jen dva sloupce, tzn. v ostatnich nic neni
+
+```{r}
+
+# Lxls <- list.files(path_k2, pattern = "*.xlsx") 
+# 
+# df_filled <- data.frame()
+# # df_filled <- data.frame(matrix(ncol = 15, nrow = 0))
+# 
+# for(i in Lxls) {
+#   a <- read_excel(paste0(path_proj, i),
+#                   sheet = "List1", col_names = F,
+#                   col_types = "text", na = " ") 
+#   # source_row <- c("zdroj", gsub(".xlsx", "", i))
+#   df_filled <- rbind(df_filled, a)
+#   print(i)
+# }
+
+```
+
+
+## load
+
+problematicke soubory, prve nesly nahrat, Eva musela znovu stahnout:
+06242
+06334
+06531
+07041
+07268
+07291
+07400
+07638
+06518 a dal - maji jako prvni list graf -> specifikovan sheet name
+
+```{r}
+
+Lxls <- list.files(path_k2, pattern = "*.xlsx") 
+
+df_filled <- data.frame()
+# df_filled <- data.frame(matrix(ncol = 15, nrow = 0))
+
+colnam <- c("header", "value")
+
+for(i in Lxls) {
+  a <- read_excel(paste0(path_k2, i),
+                  sheet = "List1", col_names = F,
+                  range = cell_cols("A:B"), 
+                  col_types = "text", na = " ") 
+  names(a) <- colnam
+  source_row <- c("zdroj", gsub(".xlsx", "", i))
+  b <- rbind(a, source_row) # add info about source file
+  c <- b [rowSums(is.na(b)) < ncol(b), ] # drop NA
+  d <- spread(c, key = header, value = value)
+  slice(d, -1)
+  df_filled <- rbind(df_filled, d)
+  print(i)
+}
+
+```
+
+## modify
+
+```{r}
+
+# uprava datumu
+
+df <- df_filled %>% 
+  mutate(Mdatnab = `datum nabytí`,
+         Mdat_ser = as.numeric(ifelse(str_detect(Mdatnab, "^.....$"), Mdatnab, NA)),
+         Mdat_trans = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y"),
+         MFINdatnab = ifelse(str_detect(Mdatnab, "^.....$"), Mdat_trans, 
+                           ifelse(str_detect(Mdatnab, "\\."), sub("\\.$", "", Mdatnab), Mdatnab)),
+         `datum nabytí` = MFINdatnab) %>% 
+  select(-Mdatnab, -Mdat_ser, -Mdat_trans) %>% 
+  relocate(`datum nabytí`, .after = datace)
+
+# puvodni razeni
+
+colnam <- paste(c$header, collapse = ",")
+
+karty2 <- df %>% 
+  select("inv. č.","přír. č.",předmět,"počet ks.",popis,lokalita,"způsob nabytí","nabyto od",stav,"datum nabytí",materiál,datace,fond,"Alt inv",GR,"jiná čísla","souřadnice přesně","souřadnice přibližně",poznámka,l,určil,"označení podsbírky dle CES","upřesnění datace",váha,zdroj)
+
+```
+
+## check
+
+```{r}
+samp <- sample_n(karty2, 3) # n=10
+```
+
+## save
+
+be patient, takes some time!
+
+```{r}
+write.xlsx(karty2, paste0(path_proj, "KK_workspace/karty2_seskupene.xlsx"))
+```
+
+# KARTY LIBKOVICE
+
+proper formular
+treba dat pozor na sloucena pole
+jasne definovat, jak s nimi budeme pracovat
+
+## one file
+
+```{r}
+
+# nadpis
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "B2",
+                  col_types = "text", na = " ")
+tit <- "nadpis"
+b2 <- cbind(tit,val)
+
+# podsbirka
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "B4",
+                  col_types = "text", na = " ")
+tit <- "Podsbírka"
+b3 <- cbind(tit, val)
+
+# skupina
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "B7",
+                  col_types = "text", na = " ")
+tit <- "Skupina"
+b6 <- cbind(tit, val)
+
+# predmet
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "H4",
+                  col_types = "text", na = " ")
+tit <- "Skupina"
+h3 <- cbind(tit, val)
+
+# stare cislo
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "H7",
+                  col_types = "text", na = " ")
+tit <- "Staré číslo (UAPP Most - číslo sáčku)"
+h6 <- cbind(tit, val)
+
+# lokalita, puvod
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "T4",
+                  col_types = "text", na = " ")
+tit <- "Lokalita/původ"
+t3 <- cbind(tit, val)
+
+# invc
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "T7",
+                  col_types = "text", na = " ")
+tit <- "Inventární číslo"
+t6 <- cbind(tit, val)
+
+# stary prirustek
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "AD4",
+                  col_types = "text", na = " ")
+tit <- "Starý přírůstek"
+val <- ifelse(ncol(val) == 0, as.data.frame(""), val)
+ad3 <- cbind(tit, val)
+
+# generalni revize
+val <- read_excel(paste0(path_klib, "karta Libkovice-04000.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "AD6",
+                  col_types = "text", na = " ")
+tit <- "Generální revize"
+val <- ifelse(ncol(val) == 0, as.data.frame(""), val)
+ad5 <- cbind(tit, val)
+
+```
+
+```{r}
+
+a <- read_excel(paste0(path_klib, "karta Libkovice-04110.xlsx"),
+                  sheet = "List1", col_names = F,
+                  range = "B2:BH26",
+                  col_types = "text", na = " ")
+
+tit <- data.frame(tit = "Nadpis", val = a[1,1]) %>% rename("tit" =1, "val"=2)
+podsb <- data.frame(tit = a[2,1], val = a[3,1]) %>% rename("tit" =1, "val"=2)
+skup <- data.frame(tit = a[5,1], val = a[6,1]) %>% rename("tit" =1, "val"=2)
+predm <- data.frame(tit = a[2,7], val = a[3,7]) %>% rename("tit" =1, "val"=2)
+starcis <- data.frame(tit = a[5,7], val = a[6,7]) %>% rename("tit" =1, "val"=2)
+lokpuv <- data.frame(tit = a[2,19], val = a[3,19]) %>% rename("tit" =1, "val"=2)
+invc <- data.frame(tit = a[5,19], val = a[6,19]) %>% rename("tit" =1, "val"=2)
+stprir <- data.frame(tit = a[2,29], val = a[3,29]) %>% rename("tit" =1, "val"=2)
+genrev <- data.frame(tit = a[4,29], val = a[5,29]) %>% rename("tit" =1, "val"=2)
+platprir <- data.frame(tit = a[6,29], val = a[7,29]) %>% rename("tit" =1, "val"=2)
+zpnab <- data.frame(tit = a[9,1], val = a[9,6]) %>% rename("tit" =1, "val"=2)
+odnab <- data.frame(tit = a[10,1], val = a[10,6]) %>% rename("tit" =1, "val"=2)
+datnab <- data.frame(tit = a[11,1], val = a[11,6]) %>% rename("tit" =1, "val"=2)
+urcil <- data.frame(tit = a[9,19], val = a[9,21]) %>% rename("tit" =1, "val"=2)
+daturc <- data.frame(tit = "Datum určení", val = a[9,26]) %>% rename("tit" =1, "val"=2)
+datace <- data.frame(tit = a[11,19], val = a[11,22]) %>% rename("tit" =1, "val"=2)
+popis <- data.frame(tit = a[13,1], val = a[14,1]) %>% rename("tit" =1, "val"=2)
+pozn <- data.frame(tit = a[23,1], val = a[24,1]) %>% rename("tit" =1, "val"=2)
+foto <- data.frame(tit = a[13,19], val = NA) %>% rename("tit" =1, "val"=2)
+
+fintab <- bind_rows(tit, podsb, skup, predm,
+                    starcis, lokpuv, invc, starcis, genrev, platprir, 
+                    zpnab, odnab, datnab,
+                    urcil, daturc, datace,
+                    popis, pozn, foto)
+
+
+
+```
+
+## batch 
+
+problematicke soubory, prve nesly nahrat, Eva musela znovu stahnout:
+    karta Libkovice-04248
+
+```{r}
+
+Lxls <- list.files(path_klib, pattern = "*.xlsx") 
+
+df_filled <- data.frame()
+problematic_files <- data.frame()
+
+for(i in Lxls) {
+  tryCatch({
+    a <- read_excel(paste0(path_klib, i),
+                  sheet = "List1", col_names = F,
+                  range = "B2:BH26",
+                  col_types = "text", na = " ") 
+    tit <- data.frame(tit = "Nadpis", val = a[1,1]) %>% rename("tit" =1, "val"=2)
+    podsb <- data.frame(tit = a[2,1], val = a[3,1]) %>% rename("tit" =1, "val"=2)
+    skup <- data.frame(tit = a[5,1], val = a[6,1]) %>% rename("tit" =1, "val"=2)
+    predm <- data.frame(tit = a[2,7], val = a[3,7]) %>% rename("tit" =1, "val"=2)
+    starcis <- data.frame(tit = a[5,7], val = a[6,7]) %>% rename("tit" =1, "val"=2)
+    lokpuv <- data.frame(tit = a[2,19], val = a[3,19]) %>% rename("tit" =1, "val"=2)
+    invc <- data.frame(tit = a[5,19], val = a[6,19]) %>% rename("tit" =1, "val"=2)
+    stprir <- data.frame(tit = a[2,29], val = a[3,29]) %>% rename("tit" =1, "val"=2)
+    genrev <- data.frame(tit = a[4,29], val = a[5,29]) %>% rename("tit" =1, "val"=2)
+    platprir <- data.frame(tit = a[6,29], val = a[7,29]) %>% rename("tit" =1, "val"=2)
+    zpnab <- data.frame(tit = a[9,1], val = a[9,6]) %>% rename("tit" =1, "val"=2)
+    odnab <- data.frame(tit = a[10,1], val = a[10,6]) %>% rename("tit" =1, "val"=2)
+    datnab <- data.frame(tit = a[11,1], val = a[11,6]) %>% rename("tit" =1, "val"=2)
+    urcil <- data.frame(tit = a[9,19], val = a[9,21]) %>% rename("tit" =1, "val"=2)
+    daturc <- data.frame(tit = "Datum určení", val = a[9,26]) %>% rename("tit" =1, "val"=2)
+    datace <- data.frame(tit = a[11,19], val = a[11,22]) %>% rename("tit" =1, "val"=2)
+    popis <- data.frame(tit = a[13,1], val = a[14,1]) %>% rename("tit" =1, "val"=2)
+    pozn <- data.frame(tit = a[23,1], val = a[24,1]) %>% rename("tit" =1, "val"=2)
+    foto <- data.frame(tit = a[13,19], val = NA) %>% rename("tit" =1, "val"=2)
+    fintab <- bind_rows(tit, podsb, skup, predm,
+                        starcis, lokpuv, invc, stprir, genrev, platprir, 
+                        zpnab, odnab, datnab,
+                        urcil, daturc, datace,
+                        popis, pozn, foto)
+    # po vytahani udaju z formulare
+    source_row <- c("zdroj", gsub(".xlsx", "", i))
+    b <- rbind(fintab, source_row) # add info about source file
+    c <- b [rowSums(is.na(b)) < ncol(b), ] # drop NA
+    d <- spread(c, key = tit, value = val)
+    slice(d, -1)
+    df_filled <- rbind(df_filled, d)
+    print(i)
+    }, error = function(e) {
+    # If an error occurs, note the name of the problematic file
+    # problematic_files <- c(problematic_files, basename(i))
+    problematic_files <- rbind(problematic_files, basename(i))
+    print("Error occurred while reading:", basename(i), "\n")
+  })
+}
+```
+

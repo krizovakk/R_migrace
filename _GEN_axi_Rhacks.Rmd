@@ -413,6 +413,20 @@ separate(MDRUH, into=c("MROD", "rest") , sep=" ", extra = "merge", remove = F) #
 mutate(boMROD = word(druh, 1)) # vezmi 1. slovo ze sloupce druh
 ```
 
+### str_extract
+
+everything that follows "/"
+
+```{r}
+str_extract(predmet_cislo, "(?<=/).*$")
+```
+
+everything that precedes ",-"
+
+```{r}
+str_extract(predmet_cislo, "(?<=/).*$")
+```
+
 ### Remove parentheses
 
 ```{r}
@@ -512,7 +526,6 @@ ou <- taxon %>%
 df %>% 
   mutate(across(where(is.character), str_trim))
 ```
-
 
 #### mult column summary
 
@@ -666,9 +679,42 @@ data %>%
   mutate(priznak = ifelse(n()!=1), 1, 0)
 ```
 
+#### Distinct
+
+```{r}
+distinct() # napric sloupci
+
+distinct(sp_cislo, sp_id, .keep_all = TRUE) # vybrane sloupce, ponecha vse
+```
+
+
 \newpage
 
 ## R E G E X S
+
+### Lookarounds
+
+FOO BAR
+
+**Positive Lookahead (?=pattern):**
+
+Matches a group after the main expression if the group is followed by another expression.
+Example: If you want to match "foo" only if it is followed by "bar", you can use the regex: foo(?=bar).
+
+**Negative Lookahead (?!pattern):**
+
+Matches a group after the main expression if the group is not followed by another expression.
+Example: If you want to match "foo" only if it is not followed by "bar", you can use the regex: foo(?!bar).
+
+**Positive Lookbehind (?<=pattern):**
+
+Matches a group before the main expression if the group is preceded by another expression.
+Example: If you want to match "foo" only if it is preceded by "bar", you can use the regex: (?<=bar)foo.
+
+**Negative Lookbehind (?<!pattern):**
+
+Matches a group before the main expression if the group is not preceded by another expression.
+Example: If you want to match "foo" only if it is not preceded by "bar", you can use the regex: (?<!bar)foo.
 
 ### extract all numbers
 
@@ -688,6 +734,11 @@ str_extract_all(invc, "[^a-zA-Z]")
 extracted <- str_extract(text, "c\\.j\\..*?(?:\\s|$)")
 ```
 
+### extract everything following "/"
+
+```{r}
+str_extract(predmet_cislo, "(?<=/).*$")
+```
 
 ### case sensitiviy
 

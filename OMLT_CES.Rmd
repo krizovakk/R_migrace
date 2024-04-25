@@ -35,19 +35,13 @@ require(stringi) # ::stri_detect_fixed - detect empty string
 require(mdbr) # ::read_mdb
 require(RODBC) # ::read_mdb
 require(odbc) # ::read_mdb
-```
 
-# PROJECT INFO
+proj <- "OMLT"    # v-y-p-l-n-i-t
 
-```{r}
-
-proj <- ""    # v-y-p-l-n-i-t 
-# "OMLT"
-path_proj <- path_proj <- ""
-# "M:/03 klienti/kraj ustecky/oblastni muzeum v litomericich - MUZEUMLITOMER/2024_kontrola_evidence/"    # v-y-p-l-n-i-t
+# path_ces <- "C:/Users/krizova/Documents/R/CES/"
+path_proj <- path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum v litomericich - MUZEUMLITOMER/2024_kontrola_evidence/"    # v-y-p-l-n-i-t
 
 ```
-
 
 # @ LOAD CES TXT LOOP
 
@@ -125,9 +119,6 @@ df_filled <- read.csv(paste0(path_proj, "KK_workspace/", proj, "_allTXT.csv", he
 
 ## edits
 
-? prave duplicity
-? duplicity s mezerou
-
 ```{r CES PROCESSING}
 
 CORE_ces <- df_filled %>% discard(~all(is.na(.) | . == "")) # drop empy columns
@@ -140,25 +131,29 @@ sort(unique(CORE_ces$typ_cisla))
 # DUPLICITY
 
 check <- CORE_ces %>% 
-  mutate(puv_cislo = cislo,
-         cislo = gsub("\\s+", "", puv_cislo)) %>% 
-  group_by(typ_cisla, cislo, zmena) %>% 
+  mutate(Mcislo = gsub("\\s+", "", cislo)) %>% 
+  group_by(typ_cisla, Mcislo, zmena) %>% 
   mutate(is_dupl = ifelse(n()!=1&zmena != "R", "dupl", NA)) %>% 
   ungroup()
 
 SAVE_dupl <- check %>% filter(is_dupl == "dupl")
+# UPDT_ces <- check %>% filter(is.na(is_dupl))              # EXECUTE: nrow(SAVE_dupl)+nrow(UPDT_ces)==nrow(CORE_ces)
+
+# UPDT_ces <- CORE_ces
+
+rm(check)
+rm(SAVE_dupl)
+
 ```
 
 ## stats
-
-do protokolu
 
 ```{r}
 
 CORE_ces$zdroj <- as.factor(CORE_ces$zdroj)
 as.data.frame(summary(CORE_ces$zdroj))
 
-# duplicity ------------------------------------------------------------------ 
+# duplicity ------------------------------------------------------------------ 8
 
 dupl <- CORE_ces %>% 
   group_by(cislo, typ_cisla) %>% filter(n() != 1)
@@ -253,6 +248,9 @@ Ukladam do excelu, ze ktereho nacitam (pojmenovavam "[kod projektu]_statistiky.x
 
 # prirustkova kniha
 
+# CORE_mus_pk <- read_excel(paste0(path_proj, "KK_workspace/", proj, "_statistiky.xlsx"), 
+#                   sheet = "SQL_vyp_PK", col_types="text") 
+
 CORE_mus_pk <- read.table(paste0(path_proj, "vypMUS/CES_vypisPK.txt"), 
                           sep = ",", header = T, fileEncoding = "cp1250")
 
@@ -265,6 +263,11 @@ MUS_pk <- CORE_mus_pk %>%
 
 
 # katalog
+
+# CORE_mus_ka <- read_excel(paste0(path_proj, "KK_workspace/", proj, "_statistiky.xlsx"), 
+#                   sheet = "SQL_vyp_KA", col_types="text") %>% 
+#   mutate(sp_porcislo = as.numeric(sp_porcislo),
+#          Msubc = ifelse(!is.na(sp_porcislosub), sp_porcislosub, str_extract(predmet_cislo ,"(?<=/).*$")))
 
 CORE_mus_ka <- read.table(paste0(path_proj, "vypMUS/CES_vypisKA.txt"), 
                           sep = ",", header = T, fileEncoding = "cp1250")
@@ -281,22 +284,26 @@ MUS_ka <- CORE_mus_ka %>%
          "MUScislo" = predmet_cislo, "MUS_prvniPodl" = sp_cislo, "MUSid" = sp_id) %>% 
   arrange(MUSrada, MUSporc)
 
+# CESporc = as.numeric(str_trim(str_remove_all(cislo, "^[A-Za-z]+|[A-Za-z]+$"))),
+
 ```
 
 rm(df_filled)
 
-# ---------------------------------- PK
+# ---------------------------------- PK -> DONE
 
 POZNAMKY:
 
-v CES hlaseno jen 
-v MUS evidovano  prirustku
-duplicity ?
+v CES hlaseno jen 119
+v MUS evidovano 6901 prirustku
+duplicity nejsou
 testovaci radu vynechavame
+nektere zaznamy maji podlomeni (jen pismeno za rokem, bez oddelovace!)
+nektera cisla nemaji rok
 
-nove 
-rusene
-vyrazene 
+nove 65
+rusene 1
+vyrazene 53
 
 
 ```{r}
@@ -347,6 +354,9 @@ REL_pk_neCES <- rel %>%
   filter(is.na(CEScislo)) %>% 
   select(MUScislo, MUSid, MUSpodsb, status1, REL_zdroj) %>% 
   mutate_all(~ ifelse(is.na(.), "", .))
+
+# REL_pk_NV$status1 <- as.factor(REL_pk_NV$status1)
+# summary(REL_pk_NV$status1)
 
 ```
 
@@ -422,13 +432,14 @@ write.table(n, file = paste0(path_proj, "vystupy/", proj, "_PK_updt_nove.sql"),
 
 POZNAMKY:
 
-v CES hlaseno 
-v MUS evidovano  sp
-duplicity ?
 
-nove 
-rusene 
-vyrazene
+v CES hlaseno 76398
+v MUS evidovano 97031 sp
+duplicity nejsou
+
+nove 65
+rusene 1
+vyrazene 53
 
 ```{r}
 
@@ -497,7 +508,12 @@ spa_ne <- rel2 %>% filter(status == "nespa") %>%
 celk <- bind_rows(spa_plne, spa_podlomeni, spa_ne) %>% 
   arrange(zdroj, CESporc) 
 
+# -------------
+head(spa_plne)
+head(spa_podlomeni)
+head(spa_ne)
 ```
+
 
 ## finalni soubory
 

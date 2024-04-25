@@ -959,3 +959,51 @@ cis <- read.csv(paste0(path_ng, "cis_mat.csv"), header = TRUE, sep = ";")
 mat2 <- left_join(mat, cis, by = c("hodnota" = "cis_mat_id"), keep = T) %>% filter(is_more == "vice materialu") %>%  arrange(sb_data_id)
 ```
 
+# HELA NG stavy
+
+```{r}
+# package 
+require(RODBC)
+
+# general
+
+dbname <- paste0("M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/2024-NGP-O-inventarizace.accdb") 
+# con <- RODBC::odbcConnectAccess2007(dbname)    # PADA R ?!?  
+RODBC::sqlTables(con)
+Rev_data <- RODBC::sqlFetch(con, "Rev_data")
+Sb_stav <- RODBC::sqlFetch(con, "Sb_stav")
+```
+
+```{r}
+require(readxl)
+
+Rev_data <- read_excel("C:/Users/krizova/Documents/R/piskoviste/HELA/NG_stavy/Rev_data.xlsx", col_types="text")
+Sb_stav <- read_excel("C:/Users/krizova/Documents/R/piskoviste/HELA/NG_stavy/Sb_stav.xlsx", col_types="text")
+
+revdata <- Rev_data %>% 
+  select(sb_data_id, datum_rev) %>% 
+  mutate(MDATE_rev = as.POSIXct(datum_rev)) %>% 
+  group_by(sb_data_id) %>% 
+  mutate(isDupl = ifelse(n() == 1, F, T))
+
+sbstav <- Sb_stav %>% 
+  select(sb_data_id, datum, MSTAV) %>% 
+  drop_na(MSTAV) %>% 
+  filter(sb_data_id != "40934") %>% 
+  mutate(MDATE_stav = as.POSIXct(datum)) %>% 
+  ungroup()
+
+join <- left_join(revdata, sbstav, by = "sb_data_id", keep = T)
+
+```
+
+# CES cisla 
+
+```{r}
+
+data <- read.table(file = "clipboard", header = F)
+dotaz <- paste(data$V1, collapse = "|")
+writeClipboard(dotaz)
+
+```
+

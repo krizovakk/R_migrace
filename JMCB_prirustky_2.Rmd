@@ -859,7 +859,7 @@ fin <- ff
 check <- ff %>% select(prirc4, invc5, sign, invc, type_invc) %>% distinct()
 ```
 
-# --------------------------------------- sign DCM / DC   ***bude se vubec migrovat?***
+# ------------------------------ IMPORTOVANO sign DCM / DC
 
 Diecézní muzeum.xlsx  -------------------------> KK_red.xlsx/DCM
 
@@ -879,14 +879,14 @@ eda <- CORE_dcm
 any(is.na(eda$prirc)) # FALSE
 any(is.na(eda$rok)) # FALSE
 
-eda <- eda %>% 
-  unite(check, c("prirc", "rok"), sep = "/", remove = F) %>% 
-  select(check, prirc, rok) %>% 
-  group_by(check) %>% 
+eda <- eda %>%
+  group_by(invc) %>% 
   mutate(isDupl = ifelse(n()!=1, 1, 0)) %>% 
-  filter(check==1) # chceme 0
+  filter(isDupl==1) # chceme 0
 
 # vedouci nuly a masky -> tady jeste ne, musime upravit format pric
+
+sort(unique(CORE_dcm$podsbirka))
 
 ```
 
@@ -906,90 +906,88 @@ eda <- eda %>%
 
 ```{r, warning=F}
 
-UPDT_dcm <- CORE_dcm
-
 # eda
-sample_n(UPDT_dcm, 10)
+sample_n(CORE_dcm, 10)
 
-aa <- UPDT_dcm %>% 
+aa <- CORE_dcm %>% 
   mutate(Mpref = "DCM",
          sbirka1 = "JCM",
-         cisrada3 = "Z", 
-         prirvyraz9 = ifelse(isRed==T, 1, 0), 
-         rok12 = "neni zadan",
+         cisrada3 = "DCM", 
+         prirvyraz9 = ifelse(isRed==T, 1, 0),
+         popis11 = popis,
+         rok12 = "1900",
          evid15 = "1",
          typ30 = "P", 
          datzap98 = paste0("31.12.", rok12)) %>% 
-  relocate(sbirka1, cisrada3,prirvyraz9,  rok12, evid15, typ30, datzap98, .before = zdroj) %>% 
+  relocate(sbirka1, cisrada3, prirvyraz9, popis11, rok12, evid15, typ30, datzap98, .before = zdroj) %>% 
   # -------------------------------------------------- podsb2
-   mutate(podsb2 = case_when(podsbirka == "1" ~ "151",
-                            podsbirka == "10" ~ "158",
-                            podsbirka == "11" ~ "160",
-                            podsbirka == "13" ~ "154",
-                            podsbirka == "15" ~ "161",
-                            podsbirka == "17" ~ "155",
-                            podsbirka == "18" ~ "159",
-                            podsbirka == "19" ~ "162",
-                            podsbirka == "20" ~ "164",
-                            podsbirka == "21" ~ "156",
-                            podsbirka == "25"&sign %in% c("D", "H") ~ "166", # KONFLIKT !!!
-                            podsbirka == "25"&str_detect(sign, "MDRH") ~ "167",
-                            podsbirka == "25"&sign %in% c("O", "PVS", "VS") ~ "168", 
-                            podsbirka == "5" ~ "165",
-                            podsbirka == "6" ~ "157",
-                            podsbirka == "7" ~ "152",
-                            podsbirka == "8" ~ "163",
-                            podsbirka == "9" ~ "153",
+   mutate(Mpodsb = ifelse(str_detect(podsbirka, "^\\d+"), str_extract(podsbirka, "^\\d+"), NA), 
+          podsb2 = case_when(Mpodsb == "1" ~ "151",
+                            Mpodsb == "10" ~ "158",
+                            Mpodsb == "11" ~ "160",
+                            Mpodsb == "13" ~ "154",
+                            Mpodsb == "15" ~ "161",
+                            # Mpodsb == "16 - VU" ~ "", # není v MUS definovana
+                            Mpodsb == "17" ~ "155",
+                            Mpodsb == "18" ~ "159",
+                            Mpodsb == "19" ~ "162",
+                            Mpodsb == "20 - VU" ~ "164",
+                            Mpodsb == "21 - VU" ~ "156",
+                            # Mpodsb == "22 - VU" ~ "156", # není v MUS definovana
+                            # Mpodsb == "23 - VU" ~ "156", # není v MUS definovana
+                            # Mpodsb == "24 - VU" ~ "156", # není v MUS definovana
+                            Mpodsb == "25"&sign %in% c("D", "H") ~ "166", # KONFLIKT !!!
+                            Mpodsb == "25"&str_detect(sign, "MDRH") ~ "167",
+                            Mpodsb == "25"&sign %in% c("O", "PVS", "VS") ~ "168", 
+                            Mpodsb == "9" ~ "153",
                             TRUE ~ "99"),
-         POZN20_podsb = case_when(is.na(podsbirka) ~ paste0("Podsbírka č.: neuvedena"),
-                                  podsb2 == "99" ~ paste0("Podsbírka č.: ", podsbirka),
+         POZN20_podsb = case_when(is.na(podsbirka) ~ paste0("podsb.: neuvedena"),
+                                  podsb2 == "99" ~ paste0("podsb: ", podsbirka),
                                   TRUE ~ NA)) %>% 
-  # -------------------------------------------------- prirc4 - part 1
-  mutate(Mporc = str_extract(prirc, "\\d+"),
+  # -------------------------------------------------- prirc4
+  mutate(prirc = invc, 
+         Mporc = str_extract(prirc, "\\d+"),
          Mprirc = paste0(Mpref, Mporc, "/", rok12)) %>% 
   group_by(Mprirc) %>% 
   mutate(isDupl_prirc = ifelse(n() == 1, F, T),
-         Msub = ifelse(isDupl_prirc == F, NA, seq_along(Mprirc))) %>% 
-  relocate(Mpref, Mporc, Msub, Mprirc, .before = zdroj) %>% 
+         Msub = ifelse(isDupl_prirc == F, NA, seq_along(Mprirc)),
+         Mp0 = str_pad(Mporc, 4, pad = 0),
+         Ms0 = str_pad(Msub, 1, pad = 0),
+         Mslash = "/",
+         Mdash = "-",
+         prirc4 = ifelse(is.na(Msub), paste0(Mpref, Mp0), 
+                         paste0(Mpref, Mp0, Mdash, Ms0))) %>% 
+  ungroup() %>% 
   # -------------------------------------------------- porc104, subc105
   mutate(porc104 = as.numeric(Mporc),
          subc105 = as.numeric(Msub)) %>% 
-  # -------------------------------------------------- vedouci nuly
-  group_by(rok12) %>% 
-  mutate(maxcp = max(porc104, na.rm = TRUE),
-         maxp = nchar(maxcp)) %>% 
-  relocate(maxcp, maxp, .after = subc105) %>% 
-  mutate(maxcs = max(subc105, na.rm = TRUE),
-         maxcs = ifelse(maxcs == "-Inf", NA, maxcs), # warning je ok, timhle radkem ho napravujeme 
-         maxs = nchar(maxcs),
-         maxs = ifelse(is.na(maxs), 0, maxs)) %>% 
-  relocate(maxcs, maxs, .after = maxp) %>% 
-  ungroup() %>% 
-  # -------------------------------------------------- prirc4 - part 2
-  mutate(Mp0 = str_pad(porc104, maxp, pad = 0),
-         Ms0 = str_pad(subc105, maxs, pad = 0),
-         Mslash = "/",
-         Mdash = "-",
-         prirc4 = ifelse(is.na(subc105), paste0(Mpref, Mp0, Mslash, rok12), 
-                         paste0(Mpref, Mp0, Mslash, rok12, Mdash, Ms0))) %>% 
-  select(-Mpref, -Mporc, -Msub, -Mprirc, -maxcp, -maxp, -maxcs, -maxs, -Mp0, -Ms0, -Mslash, -Mdash) %>% 
+  select(-Mpref, -Mporc, -Msub, -Mprirc, -Mp0, -Ms0, -Mslash, -Mdash) %>% 
   # -------------------------------------------------- pocetks13
   mutate(isCislo = ifelse(!is.na(as.numeric(pocetKs)) & !is.na(pocetKs),
                           ifelse(as.numeric(pocetKs) > 0, T, F),F), 
          isCislo = ifelse(is.na(isCislo), F, isCislo),
          pocetks13 = ifelse(isCislo == F, "1", pocetKs),
          # POZN20_pocetks = ifelse(isCislo == F&!is.na(pocetKs), paste0("Počet ks: ", pocetKs), NA)) %>% 
-         POZN20_pocetks = case_when(isCislo == F&!is.na(pocetKs) ~ paste0("Počet ks: ", pocetKs),
-                                    isCislo == F&is.na(pocetKs) ~ paste0("Počet ks: neuveden"),
-                                    TRUE ~ NA)) %>% 
-  # -------------------------------------------------- pozn20
-  unite(pozn20, c("POZN20_podsb","POZN20_pocetks"), sep = "\n", na.rm = T, remove = FALSE) %>%  
+         POZN20_pocetks = case_when(isCislo == F&!is.na(pocetKs) ~ paste0("ks: ", pocetKs),
+                                    isCislo == F&is.na(pocetKs) ~ paste0("ks: neuveden"),
+                                    TRUE ~ NA),
+         POZN20_podsb = ifelse(!is.na(podsbirka), paste0("podsbirka: ", podsbirka), NA),
+         POZN20_vypuj = ifelse(!is.na(vypujcka), paste0("(pole bez hlavicky): ", vypujcka), NA),
+         # POZN20_loka = ifelse(!is.na(lokace), paste0("lokace: ", lokace), NA),
+         POZN20_pozn = ifelse(!is.na(poznamka), paste0("poznámka: ", poznamka), NA)) %>% 
+  # -------------------------------------------------- pozn20 a texty
+  unite(pozn20, c("POZN20_podsb", "POZN20_pocetks", "POZN20_pozn", "POZN20_vypuj"), sep = "\n", na.rm = T, remove = FALSE) %>%  
+  mutate(text4_91 = revize, 
+         text5_92 = sign,
+         text9_102 = lokace) %>% 
   # -------------------------------------------------- RELOCATE
-  relocate(prirc4, porc104, subc105, podsb2, pocetks13, pozn20, .before = zdroj)
+  relocate(prirc4, porc104, subc105, podsb2, pocetks13, pozn20, .before = zdroj) 
+
+fin <- aa
 
   # parkrat zkontroluj
-sample_n(aa, 10) %>% select(rok, prirc, porc104, subc105, prirc4) # ok
-sample_n(aa, 10) %>% select(pocetKs, pocetks13, POZN20_pocetks) # ok
+# sample_n(aa, 10) %>% select(rok, prirc, porc104, subc105, prirc4) # ok
+# sample_n(aa, 10) %>% select(pocetKs, pocetks13, POZN20_pocetks) # ok
 
 ```
 
@@ -3087,7 +3085,7 @@ fin <- ff
 
 ```
 
-# --------------------------------------- sign St
+# --------------------------------------- IMPORTOVANO sign St
 
 1 excel -------------------------> KK_red.xlsx/St
 
@@ -3095,7 +3093,12 @@ fin <- ff
 ## READ
 
 ```{r}
-CORE_st <- readxl::read_excel(paste0(path_kk, "data/KK_red.xlsx"), sheet = "St", col_types = "text") # warning asi ok
+CORE_st <- readxl::read_excel(paste0(path_kk, "data/KK_red.xlsx"), sheet = "St", col_types = "text") %>% 
+  mutate(rok = paste0("19", str_extract(prirc, "(?<=/).*$")))
+
+sort(unique(CORE_st$rok))
+sort(unique(CORE_st$podsbirka))
+sort(unique(CORE_st$pocetKs))
 ```
 
 ## EDA
@@ -3144,13 +3147,14 @@ sample_n(CORE_st, 10)
 a <- CORE_st %>% 
   mutate(Mpref = "St",
          sbirka1 = "JCM",
-         cisrada3 = "St", 
+         cisrada3 = "St",
+         rok12 = rok, 
          evid15 = "1",
-         typ30 = "P") %>% 
-         # datzap98 = paste0("31.12.", rok12)) %>% 
+         typ30 = "P",
+         datzap98 = paste0("31.12.", rok12)) %>%
   relocate(sbirka1, cisrada3, evid15, typ30, .before = zdroj) %>% 
   # -------------------------------------------------- podsb2
-  mutate(Mpodsb = ifelse(podsbirka == "19 - M", "19", podsbirka), 
+  mutate(Mpodsb = ifelse(podsbirka == "19 - M", "19", podsbirka),
          podsb2 = case_when(podsbirka == "1" ~ "151",
                             podsbirka == "10" ~ "158",
                             podsbirka == "11" ~ "160",
@@ -3158,7 +3162,8 @@ a <- CORE_st %>%
                             podsbirka == "15" ~ "161",
                             podsbirka == "17" ~ "155",
                             Mpodsb == "18" ~ "159",
-                            Mpodsb == "19" ~ "162",
+                            # Mpodsb == "19" ~ "162",
+                            Mpodsb == "19 – PM" ~ "162",
                             podsbirka == "20" ~ "164",
                             podsbirka == "21" ~ "156",
                             podsbirka == "25"&sign %in% c("D", "H") ~ "166", # KONFLIKT !!!
@@ -3174,16 +3179,15 @@ a <- CORE_st %>%
                                   podsb2 == "99" ~ paste0("Podsbírka č.: ", podsbirka),
                                   TRUE ~ NA)) %>% 
   # -------------------------------------------------- prirc4 - part 1
-  separate(prirc, into=c("Mporc", "Mrok") , sep="/") %>% 
-  mutate(rok12 = paste0("19", Mrok),
-         Mprirc = paste0(Mpref, Mporc, "/", rok12)) %>% 
+  separate(prirc, into=c("Mporc", "Mrok") , sep="/", remove = F) %>% 
+  mutate(Mprirc = paste0(Mpref, Mporc, "/", rok12)) %>% 
   group_by(Mprirc) %>% 
   mutate(isDupl_prirc = ifelse(n() == 1, F, T),
          Msub = ifelse(isDupl_prirc == F, NA, seq_along(Mprirc))) %>% 
   relocate(Mpref, Mporc, Msub, Mprirc, .before = zdroj) %>% 
   # -------------------------------------------------- porc104, subc105
   mutate(porc104 = as.numeric(Mporc),
-         subc105 = as.numeric(Msub)) 
+         subc105 = as.numeric(Msub)) %>% 
   # -------------------------------------------------- vedouci nuly
   group_by(rok12) %>% 
   mutate(maxcp = max(porc104, na.rm = TRUE),
@@ -3217,8 +3221,216 @@ aa <- a %>%
          POZN20_pocetks = case_when(isCislo == F&!is.na(pocetKs) ~ paste0("Počet ks: ", pocetKs),
                                     isCislo == F&is.na(pocetKs) ~ paste0("Počet ks: neuveden"),
                                     TRUE ~ NA)) %>% 
-  # -------------------------------------------------- rok12
-  
+  # -------------------------------------------------- RELOCATE
+  relocate(prirc4, porc104, subc105, podsb2, pocetks13, .before = zdroj)
+
+  # parkrat zkontroluj
+sample_n(aa, 10) %>% select(rok, prirc, porc104, subc105, prirc4) # ok
+sample_n(aa, 10) %>% select(pocetKs, pocetks13, POZN20_pocetks) # ok
+
+```
+
+## NABYTI, PUVOD, POPIS
+
+ozn10
+popis11
+
+```{r ZKONTROLOVANO}
+
+bb <- aa %>% 
+  # -------------------------------------------------- ozn10;  popis11
+  mutate(ozn10 = predmet,
+         lengthPopis = nchar(predmet),                                                       # popis muze mit 2000 charakterů
+         popis11 = predmet) %>% 
+# -------------------------------------------------- RELOCATE
+  relocate(ozn10, popis11, .before = zdroj)
+
+
+# check duplicity pricr4
+check <- bb %>% 
+  group_by(prirc4) %>% 
+  filter(n() != 1) # zadne duplicity v prirc ! ;-)
+
+# check lengthPopis
+any(bb$lengthPopis > 2000) # chceme FALSE
+
+# CLEAR
+
+rm(check)
+
+```
+
+## VYRAZENI 
+
+pole odpis/převod/pozn je všude prázdné
+
+```{r}
+
+cc <- bb 
+```
+
+## TEXTY, PRIZNAKY, POZNAMKA
+
+(text1 - umisteni
+text2 - umisteniCZ)
+text3 - jinecislo
+text4 = revize
+text5 = signatura
+text6 = puvodni invc
+
+
+```{r}
+
+dd <- cc %>% 
+  mutate(text3_90 = jineCislo,
+         text5_92 = sign,
+         POZN20_pozn = ifelse(!is.na(poznamka), paste0("Poznámka: ", poznamka), NA)) %>% 
+   # -------------------------------------------------- pozn20
+  unite(pozn20, c("POZN20_podsb","POZN20_pocetks", "POZN20_pozn"), sep = "\n", na.rm = T, remove = FALSE) %>%  
+  relocate(text3_90, text5_92, pozn20, .before = zdroj)
+```
+
+## INVENTARNI CISLA
+
+nejsou
+
+```{r}
+fin <- dd
+```
+
+# --------------------------------------- IMPORTOVANO sign IIIa
+
+26 excelů -------------------------> KK_red.xlsx/IIIa
+
+
+## READ
+
+```{r}
+CORE_IIIa <- readxl::read_excel(paste0(path_kk, "data/KK_red.xlsx"), sheet = "kniha IIIa", col_types = "text") 
+
+sort(unique(CORE_IIIa$rok)) # 26 roku - spravne, sedi s poctem excelu ve verzi IIIa
+sort(unique(CORE_IIIa$podsbirka))
+sort(unique(CORE_IIIa$sign))
+```
+
+## EDA
+
+```{r}
+
+eda <- CORE_IIIa
+
+any(is.na(eda$prirc)) # FALSE
+any(is.na(eda$rok)) # FALSE
+
+eda <- eda %>% 
+  unite(check, c("prirc", "rok"), sep = "/", remove = F) %>% 
+  select(check, prirc, rok) %>% 
+  group_by(check) %>% 
+  mutate(isDupl = ifelse(n()!=1, 1, 0)) %>% 
+  filter(check==1) # chceme 0
+
+# kontrola prirc, zda jsou jen ciselna
+
+check <- CORE_IIIa %>% select(prirc) %>% 
+  mutate(isNum = str_extract(prirc, "[A-Za-z]")) # -> zadna subcisla
+
+```
+
+## POVINNE
+
+\sbirka1        -> sbirka dle MUSEIONu
+\podsb2         -> podsbirka KOD dle MUSEIONu
+\cisrada3       -> kod prirustkove knihy
+\prirc4         -> 
+\rok12          -> 
+\pocetks13      -> pokud neni definovano, je treba zadat [1] ; zkontrolovat, jestli nejsou 6+3 apod (do pozn20)
+\evid15         -> pro moznost propojeni s invc nutne zadat [1]
+\typ30          -> hodnota "P"(obecný) nebo "PA"(archeologický)
+? ("polks53")
+\datzap98       -> pokud neni definovano, zadavame 31.12.[rok12]
+\porc104        -> poradove cislo prirustku
+
+```{r, warning=F}
+
+# eda
+sample_n(CORE_IIIa, 10)
+
+a <- CORE_IIIa %>% 
+  mutate(Mpref = "III",
+         sbirka1 = "JCM",
+         cisrada3 = "III", 
+         prirvyraz9 = ifelse(isRed==T, 1, 0),
+         rok12 = rok,
+         evid15 = "1",
+         typ30 = "P", 
+         datzap98 = paste0("31.12.", rok12)) %>% 
+  relocate(sbirka1, cisrada3, prirvyraz9, rok12, evid15, typ30, datzap98, .before = zdroj) %>% 
+  # -------------------------------------------------- podsb2
+  mutate(podsb2 = case_when(podsbirka == "1" ~ "151",
+                            podsbirka == "10" ~ "158",
+                            podsbirka == "11" ~ "160",
+                            podsbirka == "13" ~ "154",
+                            podsbirka == "15" ~ "161",
+                            podsbirka == "17" ~ "155",
+                            podsbirka == "18" ~ "159",
+                            podsbirka == "19" ~ "162",
+                            podsbirka == "20" ~ "164",
+                            podsbirka == "21" ~ "156",
+                            podsbirka == "25"&sign %in% c("D", "H") ~ "166", # KONFLIKT !!!
+                            podsbirka == "25"&str_detect(sign, "MDRH") ~ "167",
+                            podsbirka == "25"&sign %in% c("O", "PVS", "VS") ~ "168", 
+                            podsbirka == "5" ~ "165",
+                            podsbirka == "6" ~ "157",
+                            podsbirka == "7" ~ "152",
+                            podsbirka == "8" ~ "163",
+                            podsbirka == "9" ~ "153",
+                            TRUE ~ "99"),
+         POZN20_podsb = case_when(is.na(podsbirka) ~ paste0("Podsbírka č.: neuvedena"),
+                                  podsb2 == "99" ~ paste0("Podsbírka č.: ", podsbirka),
+                                  TRUE ~ NA)) %>% 
+  # -------------------------------------------------- prirc4 - part 1
+  mutate(Mporc = str_extract(prirc, "\\d+"),
+         Mprirc = paste0(Mpref, Mporc, "/", rok12)) %>% 
+  group_by(Mprirc) %>% 
+  mutate(isDupl_prirc = ifelse(n() == 1, F, T),
+         Msub = ifelse(isDupl_prirc == F, NA, seq_along(Mprirc))) %>% 
+  relocate(Mpref, Mporc, Msub, Mprirc, .before = zdroj) %>% 
+  # -------------------------------------------------- porc104, subc105
+  mutate(porc104 = as.numeric(Mporc),
+         subc105 = as.numeric(Msub)) %>% 
+  # -------------------------------------------------- vedouci nuly
+  group_by(rok12) %>% 
+  mutate(maxcp = max(porc104, na.rm = TRUE),
+         maxp = nchar(maxcp)) %>% 
+  relocate(maxcp, maxp, .after = subc105) %>% 
+  mutate(maxcs = max(subc105, na.rm = TRUE),
+         maxcs = ifelse(maxcs == "-Inf", NA, maxcs), # warning je ok, timhle radkem ho napravujeme 
+         maxs = nchar(maxcs),
+         maxs = ifelse(is.na(maxs), 0, maxs)) %>% 
+  relocate(maxcs, maxs, .after = maxp) %>% 
+  ungroup() 
+
+# -------------------------------------------------- vedouci nuly -> kontrola a doplneni v Mp0 a Ms0
+vednul <- a %>% select(rok12, Mpref, maxcp, maxp, maxcs, maxs) %>% distinct()
+view(vednul)
+# -------------------------------------------------- prirc4 - part 2
+aa <- a %>% 
+  mutate(Mp0 = str_pad(porc104, 3, pad = 0),
+         Ms0 = str_pad(subc105, 2, pad = 0),
+         Mslash = "/",
+         Mdash = "-",
+         prirc4 = ifelse(is.na(subc105), paste0(Mpref, Mp0, Mslash, rok12), 
+                         paste0(Mpref, Mp0, Mslash, rok12, Mdash, Ms0))) %>% 
+  select(-Mpref, -Mporc, -Msub, -Mprirc, -maxcp, -maxp, -maxcs, -maxs, -Mp0, -Ms0, -Mslash, -Mdash) %>% 
+  # -------------------------------------------------- pocetks13
+  mutate(isCislo = ifelse(!is.na(as.numeric(pocetKs)) & !is.na(pocetKs),
+                          ifelse(as.numeric(pocetKs) > 0, T, F),F), 
+         isCislo = ifelse(is.na(isCislo), F, isCislo),
+         pocetks13 = ifelse(isCislo == F, "1", pocetKs),
+         # POZN20_pocetks = ifelse(isCislo == F&!is.na(pocetKs), paste0("Počet ks: ", pocetKs), NA)) %>% 
+         POZN20_pocetks = case_when(isCislo == F&!is.na(pocetKs) ~ paste0("Počet ks: ", pocetKs),
+                                    isCislo == F&is.na(pocetKs) ~ paste0("Počet ks: neuveden"),
+                                    TRUE ~ NA)) %>% 
   # -------------------------------------------------- pozn20
   unite(pozn20, c("POZN20_podsb","POZN20_pocetks"), sep = "\n", na.rm = T, remove = FALSE) %>%  
   # -------------------------------------------------- RELOCATE
@@ -3229,6 +3441,1150 @@ sample_n(aa, 10) %>% select(rok, prirc, porc104, subc105, prirc4) # ok
 sample_n(aa, 10) %>% select(pocetKs, pocetks13, POZN20_pocetks) # ok
 
 ```
+
+## NABYTI, PUVOD, POPIS
+
+ozn10
+popis 11
+
+datnab22
+zpnab23
+cennab27
+nabpozn29
+
+puvmaj28 
+
+```{r ZKONTROLOVANO}
+
+bb <- aa %>% 
+  # -------------------------------------------------- ozn10;  popis11
+  mutate(ozn10 = predmet,
+         lengthPopis = nchar(popis),                                                       # popis muze mit 2000 charakterů
+         popis11 = popis) %>% 
+  # -------------------------------------------------- datnab22
+   # mutate(Mdat = format(as.Date(datumNabyti, origin = "1899-12-30"), "%d.%m.%Y"),
+   #        is_valid_date = !is.na(as.Date(Mdat, format = "%d.%m.%Y")),
+   #        is_valid_date2 = ifelse(!is.na(Mdat), is_valid_date, NA)) %>% 
+   # mutate(datnab22 = ifelse(is_valid_date2 == "TRUE", Mdat, NA)) %>% 
+   mutate(Mdat_ser = as.numeric(datumNabyti),
+          Mdat = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y")) %>% 
+          # Mdat = case_when(str_detect(datumNabyti, "^.....$") ~ Mdat_trans,
+          #                 str_detect(datumNabyti, ",") ~ sub(",", ".", datumNabyti),
+          #                 str_detect(datumNabyti, "^r\\.") ~ paste0("01.01.", str_extract(datumNabyti, "\\d+")), 
+          #                 str_detect(datumNabyti, "^K") ~ sub("K", "", datumNabyti), 
+          #                 str_detect(datumNabyti, "\\.$") ~ sub("\\.$", "", datumNabyti), 
+          #                 str_detect(datumNabyti, "^19..$") ~ paste0("01.01.", datumNabyti),
+          #                 str_detect(datumNabyti, ".*X.*") ~ str_replace(datumNabyti, "X", "10"),
+          #                 TRUE ~ datumNabyti)) %>%
+   mutate(is_valid_date = !is.na(as.Date(Mdat, format = "%d.%m.%Y")),
+          is_valid_date2 = ifelse(!is.na(Mdat), is_valid_date, NA)) %>% relocate(Mdat, is_valid_date2, .after = datumNabyti) %>% 
+  mutate(datnab22 = ifelse(is_valid_date2 == "TRUE", Mdat, NA)) %>% 
+  relocate(datnab22, .after = datumNabyti) %>% 
+  # select(-Mdat_ser, -Mdat, -is_valid_date) %>% 
+  # -------------------------------------------------- zpnab23
+  # sort(unique(bb$zpusobNabyti))
+  mutate(zpnab23 = case_when(str_detect(zpusobNabyti, "(?i)koupě.*autor") ~ "A",
+                             str_detect(zpusobNabyti, "(?i)koupě.*dědic") ~ "B",
+                             str_detect(zpusobNabyti, "(?i)dědictví") ~ "C",
+                             str_detect(zpusobNabyti, "(?i)dar") ~ "D",
+                             str_detect(zpusobNabyti, "(?i)deposit") ~ "E",
+                             str_detect(zpusobNabyti, "(?i)konf") ~ "F",
+                             str_detect(zpusobNabyti, "(?i)jiný") ~ "J",
+                             str_detect(zpusobNabyti, "(?i)koup") ~ "K",
+                             str_detect(zpusobNabyti, "(?i)nález|nalez") ~ "N",
+                             str_detect(zpusobNabyti, "(?i)odkaz") ~ "O",
+                             str_detect(zpusobNabyti, "(?i)převod") ~ "P",
+                             str_detect(zpusobNabyti, "(?i)replika") ~ "R",
+                             str_detect(zpusobNabyti, "(?i)star.*fond") ~ "S",
+                             str_detect(zpusobNabyti, "(?i)pozůstalost") ~ "T",
+                             str_detect(zpusobNabyti, "(?i)výzkum|vyzkum") ~ "V",
+                             str_detect(zpusobNabyti, "(?i)směna") ~ "X",
+                             str_detect(zpusobNabyti, "(?i)výkup|vykoup") ~ "Y",
+                             str_detect(zpusobNabyti, "(?i)výroba") ~ "Z",
+                             str_detect(zpusobNabyti, "(?i)sběr") ~ "1",
+                             str_detect(zpusobNabyti, "(?i)činnost") ~ "2",
+                             str_detect(zpusobNabyti, "(?i)nákup") ~ "3",
+                             str_detect(zpusobNabyti, "(?i)terén.*akce") ~ "4",
+                             is.na(zpusobNabyti) ~ "U", # neuvedeno 
+                             TRUE ~ "J"),
+         doklnab25 = odkazDoklad,
+         # cennab27 = ifelse(str_detect(zpusobNabyti, ",-|Kčs"), str_extract(zpusobNabyti, "\\d+"), ifelse(str_detect(zpusobNabyti, "\\d+,\\d+"), str_extract(zpusobNabyti, "\\d+,\\d+"), NA)),
+         cennab27 = ifelse(str_detect(zpusobNabyti, ",-")&str_detect(zpusobNabyti, "\\d+,\\d+"), str_extract(zpusobNabyti, "\\d+,\\d+"), ifelse(str_detect(zpusobNabyti, "\\d+,-"), str_extract(zpusobNabyti, "\\d+"), NA)),
+         cennab27 = str_trim(gsub(",-", "", cennab27)),  
+         cennab27 = str_trim(gsub(",", ".", cennab27))) %>% 
+  # -------------------------------------------------- nabpozn29
+  mutate(POZN29_datum = ifelse(is.na(datnab22)&!is.na(datumNabyti), paste0("Datum nabytí: ", datumNabyti), NA),
+         POZN29_zpusob = ifelse(!is.na(zpusobNabyti), paste0("Způsob nabytí: ", zpusobNabyti), NA)) %>% 
+  unite(nabpozn29, c("POZN29_datum","POZN29_zpusob"), sep = "\n", na.rm = T, remove = FALSE) %>% 
+  # -------------------------------------------------- RELOCATE
+  # -------------------------------------------------- puvmaj28 ; prisp87 
+  mutate(puvmaj28 = puvodMajitel) %>% 
+# -------------------------------------------------- RELOCATE
+  relocate(ozn10, popis11, datnab22, zpnab23, cennab27, nabpozn29, puvmaj28, .before = zdroj)
+
+
+# check duplicity pricr4
+check <- bb %>% 
+  group_by(prirc4) %>% 
+  filter(n() != 1) # zadne duplicity v prirc ! ;-)
+
+# check lengthPopis
+any(bb$lengthPopis > 2000) # chceme FALSE
+
+# check zpusob nabyti
+check <- bb %>% select(zpusobNabyti, zpnab23, cennab27, nabpozn29) %>% distinct()
+
+# CLEAR
+
+bb <- bb %>%  select(-lengthPopis, -is_valid_date, -is_valid_date2)
+rm(check)
+
+```
+
+## VYRAZENI 
+
+```{r}
+
+over <- bb %>% select(odpisVyrazeni) %>% distinct()
+
+cc <- bb %>% 
+  # -------------------------------------------------- datvyr64 ; dokvyr67 ; poznvyr73
+  mutate(
+    vyrdat64 = str_extract(odpisVyrazeni, "\\d+\\.\\s*\\d+\\.\\s*\\d{4}"),
+    vyrdok67 = ifelse(str_detect(odpisVyrazeni, "č.*j.*\\d+"), 
+                      str_extract(odpisVyrazeni, "č\\..*j\\.\\s.*OMG|č\\..*j\\..*MK\\s\\d+\\/\\d+|čj\\.\\s.*OMG|č\\.j\\.: \\d+\\/\\d+-\\d+|č\\.j\\.: \\d+\\/\\d+"), NA),
+    poznvyr73 = ifelse(is.na(odpisVyrazeni), NA, paste0("Odpis / převod / vyřazení atd.: ", odpisVyrazeni))) %>%
+  relocate(vyrdat64, vyrdok67, poznvyr73, .before = zdroj)
+  
+check <- cc %>% select(odpisVyrazeni, vyrdat64, vyrdok67, poznvyr73) %>% distinct()
+view(check)
+```
+
+## TEXTY, PRIZNAKY, POZNAMKA
+
+(text1 - umisteni
+text2 - umisteniCZ)
+text3 - jinecislo
+text4 = revize
+text5 = signatura
+text6 = puvodni invc
+
+
+```{r}
+
+dd <- cc %>% 
+  mutate(text3_90 = jineCislo) %>% 
+  mutate(text4_91 = revize) %>% 
+  mutate(text5_92 = sign) %>% 
+  mutate(text6_99 = invc) %>% 
+  # mutate(text7_100 = chyb_invc) %>%
+  relocate(text3_90, text4_91, text5_92, text6_99, .before = zdroj)
+```
+
+## INVENTARNI CISLA
+
+```{r}
+
+# proces
+
+ee <- dd %>% 
+  mutate(
+        type_invc = case_when(str_detect(invc, "^[A-Za-z]*\\s*\\d+$") ~ "single",
+                               str_detect(invc, "\\d+,\\s*\\d+")&!str_detect(invc, "-|[A-Za-z]") ~ "seznam",
+                               str_detect(invc, "^\\d+\\s*-\\s*\\d+$") ~ "interval",
+                               str_detect(invc, ",")&str_detect(invc, "\\d+\\s*-\\s*\\d+") ~ "sez+int",
+                               is.na(invc) ~ NA,
+                               TRUE ~ "tbd"),
+         isDoable = ifelse(type_invc %in% c("single", "seznam", "interval")&sign %in% val_sign, T, 
+                           ifelse(is.na(invc), NA, F))) %>%                                 # !!!! dulezity priznak !!!!
+  relocate(type_invc, isDoable, .after = invc)
+
+prehled <- ee %>% filter(isDoable == T) %>% select(prirc4, sign, invc, type_invc, isDoable) %>% filter(!is.na(invc))
+summary(as.factor(prehled$type_invc))
+
+# ------------------------------------------------------ single 1932
+
+single <- ee %>% filter(type_invc == "single"&isDoable == T) %>% 
+  mutate(Minvc = str_extract(invc, "\\d+"),
+         Msub = str_extract(invc, "[A-Za-z]+$"),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Minvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Minvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Minvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Minvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Minvc, 6, pad = "0")),
+                            TRUE ~ Minvc)) %>% 
+  unite(invc5, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(invc5, .after = invc) %>% 
+  select(-Minvc, -Msub, -Minvc0)
+
+prehled_sin <- single %>% select(prirc4, invc, type_invc, invc5)
+
+# ------------------------------------------------------ seznam 78
+
+seznam <- ee %>% filter(type_invc == "seznam"&isDoable == T) %>% 
+  mutate(numbers = invc) %>% 
+  separate_rows(numbers, sep = ",") %>% 
+  # rename("numbers" = invc) %>% 
+  mutate(numbers = str_trim(numbers),
+         Minvc = ifelse(str_detect(numbers, "^[A-Za-z]+"), str_extract(numbers, "\\d+"), numbers),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Minvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Minvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Minvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Minvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Minvc, 6, pad = "0")),
+                            TRUE ~ Minvc), 
+         Msub = str_extract(numbers, "[A-Za-z]+$")) %>%
+  unite(Minvc_single, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(Minvc_single, .after = numbers) %>% 
+  group_by(prirc4) %>% 
+  mutate(invc5 = paste0(Minvc_single, collapse = ",")) %>% 
+  relocate(invc5, .after = invc) %>% 
+  select(-numbers, -Minvc, -Minvc0, -Msub, -Minvc_single) %>% 
+  distinct() %>% 
+  ungroup()
+
+# ------------------------------------------------------ interval 20
+
+interval0 <- ee %>% filter(type_invc == "interval"&isDoable == T) %>% 
+  separate(invc, into = c("start", "end"), sep = "-", remove = F) %>% 
+  mutate(start = as.numeric(start), end = as.numeric(end)) %>% 
+  mutate(is_valid_int = ifelse(start < end, TRUE, FALSE),
+         is_wrong_order = ifelse(is_valid_int == FALSE&nchar(start)==nchar(end), TRUE, FALSE)) # nebudu resit spatny poradi, at si vyresi sami..
+
+int_y <- interval0 %>% 
+  filter(is_valid_int==T) %>% 
+  mutate(Linvc = as.character(purrr::map2(start, end, ~toString(seq(.x, .y, by = 1))))) %>% 
+  separate_rows(Linvc, sep = ",") %>% 
+  mutate(Linvc = str_trim(Linvc),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Linvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Linvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Linvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Linvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Linvc, 6, pad = "0")),
+                            TRUE ~ Linvc), 
+         Msub = str_extract(Linvc, "[A-Za-z]+$")) %>% 
+  unite(Minvc, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  group_by(prirc4) %>% 
+  mutate(invc5 = paste0(Minvc, collapse = ",")) %>% 
+  select(-Linvc, -Minvc0, -Minvc, -Msub) %>% 
+  distinct() %>%
+  ungroup() 
+ 
+# int_n <- interval0 %>% 
+#   filter(is_valid_int==F) %>% 
+#    mutate(Minvc = paste("chybne zadany interval invc"),
+#          invc5 = NA)
+#  
+# interval <- bind_rows(int_y, int_n) %>% 
+#   # mutate(invc5 = Minvc) %>% 
+#   relocate(invc5, .after = invc) %>% 
+#   select(-start, -end, -is_valid_int, -is_wrong_order, -Minvc)
+
+interval <- int_y
+
+nrow(interval0) == nrow(interval) # neztratili jsme nejake radky cestou?
+rm(interval0)
+
+
+# ------------------------------------------------------ zbytek 3728
+
+# 2557* NA
+# 1171* FALSE
+
+nrow(ee %>% filter(is.na(isDoable))) 
+nrow(ee %>% filter(isDoable == F)) 
+
+zbytek <- ee %>% filter(isDoable == F|is.na(isDoable))
+not_doable <- zbytek %>% filter(isDoable == F) %>% select(prirc4, sign, invc)                         
+# write.table(not_doable, file = paste0(path_kk, "vystupy/", proj, "_problematickaINVC_signIIIa.csv"),
+#             quote = T, row.names = F,
+#             sep = ";", dec = ",",
+#             na = "", fileEncoding="UTF-8")
+
+nrow(single)+nrow(seznam)+nrow(interval)+nrow(zbytek)==nrow(ee) # chceme TRUE
+
+# ------------------------------------------------------ JOIN 
+
+ff <- bind_rows(single, seznam, interval, zbytek) %>% 
+  relocate(invc5, .after = prirc4)
+
+nrow(ff) == nrow(ee) # musi byt stejne!
+
+# rm(aa)
+# rm(bb)
+# rm(cc)
+# rm(dd)
+# rm(ee)
+
+fin <- ff
+
+```
+
+# --------------------------------------- IMPORTOVANO sign IIIb
+
+3 excely -------------------------> KK_red.xlsx/IIIb
+
+
+## READ
+
+```{r}
+CORE_IIIb <- readxl::read_excel(paste0(path_kk, "data/KK_red.xlsx"), sheet = "kniha IIIb", col_types = "text") 
+
+sort(unique(CORE_IIIb$rok)) # 3 roky - spravne, sedi s poctem excelu ve verzi IIIb
+sort(unique(CORE_IIIb$podsbirka))
+sort(unique(CORE_IIIb$sign))
+```
+
+## EDA
+
+```{r}
+
+eda <- CORE_IIIb
+
+any(is.na(eda$prirc)) # FALSE
+any(is.na(eda$rok)) # FALSE
+
+eda <- eda %>% 
+  unite(check, c("prirc", "rok"), sep = "/", remove = F) %>% 
+  select(check, prirc, rok) %>% 
+  group_by(check) %>% 
+  mutate(isDupl = ifelse(n()!=1, 1, 0)) %>% 
+  filter(check==1) # chceme 0
+
+# kontrola prirc, zda jsou jen ciselna
+
+check <- CORE_IIIb %>% select(prirc) %>% 
+  mutate(isNum = str_extract(prirc, "[A-Za-z]")) # -> zadna subcisla
+
+```
+
+## POVINNE
+
+\sbirka1        -> sbirka dle MUSEIONu
+\podsb2         -> podsbirka KOD dle MUSEIONu
+\cisrada3       -> kod prirustkove knihy
+\prirc4         -> 
+\rok12          -> 
+\pocetks13      -> pokud neni definovano, je treba zadat [1] ; zkontrolovat, jestli nejsou 6+3 apod (do pozn20)
+\evid15         -> pro moznost propojeni s invc nutne zadat [1]
+\typ30          -> hodnota "P"(obecný) nebo "PA"(archeologický)
+? ("polks53")
+\datzap98       -> pokud neni definovano, zadavame 31.12.[rok12]
+\porc104        -> poradove cislo prirustku
+
+```{r, warning=F}
+
+# eda
+sample_n(CORE_IIIb, 10)
+
+a <- CORE_IIIb %>% 
+  # jedno sporne prorc --> vynechat:
+  filter(prirc != "87-137") %>% 
+  mutate(Mpref = "III",
+         sbirka1 = "JCM",
+         cisrada3 = "III", 
+         prirvyraz9 = ifelse(isRed==T, 1, 0),
+         rok12 = rok,
+         evid15 = "1",
+         typ30 = "P", 
+         datzap98 = paste0("31.12.", rok12)) %>% 
+  relocate(sbirka1, cisrada3, prirvyraz9, rok12, evid15, typ30, datzap98, .before = zdroj) %>% 
+  # -------------------------------------------------- podsb2
+  mutate(podsb2 = case_when(podsbirka == "1" ~ "151",
+                            podsbirka == "10" ~ "158",
+                            podsbirka == "11" ~ "160",
+                            podsbirka == "13" ~ "154",
+                            podsbirka == "15" ~ "161",
+                            podsbirka == "17" ~ "155",
+                            podsbirka == "18" ~ "159",
+                            podsbirka == "19" ~ "162",
+                            podsbirka == "20" ~ "164",
+                            podsbirka == "21" ~ "156",
+                            podsbirka == "25"&sign %in% c("D", "H") ~ "166", # KONFLIKT !!!
+                            podsbirka == "25"&str_detect(sign, "MDRH") ~ "167",
+                            podsbirka == "25"&sign %in% c("O", "PVS", "VS") ~ "168", 
+                            podsbirka == "5" ~ "165",
+                            podsbirka == "6" ~ "157",
+                            podsbirka == "7" ~ "152",
+                            podsbirka == "8" ~ "163",
+                            podsbirka == "9" ~ "153",
+                            TRUE ~ "99"),
+         POZN20_podsb = case_when(is.na(podsbirka) ~ paste0("Podsbírka č.: neuvedena"),
+                                  podsb2 == "99" ~ paste0("Podsbírka č.: ", podsbirka),
+                                  TRUE ~ NA)) %>% 
+  # -------------------------------------------------- prirc4 - part 1
+  mutate(Mporc = str_extract(prirc, "\\d+"),
+         Mprirc = paste0(Mpref, Mporc, "/", rok12)) %>% 
+  group_by(Mprirc) %>% 
+  mutate(isDupl_prirc = ifelse(n() == 1, F, T),
+         Msub = ifelse(isDupl_prirc == F, NA, seq_along(Mprirc))) %>% 
+  relocate(Mpref, Mporc, Msub, Mprirc, .before = zdroj) %>% 
+  # -------------------------------------------------- porc104, subc105
+  mutate(porc104 = as.numeric(Mporc),
+         subc105 = as.numeric(Msub)) %>% 
+  # -------------------------------------------------- vedouci nuly
+  group_by(rok12) %>% 
+  mutate(maxcp = max(porc104, na.rm = TRUE),
+         maxp = nchar(maxcp)) %>% 
+  relocate(maxcp, maxp, .after = subc105) %>% 
+  mutate(maxcs = max(subc105, na.rm = TRUE),
+         maxcs = ifelse(maxcs == "-Inf", NA, maxcs), # warning je ok, timhle radkem ho napravujeme 
+         maxs = nchar(maxcs),
+         maxs = ifelse(is.na(maxs), 0, maxs)) %>% 
+  relocate(maxcs, maxs, .after = maxp) %>% 
+  ungroup() 
+
+# -------------------------------------------------- vedouci nuly -> kontrola a doplneni v Mp0 a Ms0
+vednul <- a %>% select(rok12, Mpref, maxcp, maxp, maxcs, maxs) %>% distinct()
+view(vednul)
+# -------------------------------------------------- prirc4 - part 2
+aa <- a %>% 
+  mutate(Mp0 = str_pad(porc104, 3, pad = 0),
+         Ms0 = str_pad(subc105, 2, pad = 0),
+         Mslash = "/",
+         Mdash = "-",
+         prirc4 = ifelse(is.na(subc105), paste0(Mpref, Mp0, Mslash, rok12), 
+                         paste0(Mpref, Mp0, Mslash, rok12, Mdash, Ms0))) %>% 
+  select(-Mpref, -Mporc, -Msub, -Mprirc, -maxcp, -maxp, -maxcs, -maxs, -Mp0, -Ms0, -Mslash, -Mdash) %>% 
+  # -------------------------------------------------- pocetks13
+  mutate(isCislo = ifelse(!is.na(as.numeric(pocetKs)) & !is.na(pocetKs),
+                          ifelse(as.numeric(pocetKs) > 0, T, F),F), 
+         isCislo = ifelse(is.na(isCislo), F, isCislo),
+         pocetks13 = ifelse(isCislo == F, "1", pocetKs),
+         # POZN20_pocetks = ifelse(isCislo == F&!is.na(pocetKs), paste0("Počet ks: ", pocetKs), NA)) %>% 
+         POZN20_pocetks = case_when(isCislo == F&!is.na(pocetKs) ~ paste0("Počet ks: ", pocetKs),
+                                    isCislo == F&is.na(pocetKs) ~ paste0("Počet ks: neuveden"),
+                                    TRUE ~ NA)) %>% 
+  # -------------------------------------------------- pozn20
+  unite(pozn20, c("POZN20_podsb","POZN20_pocetks"), sep = "\n", na.rm = T, remove = FALSE) %>%  
+  # -------------------------------------------------- RELOCATE
+  relocate(prirc4, porc104, subc105, podsb2, pocetks13, pozn20, .before = zdroj)
+
+  # parkrat zkontroluj
+sample_n(aa, 10) %>% select(rok, prirc, porc104, subc105, prirc4) # ok
+sample_n(aa, 10) %>% select(pocetKs, pocetks13, POZN20_pocetks) # ok
+
+```
+
+## NABYTI, PUVOD, POPIS
+
+ozn10
+popis 11
+
+datnab22
+zpnab23
+cennab27
+nabpozn29
+
+puvmaj28 
+
+```{r ZKONTROLOVANO}
+
+bb <- aa %>% 
+  # -------------------------------------------------- ozn10
+  mutate(ozn10 = predmet) %>% 
+    # -------------------------------------------------- popis11
+  mutate(popis11 = paste(ifelse(!is.na(popisCJ), paste("Překlad čeština: ", popisCJ), ""),
+                         ifelse(!is.na(popisNJ), paste("Přepis němčina: ", popisNJ), ""), sep = "\n\n"),
+         lengthPopis = nchar(popis11)) %>% 
+  # -------------------------------------------------- datnab22
+   mutate(
+         # Mdat = format(as.Date(datumNabyti, origin = "1899-12-30"), "%d.%m.%Y"),
+          is_valid_date = !is.na(as.Date(datumNabyti, format = "%d.%m.%Y")),
+          is_valid_date2 = ifelse(!is.na(datumNabyti), is_valid_date, NA)) %>%
+   mutate(datnab22 = ifelse(is_valid_date2 == "TRUE", datumNabyti, NA)) %>% 
+  #  mutate(Mdat_ser = as.numeric(datumNabyti),
+  #         Mdat = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y")) %>% 
+  #         # Mdat = case_when(str_detect(datumNabyti, "^.....$") ~ Mdat_trans,
+  #         #                 str_detect(datumNabyti, ",") ~ sub(",", ".", datumNabyti),
+  #         #                 str_detect(datumNabyti, "^r\\.") ~ paste0("01.01.", str_extract(datumNabyti, "\\d+")), 
+  #         #                 str_detect(datumNabyti, "^K") ~ sub("K", "", datumNabyti), 
+  #         #                 str_detect(datumNabyti, "\\.$") ~ sub("\\.$", "", datumNabyti), 
+  #         #                 str_detect(datumNabyti, "^19..$") ~ paste0("01.01.", datumNabyti),
+  #         #                 str_detect(datumNabyti, ".*X.*") ~ str_replace(datumNabyti, "X", "10"),
+  #         #                 TRUE ~ datumNabyti)) %>%
+  #  mutate(is_valid_date = !is.na(as.Date(Mdat, format = "%d.%m.%Y")),
+  #         is_valid_date2 = ifelse(!is.na(Mdat), is_valid_date, NA)) %>% relocate(Mdat, is_valid_date2, .after = datumNabyti) %>% 
+  # mutate(datnab22 = ifelse(is_valid_date2 == "TRUE", Mdat, NA)) %>% 
+  # relocate(datnab22, .after = datumNabyti) %>% 
+  # # select(-Mdat_ser, -Mdat, -is_valid_date) %>% 
+  # -------------------------------------------------- zpnab23
+  # sort(unique(bb$zpusobNabyti))
+  mutate(zpnab23 = case_when(str_detect(zpusobNabyti, "(?i)koupě.*autor") ~ "A",
+                             str_detect(zpusobNabyti, "(?i)koupě.*dědic") ~ "B",
+                             str_detect(zpusobNabyti, "(?i)dědictví") ~ "C",
+                             str_detect(zpusobNabyti, "(?i)dar") ~ "D",
+                             str_detect(zpusobNabyti, "(?i)deposit") ~ "E",
+                             str_detect(zpusobNabyti, "(?i)konf") ~ "F",
+                             str_detect(zpusobNabyti, "(?i)jiný") ~ "J",
+                             str_detect(zpusobNabyti, "(?i)koup") ~ "K",
+                             str_detect(zpusobNabyti, "(?i)nález|nalez") ~ "N",
+                             str_detect(zpusobNabyti, "(?i)odkaz") ~ "O",
+                             str_detect(zpusobNabyti, "(?i)převod") ~ "P",
+                             str_detect(zpusobNabyti, "(?i)replika") ~ "R",
+                             str_detect(zpusobNabyti, "(?i)star.*fond") ~ "S",
+                             str_detect(zpusobNabyti, "(?i)pozůstalost") ~ "T",
+                             str_detect(zpusobNabyti, "(?i)výzkum|vyzkum") ~ "V",
+                             str_detect(zpusobNabyti, "(?i)směna") ~ "X",
+                             str_detect(zpusobNabyti, "(?i)výkup|vykoup") ~ "Y",
+                             str_detect(zpusobNabyti, "(?i)výroba") ~ "Z",
+                             str_detect(zpusobNabyti, "(?i)sběr") ~ "1",
+                             str_detect(zpusobNabyti, "(?i)činnost") ~ "2",
+                             str_detect(zpusobNabyti, "(?i)nákup") ~ "3",
+                             str_detect(zpusobNabyti, "(?i)terén.*akce") ~ "4",
+                             is.na(zpusobNabyti) ~ "U", # neuvedeno 
+                             TRUE ~ "J"),
+         doklnab25 = odkazDoklad,
+         # cennab27 = ifelse(str_detect(zpusobNabyti, ",-|Kčs"), str_extract(zpusobNabyti, "\\d+"), ifelse(str_detect(zpusobNabyti, "\\d+,\\d+"), str_extract(zpusobNabyti, "\\d+,\\d+"), NA)),
+         # cennab27 = ifelse(str_detect(zpusobNabyti, ",-"), str_extract(zpusobNabyti, "\\d+(?=,-)"), NA),
+         cennab27 = ifelse(str_detect(zpusobNabyti, ",-")&str_detect(zpusobNabyti, "\\d+,\\d+"), str_extract(zpusobNabyti, "\\d+,\\d+"), ifelse(str_detect(zpusobNabyti, "\\d+,-"), str_extract(zpusobNabyti, "\\d+"), NA)),
+         cennab27 = str_trim(gsub(",-", "", cennab27)),  
+         cennab27 = str_trim(gsub(",", ".", cennab27))) %>% 
+  # -------------------------------------------------- nabpozn29
+  mutate(POZN29_datum = ifelse(is.na(datnab22)&!is.na(datumNabyti), paste0("Datum nabytí: ", datumNabyti), NA),
+         POZN29_zpusob = ifelse(!is.na(zpusobNabyti), paste0("Způsob nabytí: ", zpusobNabyti), NA)) %>% 
+  unite(nabpozn29, c("POZN29_datum","POZN29_zpusob"), sep = "\n", na.rm = T, remove = FALSE) %>% 
+  # -------------------------------------------------- puvmaj28 
+  mutate(puvmaj28 = puvodMajitel) %>% 
+# -------------------------------------------------- RELOCATE
+  relocate(ozn10, popis11, datnab22, zpnab23, cennab27, nabpozn29, puvmaj28, .before = zdroj)
+
+
+# check duplicity pricr4
+check <- bb %>% 
+  group_by(prirc4) %>% 
+  filter(n() != 1) # zadne duplicity v prirc ! ;-)
+
+# check lengthPopis
+any(bb$lengthPopis > 2000) # chceme FALSE
+
+# check zpusob nabyti
+check <- bb %>% select(zpusobNabyti, zpnab23, cennab27, nabpozn29) %>% distinct()
+
+# CLEAR
+
+bb <- bb %>%  select(-lengthPopis, -is_valid_date, -is_valid_date2)
+rm(check)
+
+```
+
+## VYRAZENI 
+
+```{r}
+
+over <- bb %>% select(odpisVyrazeni) %>% distinct()
+
+cc <- bb %>% 
+  # -------------------------------------------------- datvyr64 ; dokvyr67 ; poznvyr73
+  mutate(
+    vyrdat64 = str_extract(odpisVyrazeni, "\\d+\\.\\s*\\d+\\.\\s*\\d{4}"),
+    vyrdok67 = ifelse(str_detect(odpisVyrazeni, "č.*j.*\\d+"), 
+                      str_extract(odpisVyrazeni, "č\\.*j.*\\d+\\/\\d+-\\d+|č\\.*j.*\\d+\\/\\d+"), NA),
+    poznvyr73 = ifelse(is.na(odpisVyrazeni), NA, paste0("Odpis / převod / vyřazení atd.: ", odpisVyrazeni))) %>%
+  relocate(vyrdat64, vyrdok67, poznvyr73, .before = zdroj)
+  
+check <- cc %>% select(odpisVyrazeni, vyrdat64, vyrdok67, poznvyr73) %>% distinct()
+view(check)
+```
+
+## TEXTY, PRIZNAKY, POZNAMKA
+
+(text1 - umisteni
+text2 - umisteniCZ)
+text3 - jinecislo
+text4 = revize
+text5 = signatura
+text6 = puvodni invc
+
+
+```{r}
+
+dd <- cc %>% 
+  mutate(text3_90 = jineCislo) %>% 
+  mutate(text4_91 = revize) %>% 
+  mutate(text5_92 = sign) %>% 
+  mutate(text6_99 = invc) %>% 
+  # mutate(text7_100 = chyb_invc) %>%
+  relocate(text3_90, text4_91, text5_92, text6_99, .before = zdroj)
+```
+
+## INVENTARNI CISLA
+
+```{r}
+
+# proces
+
+ee <- dd %>% 
+  mutate(
+        type_invc = case_when(str_detect(invc, "^[A-Za-z]*\\s*\\d+$") ~ "single",
+                               str_detect(invc, "\\d+,\\s*\\d+")&!str_detect(invc, "-|[A-Za-z]") ~ "seznam",
+                               str_detect(invc, "^\\d+\\s*-\\s*\\d+$") ~ "interval",
+                               str_detect(invc, ",")&str_detect(invc, "\\d+\\s*-\\s*\\d+") ~ "sez+int",
+                               is.na(invc) ~ NA,
+                               TRUE ~ "tbd"),
+         isDoable = ifelse(type_invc %in% c("single", "seznam", "interval")&sign %in% val_sign, T, 
+                           ifelse(is.na(invc), NA, F))) %>%                                 # !!!! dulezity priznak !!!!
+  relocate(type_invc, isDoable, .after = invc)
+
+prehled <- ee %>% filter(isDoable == T) %>% select(prirc4, sign, invc, type_invc, isDoable) %>% filter(!is.na(invc))
+summary(as.factor(prehled$type_invc))
+
+# ------------------------------------------------------ single 32
+
+single <- ee %>% filter(type_invc == "single"&isDoable == T) %>% 
+  mutate(Minvc = str_extract(invc, "\\d+"),
+         Msub = str_extract(invc, "[A-Za-z]+$"),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Minvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Minvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Minvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Minvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Minvc, 6, pad = "0")),
+                            TRUE ~ Minvc)) %>% 
+  unite(invc5, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(invc5, .after = invc) %>% 
+  select(-Minvc, -Msub, -Minvc0)
+
+prehled_sin <- single %>% select(prirc4, invc, type_invc, invc5)
+
+# ------------------------------------------------------ seznam 1
+
+seznam <- ee %>% filter(type_invc == "seznam"&isDoable == T) %>% 
+  mutate(numbers = invc) %>% 
+  separate_rows(numbers, sep = ",") %>% 
+  # rename("numbers" = invc) %>% 
+  mutate(numbers = str_trim(numbers),
+         Minvc = ifelse(str_detect(numbers, "^[A-Za-z]+"), str_extract(numbers, "\\d+"), numbers),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Minvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Minvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Minvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Minvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Minvc, 6, pad = "0")),
+                            TRUE ~ Minvc), 
+         Msub = str_extract(numbers, "[A-Za-z]+$")) %>%
+  unite(Minvc_single, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(Minvc_single, .after = numbers) %>% 
+  group_by(prirc4) %>% 
+  mutate(invc5 = paste0(Minvc_single, collapse = ",")) %>% 
+  relocate(invc5, .after = invc) %>% 
+  select(-numbers, -Minvc, -Minvc0, -Msub, -Minvc_single) %>% 
+  distinct() %>% 
+  ungroup()
+
+# ------------------------------------------------------ interval 3
+
+interval0 <- ee %>% filter(type_invc == "interval"&isDoable == T) %>% 
+  separate(invc, into = c("start", "end"), sep = "-", remove = F) %>% 
+  mutate(start = as.numeric(start), end = as.numeric(end)) %>% 
+  mutate(is_valid_int = ifelse(start < end, TRUE, FALSE),
+         is_wrong_order = ifelse(is_valid_int == FALSE&nchar(start)==nchar(end), TRUE, FALSE)) # nebudu resit spatny poradi, at si vyresi sami..
+
+int_y <- interval0 %>% 
+  filter(is_valid_int==T) %>% 
+  mutate(Linvc = as.character(purrr::map2(start, end, ~toString(seq(.x, .y, by = 1))))) %>% 
+  separate_rows(Linvc, sep = ",") %>% 
+  mutate(Linvc = str_trim(Linvc),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Linvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Linvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Linvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Linvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Linvc, 6, pad = "0")),
+                            TRUE ~ Linvc), 
+         Msub = str_extract(Linvc, "[A-Za-z]+$")) %>% 
+  unite(Minvc, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  group_by(prirc4) %>% 
+  mutate(invc5 = paste0(Minvc, collapse = ",")) %>% 
+  select(-Linvc, -Minvc0, -Minvc, -Msub) %>% 
+  distinct() %>%
+  ungroup() 
+ 
+# int_n <- interval0 %>% 
+#   filter(is_valid_int==F) %>% 
+#    mutate(Minvc = paste("chybne zadany interval invc"),
+#          invc5 = NA)
+#  
+# interval <- bind_rows(int_y, int_n) %>% 
+#   # mutate(invc5 = Minvc) %>% 
+#   relocate(invc5, .after = invc) %>% 
+#   select(-start, -end, -is_valid_int, -is_wrong_order, -Minvc)
+
+interval <- int_y
+
+nrow(interval0) == nrow(interval) # neztratili jsme nejake radky cestou?
+rm(interval0)
+
+
+# ------------------------------------------------------ zbytek 143
+
+# 134* NA
+# 9* FALSE
+
+nrow(ee %>% filter(is.na(isDoable))) 
+nrow(ee %>% filter(isDoable == F)) 
+
+zbytek <- ee %>% filter(isDoable == F|is.na(isDoable))
+not_doable <- zbytek %>% filter(isDoable == F) %>% select(prirc4, sign, invc)                         
+# write.table(not_doable, file = paste0(path_kk, "vystupy/", proj, "_problematickaINVC_signIIIb.csv"),
+#             quote = T, row.names = F,
+#             sep = ";", dec = ",",
+#             na = "", fileEncoding="UTF-8")
+
+nrow(single)+nrow(seznam)+nrow(interval)+nrow(zbytek)==nrow(ee) # chceme TRUE
+
+# ------------------------------------------------------ JOIN 
+
+ff <- bind_rows(single, seznam, interval, zbytek) %>% 
+  relocate(invc5, .after = prirc4)
+
+nrow(ff) == nrow(ee) # musi byt stejne!
+
+# rm(aa)
+# rm(bb)
+# rm(cc)
+# rm(dd)
+# rm(ee)
+
+fin <- ff
+
+```
+
+
+# --------------------------------------- sign IIIc
+
+2 excely -------------------------> KK_red.xlsx/IIIc
+
+
+## READ
+
+```{r}
+CORE_IIIc <- readxl::read_excel(paste0(path_kk, "data/KK_red.xlsx"), sheet = "kniha IIIc", col_types = "text") %>% 
+  mutate(rok12 = str_extract(zdroj, "^...."))
+
+sort(unique(CORE_IIIc$zdroj)) 
+sort(unique(CORE_IIIc$datumNabyti))
+sort(unique(CORE_IIIc$pocetKs))
+sort(unique(CORE_IIIc$cenaKc))
+```
+
+## EDA
+
+```{r}
+
+eda <- CORE_IIIc
+
+any(is.na(eda$prirc)) # FALSE
+any(is.na(eda$rok)) # FALSE
+
+eda <- eda %>% 
+  unite(check, c("prirc", "rok"), sep = "/", remove = F) %>% 
+  select(check, prirc, rok) %>% 
+  group_by(check) %>% 
+  mutate(isDupl = ifelse(n()!=1, 1, 0)) %>% 
+  filter(check==1) # chceme 0
+
+# kontrola prirc, zda jsou jen ciselna
+
+check <- CORE_IIIc %>% select(prirc) %>% 
+  mutate(isNum = str_extract(prirc, "[A-Za-z]")) # -> zadna subcisla
+
+```
+
+## POVINNE
+
+\sbirka1        -> sbirka dle MUSEIONu
+\podsb2         -> podsbirka KOD dle MUSEIONu
+\cisrada3       -> kod prirustkove knihy
+\prirc4         -> 
+\rok12          -> 
+\pocetks13      -> pokud neni definovano, je treba zadat [1] ; zkontrolovat, jestli nejsou 6+3 apod (do pozn20)
+\evid15         -> pro moznost propojeni s invc nutne zadat [1]
+\typ30          -> hodnota "P"(obecný) nebo "PA"(archeologický)
+? ("polks53")
+\datzap98       -> pokud neni definovano, zadavame 31.12.[rok12]
+\porc104        -> poradove cislo prirustku
+
+```{r, warning=F}
+
+# eda
+sample_n(CORE_IIIc, 10)
+
+aa <- CORE_IIIc %>%
+  filter(rok12 == "1943") %>% 
+  mutate(Mpref = "III",
+         sbirka1 = "JCM",
+         podsb2 = "99", 
+         cisrada3 = "III", 
+         prirvyraz9 = ifelse(isRed==T, 1, 0),
+         pocetks13 = pocetKs,
+         evid15 = "1",
+         typ30 = "P", 
+         datzap98 = paste0("31.12.", rok12)) %>% 
+  relocate(sbirka1, cisrada3, prirvyraz9, rok12, pocetks13, evid15, typ30, datzap98, .before = zdroj) %>% 
+  mutate(isHead = ifelse(is.na(prirc)&!is.na(datumNabyti), "NADPIS", "ZAZNAM")) %>% 
+  relocate(isHead, .after = zdroj) 
+
+```
+
+```{r}
+
+bb <- aa %>% 
+ # -------------------------------------------------- prirc4 
+  mutate(Mprirc1 = ifelse(isHead == "NADPIS", lead(prirc), prirc),
+         Mprirc2 = Mprirc1) %>% # budeme doplnovat v dalsim kroku 
+  relocate(Mprirc1, Mprirc2, .after = prirc) %>% 
+  group_by(rok12) %>%
+  fill(Mprirc2, .direction = "down") %>%
+  ungroup() 
+
+
+
+separate(prirc, into=c("Mporc", "Mrok") , sep="/", remove = F) %>% 
+  mutate(Mprirc = paste0(Mpref, Mporc, "/", rok12)) %>% 
+  group_by(Mprirc) %>% 
+  mutate(isDupl_prirc = ifelse(n() == 1, F, T),
+         Msub = ifelse(isDupl_prirc == F, NA, seq_along(Mprirc))) %>% 
+  relocate(Mpref, Mporc, Msub, Mprirc, .before = zdroj) %>% 
+  # -------------------------------------------------- porc104, subc105
+  mutate(porc104 = as.numeric(Mporc),
+         subc105 = as.numeric(Msub)) %>% 
+
+
+
+  mutate(Mporc = str_extract(prirc, "\\d+"),
+         Mprirc = paste0(Mpref, Mporc, "/", rok12)) %>% 
+  group_by(Mprirc) %>% 
+  mutate(isDupl_prirc = ifelse(n() == 1, F, T),
+         Msub = ifelse(isDupl_prirc == F, NA, seq_along(Mprirc))) %>% 
+  relocate(Mpref, Mporc, Msub, Mprirc, .before = zdroj) %>% 
+  # -------------------------------------------------- porc104, subc105
+  mutate(porc104 = as.numeric(Mporc),
+         subc105 = as.numeric(Msub)) %>% 
+  # -------------------------------------------------- vedouci nuly
+  group_by(rok12) %>% 
+  mutate(maxcp = max(porc104, na.rm = TRUE),
+         maxp = nchar(maxcp)) %>% 
+  relocate(maxcp, maxp, .after = subc105) %>% 
+  mutate(maxcs = max(subc105, na.rm = TRUE),
+         maxcs = ifelse(maxcs == "-Inf", NA, maxcs), # warning je ok, timhle radkem ho napravujeme 
+         maxs = nchar(maxcs),
+         maxs = ifelse(is.na(maxs), 0, maxs)) %>% 
+  relocate(maxcs, maxs, .after = maxp) %>% 
+  ungroup() 
+
+# -------------------------------------------------- vedouci nuly -> kontrola a doplneni v Mp0 a Ms0
+vednul <- a %>% select(rok12, Mpref, maxcp, maxp, maxcs, maxs) %>% distinct()
+view(vednul)
+# -------------------------------------------------- prirc4 - part 2
+aa <- a %>% 
+  mutate(Mp0 = str_pad(porc104, 3, pad = 0),
+         Ms0 = str_pad(subc105, 2, pad = 0),
+         Mslash = "/",
+         Mdash = "-",
+         prirc4 = ifelse(is.na(subc105), paste0(Mpref, Mp0, Mslash, rok12), 
+                         paste0(Mpref, Mp0, Mslash, rok12, Mdash, Ms0))) %>% 
+  select(-Mpref, -Mporc, -Msub, -Mprirc, -maxcp, -maxp, -maxcs, -maxs, -Mp0, -Ms0, -Mslash, -Mdash) %>% 
+  # -------------------------------------------------- pocetks13
+  mutate(isCislo = ifelse(!is.na(as.numeric(pocetKs)) & !is.na(pocetKs),
+                          ifelse(as.numeric(pocetKs) > 0, T, F),F), 
+         isCislo = ifelse(is.na(isCislo), F, isCislo),
+         pocetks13 = ifelse(isCislo == F, "1", pocetKs),
+         # POZN20_pocetks = ifelse(isCislo == F&!is.na(pocetKs), paste0("Počet ks: ", pocetKs), NA)) %>% 
+         POZN20_pocetks = case_when(isCislo == F&!is.na(pocetKs) ~ paste0("Počet ks: ", pocetKs),
+                                    isCislo == F&is.na(pocetKs) ~ paste0("Počet ks: neuveden"),
+                                    TRUE ~ NA)) %>% 
+  # -------------------------------------------------- pozn20
+  unite(pozn20, c("POZN20_podsb","POZN20_pocetks"), sep = "\n", na.rm = T, remove = FALSE) %>%  
+  # -------------------------------------------------- RELOCATE
+  relocate(prirc4, porc104, subc105, podsb2, pocetks13, pozn20, .before = zdroj)
+
+  # parkrat zkontroluj
+sample_n(aa, 10) %>% select(rok, prirc, porc104, subc105, prirc4) # ok
+sample_n(aa, 10) %>% select(pocetKs, pocetks13, POZN20_pocetks) # ok  
+  
+  
+```
+
+
+## NABYTI, PUVOD, POPIS
+
+ozn10
+popis 11
+
+datnab22
+zpnab23
+cennab27
+nabpozn29
+
+puvmaj28 
+
+```{r ZKONTROLOVANO}
+
+bb <- aa %>% 
+  # -------------------------------------------------- ozn10
+  mutate(ozn10 = predmet) %>% 
+    # -------------------------------------------------- popis11
+  mutate(popis11 = paste(ifelse(!is.na(popisCJ), paste("Překlad čeština: ", popisCJ), ""),
+                         ifelse(!is.na(popisNJ), paste("Přepis němčina: ", popisNJ), ""), sep = "\n\n"),
+         lengthPopis = nchar(popis11)) %>% 
+  # -------------------------------------------------- datnab22
+   mutate(
+         # Mdat = format(as.Date(datumNabyti, origin = "1899-12-30"), "%d.%m.%Y"),
+          is_valid_date = !is.na(as.Date(datumNabyti, format = "%d.%m.%Y")),
+          is_valid_date2 = ifelse(!is.na(datumNabyti), is_valid_date, NA)) %>%
+   mutate(datnab22 = ifelse(is_valid_date2 == "TRUE", datumNabyti, NA)) %>% 
+  #  mutate(Mdat_ser = as.numeric(datumNabyti),
+  #         Mdat = format(as.Date(Mdat_ser, origin = "1899-12-30"), "%d.%m.%Y")) %>% 
+  #         # Mdat = case_when(str_detect(datumNabyti, "^.....$") ~ Mdat_trans,
+  #         #                 str_detect(datumNabyti, ",") ~ sub(",", ".", datumNabyti),
+  #         #                 str_detect(datumNabyti, "^r\\.") ~ paste0("01.01.", str_extract(datumNabyti, "\\d+")), 
+  #         #                 str_detect(datumNabyti, "^K") ~ sub("K", "", datumNabyti), 
+  #         #                 str_detect(datumNabyti, "\\.$") ~ sub("\\.$", "", datumNabyti), 
+  #         #                 str_detect(datumNabyti, "^19..$") ~ paste0("01.01.", datumNabyti),
+  #         #                 str_detect(datumNabyti, ".*X.*") ~ str_replace(datumNabyti, "X", "10"),
+  #         #                 TRUE ~ datumNabyti)) %>%
+  #  mutate(is_valid_date = !is.na(as.Date(Mdat, format = "%d.%m.%Y")),
+  #         is_valid_date2 = ifelse(!is.na(Mdat), is_valid_date, NA)) %>% relocate(Mdat, is_valid_date2, .after = datumNabyti) %>% 
+  # mutate(datnab22 = ifelse(is_valid_date2 == "TRUE", Mdat, NA)) %>% 
+  # relocate(datnab22, .after = datumNabyti) %>% 
+  # # select(-Mdat_ser, -Mdat, -is_valid_date) %>% 
+  # -------------------------------------------------- zpnab23
+  # sort(unique(bb$zpusobNabyti))
+  mutate(zpnab23 = case_when(str_detect(zpusobNabyti, "(?i)koupě.*autor") ~ "A",
+                             str_detect(zpusobNabyti, "(?i)koupě.*dědic") ~ "B",
+                             str_detect(zpusobNabyti, "(?i)dědictví") ~ "C",
+                             str_detect(zpusobNabyti, "(?i)dar") ~ "D",
+                             str_detect(zpusobNabyti, "(?i)deposit") ~ "E",
+                             str_detect(zpusobNabyti, "(?i)konf") ~ "F",
+                             str_detect(zpusobNabyti, "(?i)jiný") ~ "J",
+                             str_detect(zpusobNabyti, "(?i)koup") ~ "K",
+                             str_detect(zpusobNabyti, "(?i)nález|nalez") ~ "N",
+                             str_detect(zpusobNabyti, "(?i)odkaz") ~ "O",
+                             str_detect(zpusobNabyti, "(?i)převod") ~ "P",
+                             str_detect(zpusobNabyti, "(?i)replika") ~ "R",
+                             str_detect(zpusobNabyti, "(?i)star.*fond") ~ "S",
+                             str_detect(zpusobNabyti, "(?i)pozůstalost") ~ "T",
+                             str_detect(zpusobNabyti, "(?i)výzkum|vyzkum") ~ "V",
+                             str_detect(zpusobNabyti, "(?i)směna") ~ "X",
+                             str_detect(zpusobNabyti, "(?i)výkup|vykoup") ~ "Y",
+                             str_detect(zpusobNabyti, "(?i)výroba") ~ "Z",
+                             str_detect(zpusobNabyti, "(?i)sběr") ~ "1",
+                             str_detect(zpusobNabyti, "(?i)činnost") ~ "2",
+                             str_detect(zpusobNabyti, "(?i)nákup") ~ "3",
+                             str_detect(zpusobNabyti, "(?i)terén.*akce") ~ "4",
+                             is.na(zpusobNabyti) ~ "U", # neuvedeno 
+                             TRUE ~ "J"),
+         doklnab25 = odkazDoklad,
+         # cennab27 = ifelse(str_detect(zpusobNabyti, ",-|Kčs"), str_extract(zpusobNabyti, "\\d+"), ifelse(str_detect(zpusobNabyti, "\\d+,\\d+"), str_extract(zpusobNabyti, "\\d+,\\d+"), NA)),
+         # cennab27 = ifelse(str_detect(zpusobNabyti, ",-"), str_extract(zpusobNabyti, "\\d+(?=,-)"), NA),
+         cennab27 = ifelse(str_detect(zpusobNabyti, ",-")&str_detect(zpusobNabyti, "\\d+,\\d+"), str_extract(zpusobNabyti, "\\d+,\\d+"), ifelse(str_detect(zpusobNabyti, "\\d+,-"), str_extract(zpusobNabyti, "\\d+"), NA)),
+         cennab27 = str_trim(gsub(",-", "", cennab27)),  
+         cennab27 = str_trim(gsub(",", ".", cennab27))) %>% 
+  # -------------------------------------------------- nabpozn29
+  mutate(POZN29_datum = ifelse(is.na(datnab22)&!is.na(datumNabyti), paste0("Datum nabytí: ", datumNabyti), NA),
+         POZN29_zpusob = ifelse(!is.na(zpusobNabyti), paste0("Způsob nabytí: ", zpusobNabyti), NA)) %>% 
+  unite(nabpozn29, c("POZN29_datum","POZN29_zpusob"), sep = "\n", na.rm = T, remove = FALSE) %>% 
+  # -------------------------------------------------- puvmaj28 
+  mutate(puvmaj28 = puvodMajitel) %>% 
+# -------------------------------------------------- RELOCATE
+  relocate(ozn10, popis11, datnab22, zpnab23, cennab27, nabpozn29, puvmaj28, .before = zdroj)
+
+
+# check duplicity pricr4
+check <- bb %>% 
+  group_by(prirc4) %>% 
+  filter(n() != 1) # zadne duplicity v prirc ! ;-)
+
+# check lengthPopis
+any(bb$lengthPopis > 2000) # chceme FALSE
+
+# check zpusob nabyti
+check <- bb %>% select(zpusobNabyti, zpnab23, cennab27, nabpozn29) %>% distinct()
+
+# CLEAR
+
+bb <- bb %>%  select(-lengthPopis, -is_valid_date, -is_valid_date2)
+rm(check)
+
+```
+
+## VYRAZENI 
+
+```{r}
+
+over <- bb %>% select(odpisVyrazeni) %>% distinct()
+
+cc <- bb %>% 
+  # -------------------------------------------------- datvyr64 ; dokvyr67 ; poznvyr73
+  mutate(
+    vyrdat64 = str_extract(odpisVyrazeni, "\\d+\\.\\s*\\d+\\.\\s*\\d{4}"),
+    vyrdok67 = ifelse(str_detect(odpisVyrazeni, "č.*j.*\\d+"), 
+                      str_extract(odpisVyrazeni, "č\\.*j.*\\d+\\/\\d+-\\d+|č\\.*j.*\\d+\\/\\d+"), NA),
+    poznvyr73 = ifelse(is.na(odpisVyrazeni), NA, paste0("Odpis / převod / vyřazení atd.: ", odpisVyrazeni))) %>%
+  relocate(vyrdat64, vyrdok67, poznvyr73, .before = zdroj)
+  
+check <- cc %>% select(odpisVyrazeni, vyrdat64, vyrdok67, poznvyr73) %>% distinct()
+view(check)
+```
+
+## TEXTY, PRIZNAKY, POZNAMKA
+
+(text1 - umisteni
+text2 - umisteniCZ)
+text3 - jinecislo
+text4 = revize
+text5 = signatura
+text6 = puvodni invc
+
+
+```{r}
+
+dd <- cc %>% 
+  mutate(text3_90 = jineCislo) %>% 
+  mutate(text4_91 = revize) %>% 
+  mutate(text5_92 = sign) %>% 
+  mutate(text6_99 = invc) %>% 
+  # mutate(text7_100 = chyb_invc) %>%
+  relocate(text3_90, text4_91, text5_92, text6_99, .before = zdroj)
+```
+
+## INVENTARNI CISLA
+
+```{r}
+
+# proces
+
+ee <- dd %>% 
+  mutate(
+        type_invc = case_when(str_detect(invc, "^[A-Za-z]*\\s*\\d+$") ~ "single",
+                               str_detect(invc, "\\d+,\\s*\\d+")&!str_detect(invc, "-|[A-Za-z]") ~ "seznam",
+                               str_detect(invc, "^\\d+\\s*-\\s*\\d+$") ~ "interval",
+                               str_detect(invc, ",")&str_detect(invc, "\\d+\\s*-\\s*\\d+") ~ "sez+int",
+                               is.na(invc) ~ NA,
+                               TRUE ~ "tbd"),
+         isDoable = ifelse(type_invc %in% c("single", "seznam", "interval")&sign %in% val_sign, T, 
+                           ifelse(is.na(invc), NA, F))) %>%                                 # !!!! dulezity priznak !!!!
+  relocate(type_invc, isDoable, .after = invc)
+
+prehled <- ee %>% filter(isDoable == T) %>% select(prirc4, sign, invc, type_invc, isDoable) %>% filter(!is.na(invc))
+summary(as.factor(prehled$type_invc))
+
+# ------------------------------------------------------ single 32
+
+single <- ee %>% filter(type_invc == "single"&isDoable == T) %>% 
+  mutate(Minvc = str_extract(invc, "\\d+"),
+         Msub = str_extract(invc, "[A-Za-z]+$"),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Minvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Minvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Minvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Minvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Minvc, 6, pad = "0")),
+                            TRUE ~ Minvc)) %>% 
+  unite(invc5, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(invc5, .after = invc) %>% 
+  select(-Minvc, -Msub, -Minvc0)
+
+prehled_sin <- single %>% select(prirc4, invc, type_invc, invc5)
+
+# ------------------------------------------------------ seznam 1
+
+seznam <- ee %>% filter(type_invc == "seznam"&isDoable == T) %>% 
+  mutate(numbers = invc) %>% 
+  separate_rows(numbers, sep = ",") %>% 
+  # rename("numbers" = invc) %>% 
+  mutate(numbers = str_trim(numbers),
+         Minvc = ifelse(str_detect(numbers, "^[A-Za-z]+"), str_extract(numbers, "\\d+"), numbers),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Minvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Minvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Minvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Minvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Minvc, 6, pad = "0")),
+                            TRUE ~ Minvc), 
+         Msub = str_extract(numbers, "[A-Za-z]+$")) %>%
+  unite(Minvc_single, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  relocate(Minvc_single, .after = numbers) %>% 
+  group_by(prirc4) %>% 
+  mutate(invc5 = paste0(Minvc_single, collapse = ",")) %>% 
+  relocate(invc5, .after = invc) %>% 
+  select(-numbers, -Minvc, -Minvc0, -Msub, -Minvc_single) %>% 
+  distinct() %>% 
+  ungroup()
+
+# ------------------------------------------------------ interval 3
+
+interval0 <- ee %>% filter(type_invc == "interval"&isDoable == T) %>% 
+  separate(invc, into = c("start", "end"), sep = "-", remove = F) %>% 
+  mutate(start = as.numeric(start), end = as.numeric(end)) %>% 
+  mutate(is_valid_int = ifelse(start < end, TRUE, FALSE),
+         is_wrong_order = ifelse(is_valid_int == FALSE&nchar(start)==nchar(end), TRUE, FALSE)) # nebudu resit spatny poradi, at si vyresi sami..
+
+int_y <- interval0 %>% 
+  filter(is_valid_int==T) %>% 
+  mutate(Linvc = as.character(purrr::map2(start, end, ~toString(seq(.x, .y, by = 1))))) %>% 
+  separate_rows(Linvc, sep = ",") %>% 
+  mutate(Linvc = str_trim(Linvc),
+         Minvc0 = case_when(sign %in% mask2 ~ paste0(sign, str_pad(Linvc, 2, pad = "0")),
+                            sign %in% mask3 ~ paste0(sign, str_pad(Linvc, 3, pad = "0")),
+                            sign %in% mask4 ~ paste0(sign, str_pad(Linvc, 4, pad = "0")),
+                            sign %in% mask5 ~ paste0(sign, str_pad(Linvc, 5, pad = "0")),
+                            sign %in% mask6 ~ paste0(sign, str_pad(Linvc, 6, pad = "0")),
+                            TRUE ~ Linvc), 
+         Msub = str_extract(Linvc, "[A-Za-z]+$")) %>% 
+  unite(Minvc, c("Minvc0", "Msub"), sep = "/", na.rm = T, remove = FALSE) %>% 
+  group_by(prirc4) %>% 
+  mutate(invc5 = paste0(Minvc, collapse = ",")) %>% 
+  select(-Linvc, -Minvc0, -Minvc, -Msub) %>% 
+  distinct() %>%
+  ungroup() 
+ 
+# int_n <- interval0 %>% 
+#   filter(is_valid_int==F) %>% 
+#    mutate(Minvc = paste("chybne zadany interval invc"),
+#          invc5 = NA)
+#  
+# interval <- bind_rows(int_y, int_n) %>% 
+#   # mutate(invc5 = Minvc) %>% 
+#   relocate(invc5, .after = invc) %>% 
+#   select(-start, -end, -is_valid_int, -is_wrong_order, -Minvc)
+
+interval <- int_y
+
+nrow(interval0) == nrow(interval) # neztratili jsme nejake radky cestou?
+rm(interval0)
+
+
+# ------------------------------------------------------ zbytek 143
+
+# 134* NA
+# 9* FALSE
+
+nrow(ee %>% filter(is.na(isDoable))) 
+nrow(ee %>% filter(isDoable == F)) 
+
+zbytek <- ee %>% filter(isDoable == F|is.na(isDoable))
+not_doable <- zbytek %>% filter(isDoable == F) %>% select(prirc4, sign, invc)                         
+# write.table(not_doable, file = paste0(path_kk, "vystupy/", proj, "_problematickaINVC_signIIIb.csv"),
+#             quote = T, row.names = F,
+#             sep = ";", dec = ",",
+#             na = "", fileEncoding="UTF-8")
+
+nrow(single)+nrow(seznam)+nrow(interval)+nrow(zbytek)==nrow(ee) # chceme TRUE
+
+# ------------------------------------------------------ JOIN 
+
+ff <- bind_rows(single, seznam, interval, zbytek) %>% 
+  relocate(invc5, .after = prirc4)
+
+nrow(ff) == nrow(ee) # musi byt stejne!
+
+# rm(aa)
+# rm(bb)
+# rm(cc)
+# rm(dd)
+# rm(ee)
+
+fin <- ff
+
+```
+
 
 # ------------------ S A V E ------------------ 
 
@@ -3265,8 +4621,24 @@ sample_n(aa, 10) %>% select(pocetKs, pocetks13, POZN20_pocetks) # ok
 # # imp <- "signatura_IIb"
 # df_save <- fin
 
-n <- 1844
-imp <- "signatura_P"
+# n <- 1844
+# # imp <- "signatura_P"
+# df_save <- fin
+
+# n <- 2498
+# imp <- "signatura_St"
+# df_save <- fin
+
+# n <- 5758
+# # imp <- "signatura_IIIa"
+# df_save <- fin
+
+# n <- 179
+# imp <- "signatura_IIIb"
+# df_save <- fin
+
+n <- 2582
+imp <- "signatura_DCM"
 df_save <- fin
 
 # ------------------------------------------------------ priprava tabulky
@@ -3381,19 +4753,20 @@ SELECT "" As 1kodRady , "" As 2typRady , "" As 3rok , "" As 4maska , "" As 5poce
 
 ```{r}
 
-kodrady1 <- rep("II", 43)
-typrady2 <- rep("PK", 43)
-rok3 <- seq(1900, 1942)
-maska4 <- rep("{S}{###}/{YYYY}-{##}", 43)
-pocetCis5 <- rep("3", 43)
-pocitadlo6 <- rep("0", 43)
-poslPouz7 <- rep("", 43)
+kodrady1 <- rep("III", 26)
+typrady2 <- rep("PK", 26)
+# rok3 <- seq(1900, 1942)
+rok3 <- sort(unique(mus_tab$rok12))
+maska4 <- rep("{S}{###}/{YYYY}-{##}", 26)
+pocetCis5 <- rep("3", 26)
+pocitadlo6 <- rep("0", 26)
+poslPouz7 <- rep("", 26)
 
 ocr <- data.frame(kodrady1, typrady2, rok3, maska4, pocetCis5, pocitadlo6, poslPouz7)
 
-# write.table(ocr, file = paste0(path_kk, "import/", proj, "_obdobiCiselneRady_II.csv"),
-#             quote = T, row.names = F, 
-#             sep = ";", dec = ",", 
-#             na = "", fileEncoding="UTF-8")
-# ```
+write.table(ocr, file = paste0(path_kk, "import/", proj, "_obdobiCiselneRady_IIIa.csv"),
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            na = "", fileEncoding="UTF-8")
+```
 
