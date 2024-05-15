@@ -329,7 +329,7 @@ ceiling(x) = rounds values up to nearest integer
 floor(x) = rounds values down to nearest integer
 trunc(x) = truncates (cuts off) decimal places from values
 
-### Date
+### Date conversion
 
 28138 -> 13.01.1977
 pokud mame oba formaty, resime pomoci vnorenzch ifelsu takto:
@@ -620,7 +620,7 @@ mus_tab_cvic <- mus_tab %>%
   slice(1:10)
 ```
 
-#### Random sample of n
+#### Sample of 10 random rows
 
 ```{r}
 
@@ -685,6 +685,12 @@ data %>%
 distinct() # napric sloupci
 
 distinct(sp_cislo, sp_id, .keep_all = TRUE) # vybrane sloupce, ponecha vse
+```
+
+#### Fill
+
+```{r}
+fill(Mrok, .direction = "down")
 ```
 
 

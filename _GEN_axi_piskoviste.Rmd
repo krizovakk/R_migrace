@@ -984,13 +984,16 @@ revdata <- Rev_data %>%
   select(sb_data_id, datum_rev) %>% 
   mutate(MDATE_rev = as.POSIXct(datum_rev)) %>% 
   group_by(sb_data_id) %>% 
-  mutate(isDupl = ifelse(n() == 1, F, T))
+  mutate(isDupl = ifelse(n() == 1, F, T))%>% 
+  ungroup()
 
 sbstav <- Sb_stav %>% 
-  select(sb_data_id, datum, MSTAV) %>% 
+  select(sb_data_id, datum, MSTAV, MPOPISSTAVU) %>% 
   drop_na(MSTAV) %>% 
   filter(sb_data_id != "40934") %>% 
   mutate(MDATE_stav = as.POSIXct(datum)) %>% 
+  group_by(sb_data_id) %>% 
+  mutate(idid = seq_along(sb_data_id)) %>% 
   ungroup()
 
 join <- left_join(revdata, sbstav, by = "sb_data_id", keep = T)
