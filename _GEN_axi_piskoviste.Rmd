@@ -981,23 +981,52 @@ Rev_data <- read_excel("C:/Users/krizova/Documents/R/piskoviste/HELA/NG_stavy/Re
 Sb_stav <- read_excel("C:/Users/krizova/Documents/R/piskoviste/HELA/NG_stavy/Sb_stav.xlsx", col_types="text")
 
 revdata <- Rev_data %>% 
-  select(sb_data_id, datum_rev) %>% 
+  select(sb_data_id, rev_data_id, datum_rev) %>% 
   mutate(MDATE_rev = as.POSIXct(datum_rev)) %>% 
   group_by(sb_data_id) %>% 
-  mutate(isDupl = ifelse(n() == 1, F, T))%>% 
-  ungroup()
+  mutate(isDupl = ifelse(n() == 1, F, T)) %>%
+  ungroup() %>% 
+  arrange(sb_data_id, MDATE_rev) %>% 
+  select(-datum_rev)
 
 sbstav <- Sb_stav %>% 
-  select(sb_data_id, datum, MSTAV, MPOPISSTAVU) %>% 
+  mutate(Mdatum = case_when(sb_data_id == "40934" ~ "2007-01-01 00:00:00",
+                            sb_data_id == "352912" ~ "2010-01-01 00:00:00",
+                            sb_data_id == "41380" ~ "2022-09-06 00:00:00",
+                            TRUE ~ datum)) %>% 
+  select(sb_data_id, Mdatum, MSTAV, MPOPISSTAVU) %>% 
   drop_na(MSTAV) %>% 
-  filter(sb_data_id != "40934") %>% 
-  mutate(MDATE_stav = as.POSIXct(datum)) %>% 
+  mutate(MDATE_stav = as.POSIXct(Mdatum)) %>% 
   group_by(sb_data_id) %>% 
-  mutate(idid = seq_along(sb_data_id)) %>% 
-  ungroup()
+  # mutate(idid = seq_along(sb_data_id)) %>% 
+  ungroup() %>% 
+  arrange(sb_data_id, MDATE_stav) %>% 
+  select(-Mdatum)
 
-join <- left_join(revdata, sbstav, by = "sb_data_id", keep = T)
+join <- left_join(revdata, sbstav, by = "sb_data_id") %>% 
+  select(1,2,3,7,5,6)
 
+fin <- join %>% 
+  drop_na(MSTAV) %>%
+  mutate(isDate = ifelse(MDATE_stav < MDATE_rev, "mensi", "VETSI"),
+         kk_MSTAV = ifelse(MDATE_stav < MDATE_rev, MSTAV, NA),
+         kk_MPOPISSTAVU = ifelse(MDATE_stav < MDATE_rev, MPOPISSTAVU, NA))  %>% 
+  distinct(sb_data_id, MDATE_rev, .keep_all = TRUE) %>% 
+  select(sb_data_id, rev_data_id, "datum_rev" = MDATE_rev, "datum_stav" = MDATE_stav, "MSTAV" = kk_MSTAV, "MPOPISSTAVU" = kk_MPOPISSTAVU)
+  
+check <- fin %>% group_by(sb_data_id) %>% filter(n()>2)  
+
+# write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/revize-KK/KK_revize_stavy_2kolo.csv", 
+#             quote = T, row.names = F, 
+#             sep = ";", dec = ",", 
+#             na = "", fileEncoding="cp1250")
+  
+
+write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/revize-KK/KK_revize_stavy_2kolo_quote.csv", 
+            quote = F, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250") # quote = F proto, ze v datech jsou uvozovky a v prvnim pripade pri ulozeni pridava backslash
+  
 ```
 
 # CES cisla 

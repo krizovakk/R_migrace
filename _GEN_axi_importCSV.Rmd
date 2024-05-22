@@ -421,6 +421,11 @@ POVINNE UDAJE:
 \datzap98       -> pokud neni definovano, zadavame 31.12.[rok12]
 \porc104        -> poradove cislo prirustku
 
+NEPOVINNE, ALE ZADANE:
+
+\userins75
+\datins76
+
 DULEZITE NOTICKY:
 
 subc105 musi byt vzdy cislo, i kdyz je podlomeni a, b

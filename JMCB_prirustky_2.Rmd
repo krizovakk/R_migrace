@@ -3781,7 +3781,7 @@ sample_n(CORE_IIIb, 10)
 
 a <- CORE_IIIb %>% 
   # jedno sporne prorc --> vynechat:
-  filter(prirc != "87-137") %>% 
+  # filter(prirc != "87-137") %>% 
   mutate(Mpref = "III",
          sbirka1 = "JCM",
          cisrada3 = "III", 
@@ -4145,7 +4145,8 @@ nrow(ff) == nrow(ee) # musi byt stejne!
 # rm(dd)
 # rm(ee)
 
-fin <- ff
+fin <- ff %>% 
+  filter(prirc4 == "III087/1941")
 
 ```
 
@@ -4846,11 +4847,14 @@ df_save <- fin
 # n <- 551
 # imp <- "signatura_IIIc_19421943"
 
-n <- 242
-imp <- "signatura_IIId_1946"
+# n <- 242
+# imp <- "signatura_IIId_1946"
 
 # n <- 2582
 # imp <- "signatura_DCM"
+
+n <- 1
+imp <- "signatura_IIIb_domigrace"
 
 
 # ------------------------------------------------------ priprava tabulky
