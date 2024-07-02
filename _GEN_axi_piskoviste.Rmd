@@ -1006,15 +1006,31 @@ sbstav <- Sb_stav %>%
 join <- left_join(revdata, sbstav, by = "sb_data_id") %>% 
   select(1,2,3,7,5,6)
 
-fin <- join %>% 
-  drop_na(MSTAV) %>%
-  mutate(isDate = ifelse(MDATE_stav < MDATE_rev, "mensi", "VETSI"),
-         kk_MSTAV = ifelse(MDATE_stav < MDATE_rev, MSTAV, NA),
-         kk_MPOPISSTAVU = ifelse(MDATE_stav < MDATE_rev, MPOPISSTAVU, NA))  %>% 
-  distinct(sb_data_id, MDATE_rev, .keep_all = TRUE) %>% 
+closedate <- join %>%  # chatGPT poradil, jak odecist data
+  mutate(diff = as.numeric(difftime(MDATE_rev, MDATE_stav, units = "days"))) %>% 
+  group_by(sb_data_id, rev_data_id) %>% 
+  mutate(diff = ifelse(diff < 0, NA, diff)) %>% # chceme jen NA a kladne hodnoty
+  group_modify(~ {
+    if (all(is.na(.x$diff))) { # pokud je ve skupine jen NA, tak necha vsechny zaznamy (pozdeji zredukujeme distinctem)
+      .x
+    } else {
+      .x %>%
+        filter(diff == min(diff, na.rm = TRUE)) # pokud pole diff obsahuje cislo, vyfiltruje jen to nejnizsi (tzn nejblizsi datum v historii)
+    }
+  }) %>% 
+  ungroup()
+  
+fin <- closedate %>% 
+  mutate(kk_MSTAV = ifelse(is.na(diff), NA, MSTAV),
+         kk_MPOPISSTAVU = ifelse(is.na(diff), NA, MPOPISSTAVU)) %>% 
+  distinct(sb_data_id, rev_data_id, .keep_all = TRUE) %>% 
+  # mutate(kk_MSTAV = ifelse(MDATE_stav < MDATE_rev, MSTAV, NA),
+  #        kk_MPOPISSTAVU = ifelse(MDATE_stav < MDATE_rev, MPOPISSTAVU, NA)) %>% 
+  # distinct(sb_data_id, rev_data_id, .keep_all = TRUE) %>%
+  # distinct(sb_data_id, MDATE_rev, .keep_all = TRUE) %>% 
   select(sb_data_id, rev_data_id, "datum_rev" = MDATE_rev, "datum_stav" = MDATE_stav, "MSTAV" = kk_MSTAV, "MPOPISSTAVU" = kk_MPOPISSTAVU)
   
-check <- fin %>% group_by(sb_data_id) %>% filter(n()>2)  
+check <- fin %>% group_by(sb_data_id) %>% filter(n()>4)  
 
 # write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/revize-KK/KK_revize_stavy_2kolo.csv", 
 #             quote = T, row.names = F, 
@@ -1022,7 +1038,7 @@ check <- fin %>% group_by(sb_data_id) %>% filter(n()>2)
 #             na = "", fileEncoding="cp1250")
   
 
-write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/revize-KK/KK_revize_stavy_2kolo_quote.csv", 
+write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/revize-KK/KK_revize_stavy_2kolo_n32852.csv", 
             quote = F, row.names = F, 
             sep = ";", dec = ",", 
             na = "", fileEncoding="cp1250") # quote = F proto, ze v datech jsou uvozovky a v prvnim pripade pri ulozeni pridava backslash
@@ -1036,6 +1052,21 @@ write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS
 data <- read.table(file = "clipboard", header = F)
 dotaz <- paste(data$V1, collapse = "|")
 writeClipboard(dotaz)
+
+```
+
+# MAJA WIDE 2 LONG
+
+```{r}
+path_data <- "M:/03 klienti/kraj ustecky/oblastni muzeum a galerie v moste, p.o. - OMGM/"
+
+dat <- read_excel(paste0(path_data, "OMGM_PK-L.xlsx"))
+
+dat_long <- dat %>% 
+  separate_rows(MPRIRCISLO, sep = ",|\\|") %>% # dva pripady jsou oddelene svislitkem a ne carkou... (139 a 140)
+  mutate(MPRIRCISLO = str_trim(MPRIRCISLO))
+
+write.xlsx(dat_long, paste0(path_data, "OMGM_PK-L_upravaKK.xlsx"))
 
 ```
 

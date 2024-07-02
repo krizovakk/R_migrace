@@ -1124,3 +1124,40 @@ subs <- df80 %>%
 
 
 ```
+
+
+# ------- OBDOBI CISELNE RADY -------
+
+Kód řady	$kodRady 	povinny
+Typ řady	$typRady 	povinny
+Rok	$rok 	povinny,int
+Maska	$maska 	povinny
+Počet číslic	$pocetCislic 	int >0
+Počitadlo	$pocitadlo 	int>0
+Poslední použité číslo	$posledniPouziteCislo	
+
+SELECT "" As 1kodRady , "" As 2typRady , "" As 3rok , "" As 4maska , "" As 5pocetCislic , "" As 6pocitadlo , "" As 7posledniPouziteCisl FROM TABULKA;								
+
+```{r}
+
+zdroj <- read_excel("M:/03 klienti/kraj jihocesky/jihoceske muzeum v ceskych budejovicich - JMCB/03 migrace/jmcb migrace 2023/KK_workspace/presuny_1varka.xlsx" , sheet = "ocr2")
+
+
+kodrady1 <- rep("PK", 31)
+typrady2 <- rep("PK", 31)
+# rok3 <- seq(1900, 1942)
+rok3 <- zdroj$rok
+maska4 <- zdroj$maska
+pocetCis5 <- zdroj$pocet
+pocitadlo6 <- rep("0", 31)
+poslPouz7 <- rep("", 31)
+
+ocr <- data.frame(kodrady1, typrady2, rok3, maska4, pocetCis5, pocitadlo6, poslPouz7)
+
+write.table(ocr, file = "M:/03 klienti/kraj jihocesky/jihoceske muzeum v ceskych budejovicich - JMCB/03 migrace/jmcb migrace 2023/KK_workspace/JMCB_obdobiCiselneRady_PK.csv",
+            quote = T, row.names = F,
+            sep = ";", dec = ",",
+            na = "", fileEncoding="UTF-8")
+```
+
+

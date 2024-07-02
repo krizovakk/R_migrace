@@ -1,0 +1,76 @@
+---
+title: "AXIELL piskoviste"
+subtitle: "Prostredi pro zkouseni novych postupu"
+author: "Kateřina Křížová"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+# B A S E
+
+```{r}
+require(tidyverse)
+require(readxl)
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+require(xlsx) # write excel in sheets
+
+path_nm <- "M:/03 klienti/narodni muzeum - NM/2024_analyzaNM/KK_NM_workspace/_workspace/"
+```
+
+# MARK 21
+
+```{r}
+
+install.packages("devtools")
+devtools::install_github("dojobo/marc21r")
+require(marc21r)
+
+```
+
+```{r}
+# Specify the path to your MARC 21 file
+marc_file <- paste0(path_nm, "DATAzSHP/KNM1/export-KNM-Dlouhodobevypujcky-240523-1067zaznamu.txt")
+
+# Read the MARC 21 data
+marc_records <- marc21r::read_marcxml(marc_file)
+
+# Function to extract a specific field from a MARC record
+extract_field <- function(record, tag) {
+  field <- record$fields[[tag]]
+  if (is.null(field)) return(NA)
+  if (is.list(field)) return(paste(sapply(field, function(x) x$value), collapse = " "))
+  return(field$value)
+}
+
+# Extract specific fields from the MARC data
+marc_df <- data.frame(
+  Title = sapply(marc_records, extract_field, "245"),
+  Author = sapply(marc_records, extract_field, "100"),
+  PublicationInfo = sapply(marc_records, extract_field, "260"),
+  stringsAsFactors = FALSE
+)
+
+# Clean up the data frame
+marc_df <- marc_df %>%
+  mutate(
+    Title = sub("^[^a-zA-Z0-9]*", "", Title),
+    Author = sub("^[^a-zA-Z0-9]*", "", Author),
+    PublicationInfo = sub("^[^a-zA-Z0-9]*", "", PublicationInfo)
+  )
+
+# View the resulting data frame
+print(marc_df)
+
+```
+
