@@ -1006,15 +1006,31 @@ sbstav <- Sb_stav %>%
 join <- left_join(revdata, sbstav, by = "sb_data_id") %>% 
   select(1,2,3,7,5,6)
 
-fin <- join %>% 
-  drop_na(MSTAV) %>%
-  mutate(isDate = ifelse(MDATE_stav < MDATE_rev, "mensi", "VETSI"),
-         kk_MSTAV = ifelse(MDATE_stav < MDATE_rev, MSTAV, NA),
-         kk_MPOPISSTAVU = ifelse(MDATE_stav < MDATE_rev, MPOPISSTAVU, NA))  %>% 
-  distinct(sb_data_id, MDATE_rev, .keep_all = TRUE) %>% 
+closedate <- join %>%  # chatGPT poradil, jak odecist data
+  mutate(diff = as.numeric(difftime(MDATE_rev, MDATE_stav, units = "days"))) %>% 
+  group_by(sb_data_id, rev_data_id) %>% 
+  mutate(diff = ifelse(diff < 0, NA, diff)) %>% # chceme jen NA a kladne hodnoty
+  group_modify(~ {
+    if (all(is.na(.x$diff))) { # pokud je ve skupine jen NA, tak necha vsechny zaznamy (pozdeji zredukujeme distinctem)
+      .x
+    } else {
+      .x %>%
+        filter(diff == min(diff, na.rm = TRUE)) # pokud pole diff obsahuje cislo, vyfiltruje jen to nejnizsi (tzn nejblizsi datum v historii)
+    }
+  }) %>% 
+  ungroup()
+  
+fin <- closedate %>% 
+  mutate(kk_MSTAV = ifelse(is.na(diff), NA, MSTAV),
+         kk_MPOPISSTAVU = ifelse(is.na(diff), NA, MPOPISSTAVU)) %>% 
+  distinct(sb_data_id, rev_data_id, .keep_all = TRUE) %>% 
+  # mutate(kk_MSTAV = ifelse(MDATE_stav < MDATE_rev, MSTAV, NA),
+  #        kk_MPOPISSTAVU = ifelse(MDATE_stav < MDATE_rev, MPOPISSTAVU, NA)) %>% 
+  # distinct(sb_data_id, rev_data_id, .keep_all = TRUE) %>%
+  # distinct(sb_data_id, MDATE_rev, .keep_all = TRUE) %>% 
   select(sb_data_id, rev_data_id, "datum_rev" = MDATE_rev, "datum_stav" = MDATE_stav, "MSTAV" = kk_MSTAV, "MPOPISSTAVU" = kk_MPOPISSTAVU)
   
-check <- fin %>% group_by(sb_data_id) %>% filter(n()>2)  
+check <- fin %>% group_by(sb_data_id) %>% filter(n()>4)  
 
 # write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/revize-KK/KK_revize_stavy_2kolo.csv", 
 #             quote = T, row.names = F, 
@@ -1022,7 +1038,7 @@ check <- fin %>% group_by(sb_data_id) %>% filter(n()>2)
 #             na = "", fileEncoding="cp1250")
   
 
-write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/revize-KK/KK_revize_stavy_2kolo_quote.csv", 
+write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-obrazy/revize-KK/KK_revize_stavy_2kolo_n32852.csv", 
             quote = F, row.names = F, 
             sep = ";", dec = ",", 
             na = "", fileEncoding="cp1250") # quote = F proto, ze v datech jsou uvozovky a v prvnim pripade pri ulozeni pridava backslash
@@ -1036,6 +1052,366 @@ write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS
 data <- read.table(file = "clipboard", header = F)
 dotaz <- paste(data$V1, collapse = "|")
 writeClipboard(dotaz)
+
+```
+
+# MAJA WIDE 2 LONG
+
+```{r}
+path_data <- "M:/03 klienti/kraj ustecky/oblastni muzeum a galerie v moste, p.o. - OMGM/"
+
+dat <- read_excel(paste0(path_data, "OMGM_PK-L.xlsx"))
+
+dat_long <- dat %>% 
+  separate_rows(MPRIRCISLO, sep = ",|\\|") %>% # dva pripady jsou oddelene svislitkem a ne carkou... (139 a 140)
+  mutate(MPRIRCISLO = str_trim(MPRIRCISLO))
+
+write.xlsx(dat_long, paste0(path_data, "OMGM_PK-L_upravaKK.xlsx"))
+
+```
+
+# MARC21 VERBIS NM
+
+```{r TRIAL} 
+# path_data <- "C:/Users/katerina.krizova/Documents/R/piskoviste/marc21/"
+# single
+# df <- read.table(paste0(path_data, "export-MAD-AudiovizualniDokumenty-240528-17zaznamu.txt"), 
+#                  fileEncoding="cp1250", header = F, fill = T)
+# tags <- df %>% 
+#   select(V1) %>% 
+#   filter(str_detect(V1, "^[0-9]+$")) %>% 
+#   distinct() %>% 
+#   mutate(num_tag = as.numeric(V1)) %>% 
+#   arrange(num_tag)
+
+# Lmarc <- list.files(path_data, pattern = "*.txt")  # *.txt *.jpg ...
+# 
+# fill <- data.frame()
+# # fill <- data.frame(matrix(ncol = 1, nrow = 0))
+# 
+# tags <- for(i in Lmarc) {
+#   a <- read.table(paste0(path_data, "export-MAD-HudebninyRukopisy-240528-40zaznamu.txt"), 
+#                   fileEncoding="cp1250", header = F, fill = T)
+#   b <- a %>% 
+#     select(V1) %>% 
+#     filter(str_detect(V1, "^[0-9]+$"))
+#   fill <- rbind(fill, b)
+#   print(i)
+# }
+# 
+# tags <- fill %>% 
+#   mutate(num_tag = as.numeric(V1)) %>% 
+#   select(num_tag) %>% 
+#   distinct() %>% 
+#   arrange(num_tag)
+# read lines
+# path_data <- "C:/Users/katerina.krizova/Documents/R/piskoviste/marc21/export-MAD-AudiovizualniDokumenty-240528-17zaznamu.txt"
+# lines <- readLines(path_data)
+# tags <- substr(lines, 1,4)
+# df <- data.frame(tag = tags)
+
+# LOOP read lines
+```
+
+
+```{r}
+
+# path_data <- "C:/Users/katerina.krizova/Documents/R/piskoviste/marc21/MAD/"
+# path_data <- "C:/Users/katerina.krizova/Documents/R/piskoviste/marc21/MBS/"
+path_data <- "C:/Users/katerina.krizova/Documents/R/piskoviste/marc21/CMH1/"
+
+Lmarc <- list.files(path_data, pattern = "*.txt")  # *.txt *.jpg ...
+
+fill <- data.frame()
+# fill <- data.frame(matrix(ncol = 1, nrow = 0))
+
+for(i in Lmarc) {
+  a <- readLines(paste0(path_data, i))
+  b <- substr(a, 1,4)
+  c <- data.frame(b)
+  # c <- data.frame(a)
+  fill <- rbind(fill, c)
+  # fill <- rbind(fill, a)
+  print(i)
+}
+
+fin <- fill %>% 
+  distinct() 
+
+writeClipboard(fin$b)
+```
+# HELA NG stavy 2
+10.9.2024
+
+```{r}
+require(readxl)
+
+Rev_data <- read_excel("M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-plastiky+Nm/revize-KK/proKK_revize.xlsx", col_types="text")
+Sb_stav <- read_excel("M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-plastiky+Nm/revize-KK/proKK_stav.xlsx", col_types="text")
+
+revdata <- Rev_data %>% 
+  select(sb_data_id, rev_data_id, datum_rev) %>% 
+  mutate(MDATE_rev = as.POSIXct(datum_rev)) %>% 
+  group_by(sb_data_id) %>% 
+  mutate(isDupl = ifelse(n() == 1, F, T)) %>%
+  ungroup() %>% 
+  arrange(sb_data_id, MDATE_rev) %>% 
+  select(-datum_rev)
+
+sbstav <- Sb_stav %>% 
+  mutate(Mdatum = case_when(sb_data_id == "40934" ~ "2007-01-01 00:00:00",
+                            sb_data_id == "352912" ~ "2010-01-01 00:00:00",
+                            sb_data_id == "41380" ~ "2022-09-06 00:00:00",
+                            TRUE ~ datum)) %>% 
+  select(sb_data_id, Mdatum, MSTAV, MPOPISSTAVU) %>% 
+  drop_na(MSTAV) %>% 
+  mutate(MDATE_stav = as.POSIXct(Mdatum)) %>% 
+  group_by(sb_data_id) %>% 
+  # mutate(idid = seq_along(sb_data_id)) %>% 
+  ungroup() %>% 
+  arrange(sb_data_id, MDATE_stav) %>% 
+  select(-Mdatum)
+
+join <- left_join(revdata, sbstav, by = "sb_data_id") %>% 
+  select(1,2,3,7,5,6)
+
+closedate <- join %>%  # chatGPT poradil, jak odecist data
+  mutate(diff = as.numeric(difftime(MDATE_rev, MDATE_stav, units = "days"))) %>% 
+  group_by(sb_data_id, rev_data_id) %>% 
+  mutate(diff = ifelse(diff < 0, NA, diff)) %>% # chceme jen NA a kladne hodnoty
+  group_modify(~ {
+    if (all(is.na(.x$diff))) { # pokud je ve skupine jen NA, tak necha vsechny zaznamy (pozdeji zredukujeme distinctem)
+      .x
+    } else {
+      .x %>%
+        filter(diff == min(diff, na.rm = TRUE)) # pokud pole diff obsahuje cislo, vyfiltruje jen to nejnizsi (tzn nejblizsi datum v historii)
+    }
+  }) %>% 
+  ungroup()
+  
+fin <- closedate %>% 
+  mutate(kk_MSTAV = ifelse(is.na(diff), NA, MSTAV),
+         kk_MPOPISSTAVU = ifelse(is.na(diff), NA, MPOPISSTAVU)) %>% 
+  distinct(sb_data_id, rev_data_id, .keep_all = TRUE) %>% 
+  # mutate(kk_MSTAV = ifelse(MDATE_stav < MDATE_rev, MSTAV, NA),
+  #        kk_MPOPISSTAVU = ifelse(MDATE_stav < MDATE_rev, MPOPISSTAVU, NA)) %>% 
+  # distinct(sb_data_id, rev_data_id, .keep_all = TRUE) %>%
+  # distinct(sb_data_id, MDATE_rev, .keep_all = TRUE) %>% 
+  select(sb_data_id, rev_data_id, "datum_rev" = MDATE_rev, "datum_stav" = MDATE_stav, "MSTAV" = kk_MSTAV, "MPOPISSTAVU" = kk_MPOPISSTAVU) %>% 
+  mutate(MPOPISSTAVU = str_trim(MPOPISSTAVU))
+  
+check <- fin %>% group_by(sb_data_id) %>% filter(n()>4)  
+
+write.table(fin, file = "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-plastiky+Nm/revize-KK/KK_revize_stavy_n12340_TRIM.csv", 
+            quote = F, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250") # quote = F proto, ze v datech jsou uvozovky a v prvnim pripade pri ulozeni pridava backslash
+  
+```
+
+# NG obrazky
+
+filepath = jmeno souboru i se zarazenim do ciselnych podslozek
+filename = pouze jmeno souboru (muze byt duplicitni)
+
+## csv
+
+sbirka::invc = image::ident_id
+tabulka image obsahuje cestu k souborum ve sloupci 'data_1'
+
+```{r}
+path_ng <- "M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-plastiky+Nm/KK_obrazky/"
+
+path_img <- "D:/Fotoarchiv NG/"
+path_destination <- paste0(path_ng, "sel_images/")
+```
+
+```{r LOAD TABLES FROM ACCESS}
+
+# package 
+require(RODBC)
+
+# seznam namigrovanych invc
+
+dbname <- paste0("M:/03 klienti/narodni galerie - NG/ng konverze/2024-CKS-plastiky+Nm/NGP-P+Nm.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)
+RODBC::sqlTables(con)
+sbirka <- RODBC::sqlFetch(con, "Sb_data") %>% select(invc, MINVC)
+
+# cesta k obrazkum
+
+dbname <- paste0("M:/03 klienti/narodni galerie - NG/ng zdroj dat/2024-CKS-plastiky+Nm/zdroj_Ostatni.accdb") 
+con <- RODBC::odbcConnectAccess2007(dbname)
+RODBC::sqlTables(con)
+image <- RODBC::sqlFetch(con, "Vv_images") %>% select(ident_id, data_1, pozice, sb_view, popis)
+
+# seznam obrazku na flashce
+
+Limages <- list.files(path_img, pattern = "\\.jpg", recursive = T,
+                                    full.names = TRUE)
+
+folder <- as.data.frame(Limages) %>% 
+  mutate(filepath = sub("D:/Fotoarchiv NG/", "", Limages), 
+         filename = sub(".*/", "", Limages)) %>% 
+  rename("path" = 1)
+
+```
+
+```{r CHECK DUPLICATES}
+
+dup_sbirka <- sbirka %>% 
+  group_by(invc) %>% filter(n() != 1) # 0
+
+dup_image <- image %>% 
+  group_by(ident_id) %>% filter(n() != 1) # 75517
+
+dup_folder <- folder %>% 
+  group_by(filename) %>% filter(n() != 1) # 174
+  
+rm(dup_sbirka)
+rm(dup_image)
+rm(dup_folder)
+```
+
+
+```{r RELATE}
+
+rel <- left_join(sbirka, image,  by = c("invc" = "ident_id"), keep = T) %>% 
+  arrange(MINVC, pozice)
+
+pairY <- rel %>% 
+  filter(!is.na(ident_id)) %>% 
+  mutate(filepath = sub("cksng/fotoarchiv/|cksng/fotodigi/", "", data_1),
+         filename = sub(".*/", "", data_1))
+
+# invc, ke kterym neni obrazek n = 9460
+pairN <- rel %>% 
+  filter(is.na(ident_id)) 
+write.table(pairN, file = paste0(path_ng, "NG_MINVC_bez_obrazku.csv"), 
+            sep = ";", quote = T, row.names = F, na = "", fileEncoding="cp1250")
+
+obr <- pairY %>% 
+  mutate(status = ifelse(filepath %in% folder$filepath, "Y", "N")) 
+  # filter(status == "Y") %>% 
+  # distinct()
+
+obrY <- obr %>% filter(status == "Y") # n 8617
+obrN <- obr %>% filter(status == "N") # n 1465
+write.table(obrN, file = paste0(path_ng, "NG_MINVC_bez_souboru.csv"), 
+            sep = ";", quote = T, row.names = F, na = "", fileEncoding="cp1250")
+  
+# celkem 8620 obrazku, ktere vychazi z parovani mezi vsemi 3 zdroji
+
+rm()
+
+```
+
+```{r CREATE CSV}
+
+mus_tab <- obrY %>%  
+  mutate(
+    '1uloha' = "PREDMET_PRIVATE",   # !! povinne !!                            
+    '2cislo' = as.factor(MINVC),   # !! povinne !!     
+    '3poradi' = pozice,   # !! povinne !!          
+    '4nazev' = popis,                                   
+    '5typDokumentuNazev' = "",          
+    '6url' = sub(".*/", "", data_1),    # !! povinne !!
+    '7nahled' = ifelse(pozice == 1, "1", "0"),       # priznak {0;1}                 
+    '8vodoznak' = "0",      # priznak {0;1}                  
+    '9tisk1' = "0",          # priznak {0;1}                     
+    '10tisk2' = "0",         # priznak {0;1}                   
+    '11poznamka' = ifelse(sb_view == "N", "sb_view = N", ""), 
+    '12neDigitalni' = "", 
+    '13umisteni' = "", 
+    '14publikace' = "",
+    '15literaturaNazev' = "", 
+    '16literaturaSlovy' = "", 
+    '17APlicenceCC' = "", 
+    '18APvariantaCCOznaceni' = "", 
+    '19APautorSubjektKod' = "", 
+    '20APdrzitelSubjektKod' = "", 
+    '21APtypLicence' = "", 
+    '22APcasovaLicence' = "", 
+    '23APuzemniLicence' = "", 
+    '24APmnozstevniLicence' = "", 
+    '25APdatumVyprseni' = "", 
+    '26APpoznamka' = ""
+    ) %>% 
+  select(-ident_id, -data_1, -pozice, -invc, -MINVC, -sb_view, -popis, 
+         -filepath, -filename, -status) 
+
+```
+
+```{r SAVE CSV}
+
+save <- paste0(path_ng, "NG_P_Nm_import_obrazky.csv")   
+
+if(file.exists(save)){
+  print("You've been here before!")
+} else {
+  write.table(mus_tab, file = save, 
+            sep = ";", quote = T, row.names = F, 
+            na = "", fileEncoding="cp1250")
+  print("Import csv  W R I T T E N  !")
+  }
+
+```
+
+## images
+
+```{r}
+to_copy <- obrY %>% 
+  mutate(path = str_replace(data_1, "cksng/fotoarchiv","D:/Fotoarchiv NG")) %>% 
+  select(path, filepath, filename)
+
+loops <- 0
+
+for (i in to_copy$path) {
+  file.copy(i, path_destination, recursive = TRUE)
+  loops <- loops + 1
+   print(i)
+   print(loops)
+} 
+
+cat("Number of loops (files copied):", loops, "\n")
+
+# melo byt 8620, ve slozce je realne jen 8616 --> 4 chybi
+# druhe kolo 8617
+
+```
+
+```{r  MISSING COP IMAGES}
+
+Ltobe <- to_copy %>% 
+  mutate(filename2 = sub(".*/", "", filename)) %>% 
+  select(filename, filename2) %>% 
+  group_by(filename2) %>% mutate(n = seq_along(filename2))
+Lact <- as.data.frame(list.files(path_destination, pattern = "\\.jpg", recursive = T,
+                                 full.names = F)) %>% 
+  rename("in_folder2" = 1)  
+  mutate(in_folder = str_replace(in_folder2, "", ""))
+
+check <- left_join(Ltobe, Lact, by = c("filename" = "in_folder"), keep = T)
+
+# 24xbuy_xxxx.jpg je ve slozkach DVAKRAT! 
+# 02/31/24xbuy_xxxx.jpg a 06/09/24xbuy_xxxx.jpg
+
+```
+
+
+# NM ARCHIV
+
+divny export v csv
+oddelovac je |, ale excel nechce nacist -> Rko taky ne :/
+
+```{r TRIAL} 
+path_data <- "C:/Users/katerina.krizova/Downloads/"
+
+df <- read.table(paste0(path_data, "data(in).csv"),
+                 fileEncoding="cp1250", sep = "|") %>% 
+  filter(grepl("uid_doc|\"id\"|\"nvg_id\"|\"create_uid\"|\"create_date\"", V1)) %>% 
+  str_replace(V1, "|\"","-")
+
 
 ```
 

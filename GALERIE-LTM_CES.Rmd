@@ -1227,26 +1227,36 @@ update PRIRUSTEK set podsbirka_id = 388059 WHERE PRIRUSTEK.ID = 19450569;
 
 # load
 
-mysheets <- read_excel_allsheets("C:/Users/krizova/Documents/R/CES/GALERIE-LTM/GALERIE-LTM_PK.xlsx")
+mysheets <- read_excel_allsheets("C:/Users/katerina.krizova/Documents/R/CES/GALERIE-LTM/GALERIE-LTM_PK.xlsx")
 
 spa <- data.frame()
 
 for (i in mysheets) {
   df <- as.data.frame(i)
   a <- df %>% filter(status == "sparovano")
-  # b <- a %>% select(zmena, duvod, CES_cislo, id) # PK
-  b <- a %>% select(zmena, duvod, CES_cislo, sp_id) # KAT
+  b <- a %>% select(zmena, duvod, CES_cislo, id) # PK
+  # b <- a %>% select(zmena, duvod, CES_cislo, sp_id) # KAT
   spa <- rbind(spa, b)
 }
 
 # rozepsane
 
-r <- spa %>% filter(duvod == "R") %>% 
-  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '", CES_cislo, "' WHERE PRIRUSTEK.ID = ", id, ";")) %>% 
+# r <- spa %>% filter(duvod == "R") %>% 
+#   mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '", CES_cislo, "' WHERE PRIRUSTEK.ID = ", id, ";")) %>% 
+#   select(prikaz)
+
+# 9.9.2024
+# kontrola, zda existuje prirustkove cislo;
+# prikaz bude vypadat takto:
+# update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '1/2002', uupd = "krizova_impl", dupd = now(),
+# WHERE PRIRUSTEK.ID = 19450569 AND exists(select ID from sbirkovypredmetprirustek WHERE prirustek_id = 19450569);
+
+
+r_upd <- spa %>% filter(duvod == "R") %>% 
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '", CES_cislo, "', uupd = \'krizova_impl\', dupd = '09.09.2024' WHERE PRIRUSTEK.ID = ", id, " AND exists(select ID from sbirkovypredmetprirustek WHERE prirustek_id = ", id, ");")) %>% 
   select(prikaz)
 
-write.table(r, file = "C:/Users/krizova/Documents/R/CES/GALERIE-LTM/MUZEUMDC_updt_PK_rozepsane.sql", 
-            quote = F, row.names = F, col.names = F)
+write.table(r_upd, file = "C:/Users/katerina.krizova/Documents/R/CES/GALERIE-LTM/GALERIE-LTM_updt_PK_rozepsane.sql", quote = F, row.names = F, col.names = F)
 
 # nove
 
@@ -1266,7 +1276,7 @@ update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = 'B 1' WHERE PREDMET.ID = 2
 # load
 
 
-mysheets <- read_excel_allsheets("C:/Users/krizova/Documents/R/CES/GALERIE-LTM/GALERIE-LTM_KAT.xlsx")
+mysheets <- read_excel_allsheets("C:/Users/katerina.krizova/Documents/R/CES/GALERIE-LTM/GALERIE-LTM_KAT.xlsx")
 
 spa <- data.frame()
 
@@ -1278,11 +1288,16 @@ for (i in mysheets) {
   spa <- rbind(spa, b)
 }
 
-s <- spa %>%
-  mutate(prikaz = paste0("update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = '", CES_cislo, "' WHERE PREDMET.ID = ", sp_id, ";")) %>% 
+# s <- spa %>%
+#   mutate(prikaz = paste0("update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = '", CES_cislo, "' WHERE PREDMET.ID = ", sp_id, ";")) %>% 
+#   select(prikaz)          
+
+# 9.9.2024 update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '11/2003', uupd = 'krizova_impl', dupd = '09.09.2024' 
+s_upd <- spa %>%
+  mutate(prikaz = paste0("update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = '", CES_cislo, "', uupd = 'krizova_impl', dupd = '09.09.2024' WHERE PREDMET.ID = ", sp_id, ";")) %>% 
   select(prikaz)          
 
-write.table(s, file = "C:/Users/krizova/Documents/R/CES/GALERIE-LTM/MUZEUMDC_updt_KAT.sql", 
+write.table(s_upd, file = "C:/Users/katerina.krizova/Documents/R/CES/GALERIE-LTM/GALERIE-LTM_updt_KAT.sql", 
             quote = F, row.names = F, col.names = F)
 
 ```

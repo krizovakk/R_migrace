@@ -15,18 +15,20 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+# knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
 
 # PACKAGES
 
-# install.packages("tidyverse", dependencies = T)
-# install.packages("readxl")
-# install.packages("stringr")
-# install.packages("stringi")
-# install.packages("mdbr")
-# install.packages("RODBC")
-# install.packages("odbc")
-# install.packages("xlsx")
+# install.packages("Rtools")
+install.packages("tidyverse", dependencies = T)
+install.packages("readxl")
+install.packages("stringr")
+install.packages("stringi")
+install.packages("mdbr")
+install.packages("RODBC")
+install.packages("odbc")
+install.packages("xlsx")
+# require(Rtools)
 require(tidyverse)
 require(readxl)
 require(xlsx) # write excel in sheets

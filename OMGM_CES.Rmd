@@ -1,0 +1,1016 @@
+---
+title: "OMGM_CES"
+output: pdf_document
+date: "2024-09-18"
+---
+
+```{r setup, include=FALSE}
+# install.packages("tidyverse", dependencies = T)
+# install.packages("readxl")
+# install.packages("stringr")
+# install.packages("stringi")
+# install.packages("mdbr")
+# install.packages("RODBC")
+# install.packages("odbc")
+# install.packages("xlsx")
+require(tidyverse)
+require(readxl)
+require(xlsx) # write excel in sheets
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+```
+
+# PROJECT INFO
+
+```{r}
+
+proj <- "OMGM"
+path_proj <- "M:/03 klienti/kraj ustecky/oblastni muzeum a galerie v moste, p.o. - OMGM/2024_kontrola_evidence/"
+```
+
+# @ LOAD CES TXT LOOP
+
+```{r LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED LOCKED, warning = F}
+
+# FUNKCNI SMYCKA PRO NACITANI CES EXPORTNICH TXT 
+Ltxt <- list.files(paste0(path_proj, "vypCES"), pattern = "*.txt")  # Identify file names
+df_filled <- data.frame()
+colnam <- c("zmena","duvod","typ_cisla","cislo",
+                "s5","s6", "s7", "s8",
+                "s9","s10","s11","s12")
+    
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+for(i in Ltxt) {
+  a <- read.table(paste0(path_proj, "vypCES/", i),
+                  skip = 4, header = F, sep = ";", fill = T, 
+                  check.names = F, fileEncoding="cp1250")
+  names(a) <- colnam
+  rows_to_change <- a$zmena == "N"
+  a[rows_to_change,3:12] <- a[rows_to_change,2:12] # shift columns with N
+  a[rows_to_change,2] <- NA
+  a$zdroj <- paste(i) # add source txt file name
+  a <- a %>% 
+    filter(str_detect(zmena, ("^N$|^V$|^R$")))  # filter only relevant rows !!!
+  # print(unique(a$zdroj))
+  print(count(a))
+  df_filled <- rbind(df_filled,a)
+  print(i)
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# SAVE ALL TXT
+f2s <- paste0(path_proj, "KK_workspace/", proj, "_allTXT.csv")
+
+if(file.exists(f2s)){
+  print("TXT already saved")
+  rm(f2s)
+} else {
+  write.table(df_filled, file = f2s, 
+            quote = T, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250")
+  rm(f2s)
+}
+
+# CHECK AND CLEAR ENVIRONMENT
+rm(a)
+rm(i)
+rm(colnam)
+rm(rows_to_change)
+
+```
+
+```{r READ ALREADY SAVED TXT}
+
+df_filled <- read.csv(paste0(path_proj, "KK_workspace/", proj, "_allTXT.csv"), header = T, sep = ";", fileEncoding="cp1250")
+
+```
+
+# CES
+
+## edits
+
+Duplicity jsou, ale napric podsbirkami. Stejne cislo ve stejne podsbirce neni. OK.
+
+```{r CES PROCESSING}
+
+CORE_ces <- df_filled %>% 
+  discard(~all(is.na(.) | . == "")) %>% # drop empty columns
+  select(-s6) %>% 
+  mutate(CESpdsb = case_when(zdroj == "Archeologická.txt" ~ "9",
+                              zdroj == "Botanická.txt" ~ "5",
+                              zdroj == "Další_-_Hudba.txt" ~ "24b",
+                              zdroj == "Další_-_Ostatní_konzervační_fond_(OKF).txt" ~ "24a",
+                              zdroj == "Entomologická.txt" ~ "7",
+                              zdroj == "Etnografická.txt" ~ "11",
+                              zdroj == "Fotografie,_filmy,_videozáznamy_a_jiná_média.txt" ~ "21",
+                              zdroj == "Historická.txt" ~ "10",
+                              zdroj == "Jiná_-_Regionální_literatura(RK).txt" ~ "25a",
+                              zdroj == "Jiná_-_Různé.txt" ~ "25b",
+                              zdroj == "Knihy.txt" ~ "18",
+                              zdroj == "Militária.txt" ~ "14",
+                              zdroj == "Mykologická.txt" ~ "6",
+                              zdroj == "Negativy_a_diapozitivy.txt" ~ "20",
+                              zdroj == "Numizmatická.txt" ~ "13",
+                              zdroj == "Paleontologická.txt" ~ "4",
+                              zdroj == "Petrografická.txt" ~ "2",
+                              zdroj == "Písemnosti_a_tisky.txt" ~ "19",
+                              zdroj == "Uměleckého_řemesla.txt" ~ "16",
+                              zdroj == "Uměleckoprůmyslové_práce.txt" ~ "17",
+                              zdroj == "Věda,_technika_a_průmyslová_výroba.txt" ~ "23",
+                              zdroj == "Výtvarného_umění.txt" ~ "15", # ale i 15b !!
+                              zdroj == "Zoologická.txt" ~ "8",
+                              TRUE ~ "X"),
+         CESzdroj = str_replace(zdroj, "\\.txt", ""),
+         cislo = str_trim(cislo))
+  
+CORE_ces[CORE_ces == ""] <- NA
+
+# DUPLICITY
+
+check_dupl <- CORE_ces %>% 
+  mutate(Mcislo = gsub("\\s+", "", cislo)) %>% 
+  # group_by(zdroj, typ_cisla, Mcislo, zmena) %>% # se zdrojem = mela by byt nula
+  group_by(typ_cisla, Mcislo, zmena) %>%  # bez zdroje = byva casto, neni problem
+  mutate(is_dupl = ifelse(n()!=1&zmena != "R", "dupl", NA)) %>% 
+  ungroup() %>% 
+  filter(is_dupl == "dupl")
+
+# write.table(check_dupl, "clipboard", sep="\t", row.names=FALSE)
+
+# rm(df_filled)
+# rm(check_dupl)
+
+```
+
+## stats
+
+```{r}
+
+CORE_ces$zdroj <- as.factor(CORE_ces$zdroj)
+as.data.frame(summary(CORE_ces$zdroj))
+
+# duplicity ------------------------------------------------------------------ 
+
+dupl <- CORE_ces %>% 
+  group_by(cislo, typ_cisla) %>% filter(n() != 1)
+
+# pocty ----------------------------------------------------------------------
+
+t <- nrow(CORE_ces)
+p <- nrow(CORE_ces[CORE_ces$typ_cisla == "P",])
+i <- nrow(CORE_ces[CORE_ces$typ_cisla == "I",])
+p+i == t
+
+print(c(t, p, i))
+
+# prirustky table 1 ----------------------------------------------------------
+
+cesp <- CORE_ces %>% filter(typ_cisla == "P")
+cesp$zmena <- as.factor(cesp$zmena)
+cesp$duvod <- as.factor(cesp$duvod)
+summary(cesp)
+
+stat_p <- data.frame()
+
+for (i in Ltxt) {
+  a <- cesp %>% filter(zdroj == i)
+  n <- nrow(a[a$zmena == "N",])
+  v <- nrow(a[a$zmena == "V",])
+  vn <- nrow(a[a$zmena == "V"&a$duvod == "N",])
+  vp <- nrow(a[a$zmena == "V"&a$duvod == "P",])
+  vr <- nrow(a[a$zmena == "V"&a$duvod == "R",])
+  vo <- nrow(a[a$zmena == "V"&a$duvod == "O",])
+  r <- nrow(a[a$zmena == "R",])
+  rc <- nrow(a[a$zmena == "R"&a$duvod == "C",])
+  rz <- nrow(a[a$zmena == "R"&a$duvod == "Z",])
+  tot <- nrow(a)
+  out <- c(i, n, v, vn, vp, vr, vo, r, rc, rz, tot)
+  stat_p <- rbind(stat_p, out)
+  print(i)
+}
+
+colnames(stat_p) <- c("Zdrojový soubor", "N", "V", "(V-N)", "(V-P)", "(V-R)", "(V-O)", "R", "(R-C)", "(R-Z)", "CELKEM")
+write.table(stat_p, "clipboard", sep="\t", row.names=FALSE)
+
+# katalog table 1 --------------------------------------------------------------
+
+cesi <- CORE_ces %>% filter(typ_cisla == "I")
+cesi$zdroj <- as.factor(cesi$zdroj)
+cesi$zmena <- as.factor(cesi$zmena)
+cesi$duvod <- as.factor(cesi$duvod)
+summary(cesi) 
+
+stat_i <- data.frame()
+
+for (i in Ltxt) {
+  a <- cesi %>% filter(zdroj == i)
+  n <- nrow(a[a$zmena == "N",])
+  v <- nrow(a[a$zmena == "V",])
+  vn <- nrow(a[a$zmena == "V"&a$duvod == "N",])
+  vp <- nrow(a[a$zmena == "V"&a$duvod == "P",])
+  vr <- nrow(a[a$zmena == "V"&a$duvod == "R",])
+  vo <- nrow(a[a$zmena == "V"&a$duvod == "O",])
+  r <- nrow(a[a$zmena == "R",])
+  rc <- nrow(a[a$zmena == "R"&a$duvod == "C",])
+  rz <- nrow(a[a$zmena == "R"&a$duvod == "Z",])
+  tot <- nrow(a)
+  out <- c(i, n, v, vn, vp, vr, vo, r, rc, rz, tot)
+  stat_i <- rbind(stat_i, out)
+  print(i)
+}
+
+colnames(stat_i) <- c("Zdrojový soubor", "N", "V", "(V-N)", "(V-P)", "(V-R)", "(V-O)", "R", "(R-C)", "(R-Z)", "CELKEM")
+write.table(stat_i, "clipboard", sep="\t", row.names=FALSE)
+
+# clear environment
+
+rm(a)
+rm(cesi)
+rm(cesp)
+rm(dupl)
+rm(stat_i)
+rm(stat_p)
+
+```
+
+# MUS
+
+Vypisy z MUSEIONu uz si zvladam delat sama z databaze. 
+Ukladam do excelu, ze ktereho nacitam (pojmenovavam "[kod projektu]_statistiky.xlsx"). !!! nenacita vsechna data -> ukladam jako txt do slozky vypMUS
+
+## pk edits
+
+```{r}
+
+CORE_mus_pk <- read_excel(paste0(path_proj, "KK_workspace/", proj, "_statistiky.xlsx"),
+                  sheet = "SQL_vyp_PK", col_types="text")
+
+CORE_mus_pk[CORE_mus_pk == ""] <- NA
+
+MUS_pk <- CORE_mus_pk %>% 
+  filter(radaPK != "TEST-PK") %>% 
+  mutate(MUSrok = ifelse(str_detect(cislo, "\\/|_"), str_extract(cislo, "^\\d+"), NA),
+         MUSpref = ifelse(str_detect(cislo, "^[a-zA-Z]"), str_extract(cislo, "^[a-zA-Z]+"), NA),
+         MUSsubc = ifelse(str_detect(cislo, "[a-zA-Z]+$"), str_extract(cislo, "[a-zA-Z]+$"), NA),
+         podsbirka = ifelse(podsbirka %in% c("15", "15b"), "15", podsbirka)) %>% 
+  select("MUScislo" = cislo, "MUSid" = id, "MUSrada" = radaPK, "MUSpdsb" = podsbirka, "MUSzdroj" = nazev,
+         MUSpref, "MUSporc" = poradovecislo, "MUSsubc" = poradovecislosub, MUSrok,
+         "MUSevidovano" = EVIDOVANO, "MUSzkatalog" = ZKATALOGIZOVANO, "MUShlaseno" = HLASENODOCES,
+         "MUSinvcisla" = info_invcislo)
+
+```
+
+## ka edits
+
+```{r}
+
+CORE_mus_ka <- read_excel(paste0(path_proj, "KK_workspace/", proj, "_statistiky.xlsx"),
+                  sheet = "SQL_vyp_KA", col_types="text") %>% 
+  mutate(sp_porcislo = as.numeric(sp_porcislo),
+         MUSsubc = ifelse(!is.na(sp_porcislosub), sp_porcislosub, str_extract(predmet_cislo ,"(?<=/).*$")),
+         MUSpref = str_extract(sp_cislo, ".*(?=-)"),
+         MUSzdroj = nazev)
+
+CORE_mus_ka[CORE_mus_ka == ""] <- NA
+
+MUS_ka <- CORE_mus_ka %>% 
+  select("MUScislo" = predmet_cislo, "MUSid" = sp_id, 
+         MUSpref, "MUSporc" = sp_porcislo, MUSsubc, 
+         "MUS_prvniPodl" = sp_cislo,
+         "MUSpdsb" = podsbirka, MUSzdroj) %>% 
+  mutate(MUSporc = ifelse(MUScislo == "RK-00738", "738", MUSporc)) %>% # uprava porc hromadne karty (REGL)
+  arrange(MUSpdsb, MUSporc)
+
+MUS_ka$MUSporc <- as.numeric(MUS_ka$MUSporc)
+```
+
+
+rm(df_filled)
+rm(check_dupl)
+
+# ---------------------------------- PK -> DONE
+
+POZNAMKY:
+
+v CES hlaseno 10459
+v MUS evidovano 30226 prirustku
+duplicity nejsou
+nektere zaznamy maji rok oddeleny / jine _
+nektera cisla nemaji rok
+nektera cisla maji rok ve dvoucifernem formatu -> ZKONTROLUJ
+
+nove 10374
+rusene 0
+vyrazene 85 ---> sedi
+
+## ces pk edits
+
+```{r}
+
+CES_pk <- CORE_ces %>% 
+  filter(typ_cisla == "P") %>% 
+  mutate(CEScislo = cislo,
+         CESpref = ifelse(str_detect(cislo, "^[a-zA-Z]"), str_extract(cislo, "^[a-zA-Z]+"), NA),
+         CESporc = ifelse(str_detect(cislo, "\\/"), str_extract(cislo, "\\d+(?=\\/)"), str_extract(cislo, "\\d+")),
+         CESsubc = str_extract(cislo, "(?<=[:blank:]).*$"),
+         Mrok0 = ifelse(str_detect(cislo, "\\/"),  str_extract(cislo, "(?<=/)\\d+"), NA),
+         CESrok = ifelse(str_detect(Mrok0, "^\\d{2}$"), paste0("19", Mrok0), Mrok0)) %>% 
+  select(-Mrok0, -typ_cisla, -zdroj) %>% 
+  # rucni opravy
+  mutate(CESporc = case_when(CEScislo == "2021_0018" ~ "18",
+                             CEScislo == "2020_0001" ~ "1",
+                             TRUE ~ CESporc),
+         CESrok = case_when(CEScislo == "2021_0018" ~ "2021",
+                            CEScislo == "2020_0001" ~ "2020",
+                             TRUE ~ CESrok))
+```
+
+## relace
+
+rel s podsbírkou 40295
+rel bez podsbírky 30251
+
+jina podsb - cisla sedi, ale podsb ne. Co s tim? zatim nic, exporotvano zvlast
+nenalezeno v MUS - CES zaznamy bez paru v MUS
+nenalezeno v CES - MUS zaznamy, ktere nejsou v CES - maji vsechny invc? pak tam byt nemusi
+sparovano a plne sparovano - pripravit SQL script
+
+jina podsbirka nenalezeno v CES nenalezeno v MUS   plne sparovano        sparovano 
+             966            18850               21              392            10021 <- rucni oprava prohozeneho roku a porc
+```{r}
+
+rel <- full_join(CES_pk, MUS_pk,
+                 # by = c("CESpdsb"="MUSpdsb", "CESpref"="MUSpref", "CESporc"="MUSporc","CESrok"="MUSrok", "CESsubc"="MUSsubc"), 
+                 by = c("CESpref"="MUSpref", "CESporc"="MUSporc","CESrok"="MUSrok", "CESsubc"="MUSsubc"), 
+                 keep = T) %>% 
+  mutate(status1 = case_when(is.na(CEScislo) ~ "nenalezeno v CES",
+                            is.na(MUScislo) ~ "nenalezeno v MUS",
+                            CESpdsb==MUSpdsb ~ "plne sparovano",
+                            CESpdsb!=MUSpdsb & MUSpdsb=="X" ~ "sparovano", # v CES v nejake podsb, v MUS v neurcene
+                            CESpdsb!=MUSpdsb ~ "jina podsbirka", 
+                            TRUE ~ "?"))
+
+rel$status1 <- as.factor(rel$status1)
+summary(rel$status1)
+
+# REL_pk_R <- rel %>% 
+#   filter(zmena == "R") %>% 
+#   select(CESrada, typ_cisla, zmena, duvod, CEScislo, MUScislo, MUSid, MUSpodsb, status1, REL_zdroj) %>% 
+#   mutate_all(~ ifelse(is.na(.), "", .)) # rusene zaznamy nejsou
+
+REL_pk_NV <- rel %>%
+  filter(zmena != "R" & status1 %in% c("sparovano", "plne sparovano")) # 10412
+
+REL_pk_jina <- rel %>% 
+  filter(status1 == "jina podsbirka") # 967
+
+REL_pk_neMUS <- rel %>% 
+  filter(is.na(MUScislo)) %>% 
+  select(CESzdroj, CESpdsb, CEScislo, zmena, duvod) # 21
+
+REL_pk_neCES <- rel %>% 
+  filter(is.na(CEScislo)) %>% 
+  select(MUSzdroj, MUScislo, MUSid, MUSpdsb, MUSevidovano, MUSzkatalog, MUShlaseno, MUSinvcisla, status1) # 18850
+
+```
+
+## excely
+
+### jina podsbirka
+
+```{r}
+
+Lzdroj <-sort(unique(REL_pk_jina$CESzdroj))
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ save factor levels on separate excel sheets
+# install.packages("writexl")
+library(writexl)
+
+empty_data <- data.frame()
+write_xlsx(empty_data, path = paste0(path_proj, "vystupy/", proj, "_PK_jinaPodsbirka.xlsx")) 
+
+for (i in Lzdroj) {
+  subset_df <- REL_pk_jina %>% filter(CESzdroj == i)
+  shtnam <- i # sheetname
+  write.xlsx(as.data.frame(subset_df), file = paste0(path_proj, "vystupy/", proj, "_PK_jinaPodsbirka.xlsx"), 
+             sheetName = i, row.names = FALSE, append = TRUE)
+}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+
+```
+
+### ne v MUS 
+
+```{r}
+
+Lzdroj <-sort(unique(REL_pk_neMUS$CESzdroj))
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ save factor levels on separate excel sheets
+
+empty_data <- data.frame()
+write_xlsx(empty_data, path = paste0(path_proj, "vystupy/", proj, "_PK_neCES.xlsx")) 
+
+for (i in Lzdroj) {
+  subset_df <- REL_pk_neMUS %>% filter(CESzdroj == i)
+  shtnam <- i # sheetname
+  write.xlsx(as.data.frame(subset_df), file = paste0(path_proj, "vystupy/", proj, "_PK_neCES.xlsx"), 
+             sheetName = i, row.names = FALSE, append = TRUE)
+}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+
+```
+
+### ne v CES
+
+```{r}
+
+Lzdroj <-sort(unique(REL_pk_neCES$MUSzdroj))
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ save factor levels on separate excel sheets
+
+empty_data <- data.frame()
+write_xlsx(empty_data, path = paste0(path_proj, "vystupy/", proj, "_PK_neMUS.xlsx")) 
+
+for (i in Lzdroj) {
+  subset_df <- REL_pk_neCES %>% filter(MUSzdroj == i)
+  shtnam <- i # sheetname
+  gc()
+  write.xlsx(as.data.frame(subset_df), file = paste0(path_proj, "vystupy/", proj, "_PK_neMUS.xlsx"), 
+             sheetName = i, row.names = FALSE, append = TRUE)
+}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+
+```
+
+## SQL
+
+### rozepsane s INVC
+
+```{r}
+
+ri <- REL_pk_NV %>% 
+  filter(duvod == "R" & !is.na(MUSinvcisla)) %>% 
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '", CEScislo, "', PRIZNAK1 = 1, uupd = \'krizova_impl\', dupd = GETDATE() WHERE PRIRUSTEK.ID = ", MUSid, ";")) %>% 
+  select(prikaz)
+
+write.table(ri, file = paste0(path_proj, "vystupy/", proj, "_PK_updt_rozepsSinvc.sql"), 
+            quote = F, row.names = F, col.names = F)
+
+```
+
+### rozepsane bez invc
+
+```{r}
+
+r <- REL_pk_NV %>% 
+  filter(duvod == "R" & is.na(MUSinvcisla)) %>% 
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '", CEScislo, "', PRIZNAK1 = 1, uupd = \'krizova_impl\', dupd = GETDATE() WHERE PRIRUSTEK.ID = ", MUSid, ";")) %>%  
+  select(prikaz)
+
+write.table(r, file = paste0(path_proj, "vystupy/", proj, "_PK_updt_rozepsBEZinvc.sql"), 
+            quote = F, row.names = F, col.names = F)
+
+```
+
+### nove
+
+co vyrazene z duvodu omylu? taky sem? mame 12 -> OPRAVIT !
+zmena = N, V
+duvod = NA, N, P, O
+
+```{r}
+
+n <- REL_pk_NV %>% 
+  filter(duvod %in% c(NA, "N", "P", "O")) %>%
+  mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '", CEScislo, "', uupd = \'krizova_impl\', dupd = GETDATE() WHERE PRIRUSTEK.ID = ", MUSid, ";")) %>% 
+  select(prikaz)          
+
+# write.table(n, file = paste0(path_proj, "vystupy/", proj, "_PK_updt_nove_vyraz.sql"), 
+#             quote = F, row.names = F, col.names = F)
+```
+
+# ---------------------------------- KA -> DONE
+
+POZNAMKY:
+
+
+v CES hlaseno 71961
+v MUS evidovano 81372 sp
+duplicity jsou, ale v jinych podsbirkach
+
+```{r}
+
+# check duplicit
+check <- CORE_ces %>% 
+  filter(typ_cisla == "I") %>%
+  group_by(zdroj, cislo) %>% 
+  filter(n()!=1) # chceme 0
+
+```
+
+## ces ka edits
+
+```{r}
+
+CES_ka <- CORE_ces %>% 
+  filter(typ_cisla == "I") %>% 
+  select(-typ_cisla)
+
+Lzdroj <- unique(CES_ka$CESzdroj)
+  
+for(i in Lzdroj) {
+  df <- CES_ka %>% filter(CESzdroj == i)
+  assign(paste0("data_", i), df)
+} 
+
+# rm(list = ls()[grepl("data_", ls())])
+
+```
+
+## pdsb edits 
+
+```{r}
+pdsb_arch <- data_Archeologická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_bota <- data_Botanická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_hudb <- `data_Další_-_Hudba` %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]\\/[a-zA-Z]+|^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_dokf <- `data_Další_-_Ostatní_konzervační_fond_(OKF)` %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_ento <- data_Entomologická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_etno <- data_Etnografická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]\\/[a-zA-Z]+|^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_foto <- `data_Fotografie,_filmy,_videozáznamy_a_jiná_média` %>% 
+  mutate(CEScislo = str_trim(cislo),
+         CESpref = str_extract(CEScislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_hist <- data_Historická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_regl <- `data_Jiná_-_Regionální_literatura(RK)` %>% 
+  mutate(CEScislo = cislo,
+         CESpref = ifelse(str_detect(cislo, "Rk|RK|R"), str_extract(cislo, "Rk|RK|R"), ""),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = ifelse(str_detect(cislo, "\\d+\\s.*$"), str_extract(cislo, "\\s.*$"), ""),
+         CESsubc = ifelse(str_detect(cislo, "\\/\\s*.$"), str_extract(cislo, ".$"), CESsubc),
+         CESsubc = ifelse(str_detect(CESsubc, "\\/"), str_extract(cislo, ".$"), CESsubc),  # posl 3 radky resi ruzne tvary subcisla -> overeno, ok
+         CESsubc = str_trim(CESsubc))
+        
+pdsb_ruzn <- `data_Jiná_-_Různé` %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = ifelse(str_detect(cislo, "\\d+\\s.*$"), str_extract(cislo, "\\s.*$"), ""))
+
+pdsb_knih <- data_Knihy %>% 
+  mutate(CEScislo = cislo,
+         CESpref = "St.t.",
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_mili <- data_Militária %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_nega <- data_Negativy_a_diapozitivy %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^\\s*[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_numi <- data_Numizmatická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = ifelse(str_detect(cislo, "\\d+\\s.*$"), str_extract(cislo, "\\s.*$"), ""))
+
+pdsb_pale <- data_Paleontologická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]\\/[a-zA-Z]+|^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_petr <- data_Petrografická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]\\/[a-zA-Z]+|^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_pist <- data_Písemnosti_a_tisky %>% 
+  mutate(CEScislo = cislo,
+         CESpref = ifelse(str_detect(cislo, "Ruk|RUK"), str_extract(cislo, "Ruk|RUK"), ""),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_umel <- data_Uměleckého_řemesla %>% 
+  mutate(CEScislo = cislo,
+         CESpref = case_when(str_detect(cislo, "H/Br|HBr") ~ "H/Br",
+                             str_detect(cislo, "H/Cn") ~ "H/Cn",
+                             str_detect(cislo, "H/Kp|HKp") ~ "HKp",
+                             str_detect(cislo, "H/Mě") ~ "H/Mě",
+                             str_detect(cislo, "H/Mos") ~ "H/Mos",
+                             str_detect(cislo, "H/Nb L") ~ "H/Nb L",
+                             str_detect(cislo, "H/Nb M") ~ "H/Nb M",
+                             str_detect(cislo, "H/Nb|HNb") ~ "H/Nb",
+                             str_detect(cislo, "H/Stř") ~ "H/Stř",
+                             str_detect(cislo, "H/ZL") ~ "H/ZL",
+                             TRUE ~ "?"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = ifelse(str_detect(cislo, "a,|a-"), str_extract(cislo, "...$"), "")) # tohle nijak lip vyresit neslo
+
+pdsb_umpp <- data_Uměleckoprůmyslové_práce %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]\\/[a-zA-Z]+-[a-zA-Z]+|^[a-zA-Z]\\/[a-zA-Z]+|^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_vtpv <- `data_Věda,_technika_a_průmyslová_výroba` %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]\\/[a-zA-Z]+|^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+pdsb_vytv <- data_Výtvarného_umění %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = ifelse(str_detect(cislo, "\\d+\\s.*$"), str_extract(cislo, "\\s.*$"), ""))
+
+pdsb_zool <- data_Zoologická %>% 
+  mutate(CEScislo = cislo,
+         CESpref = str_extract(cislo, "^[a-zA-Z]+"),
+         CESporc = as.numeric(str_remove(str_extract(cislo, "\\d+"), "^0+")),
+         CESsubc = "")
+
+rm(list = ls()[grepl("data_", ls())])
+
+```
+
+## mus ka edits
+
+```{r}
+sort(unique(MUS_ka$MUSpref))
+```
+## relace
+
+sort(unique(MUS_ka$MUSzdroj))
+ [1] "Archeologická"                                "Botanická"                                    "Další - Hudba"    
+ [4] "Další - Ostatní konzervační fond (OKF)"       "Entomologická"                                "Etnografická"    
+ [7] "Fotografie, filmy, videozáznamy a jiná média" "Historická"                                   "Jiná - Regionální literatura(RK)"            
+[10] "Jiná - Různé"                                 "Knihy"                                        "Militária"        [13] "Negativy a diapozitivy"                       "neurčená"                                     "Numizmatická"      [16] "Paleontologická"                              "Petrografická"                                "Písemnosti a tisky" [19] "Uměleckého řemesla"                           "Uměleckoprůmyslové práce"                     "Věda, technika a průmyslová výroba"          
+[22] "Výtvarného umění"                             "Zoologická" 
+
+```{r}
+
+# CES nema podlomeni, parujeme jen pred prefix a porcislo
+rel_arch <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Archeologická", "neurčená", "Jiná - Různé")), pdsb_arch,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# CES nema podlomeni, parujeme jen pred prefix a porcislo
+rel_bota <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Botanická", "neurčená")), pdsb_bota,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# CES nema podlomeni, parujeme jen pred prefix a porcislo
+pdsb_hudb$CESpref <- case_when(pdsb_hudb$CESpref %in% c("H/Hn", "Hhn") ~ "HHN",
+                               pdsb_hudb$CESpref == "Hha" ~ "HHA", TRUE ~ NA) 
+
+rel_hudb <- full_join(MUS_ka %>% filter (MUSzdroj %in% c("Další - Hudba", "neurčená")), pdsb_hudb,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+rel_dokf <- full_join(MUS_ka %>% 
+                        filter(MUSzdroj %in% c("Další - Ostatní konzervační fond (OKF)", "neurčená")), pdsb_dokf,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- ENTO -------------------------------------
+
+rel_ento <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Entomologická", "Zoologická", "neurčená")), pdsb_ento,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- ETNO -------------------------------------
+pdsb_etno$CESpref <- case_when(pdsb_etno$CESpref == "H/Eh" ~ "EH", TRUE ~ pdsb_etno$CESpref) 
+
+rel_etno <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Etnografická", "neurčená")), pdsb_etno,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+
+# ----------------------------------- FOTO -------------------------------------
+rel_foto <- full_join(MUS_ka %>% filter(MUSzdroj %in% 
+                                          c("Fotografie, filmy, videozáznamy a jiná média", "neurčená")), pdsb_foto,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- HIST -------------------------------------
+pdsb_hist$CESpref <- case_when(pdsb_hist$CESpref == "Tx" ~ "TX", TRUE ~ pdsb_hist$CESpref) 
+rel_hist <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Historická", "neurčená")), pdsb_hist,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- REGL -------------------------------------
+# CES má subcisla, MUS ne -> parujeme bez subcisel
+
+pdsb_regl[pdsb_regl == ""] <- NA
+sort(unique(pdsb_regl$CESpref))
+pdsb_regl$CESpref <- "RK"
+rel_regl <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Jiná - Regionální literatura(RK)", "neurčená")), pdsb_regl,
+                      # by = c("MUSpref"="CESpref", "MUSporc"="CESporc", "MUSsubc"="CESsubc"), keep = T) %>% 
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>%
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- RUZN -------------------------------------
+rel_ruzn <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Jiná - Různé", "neurčená")), pdsb_ruzn,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- KNIH -------------------------------------
+sort(unique(pdsb_knih$CESpref))
+pdsb_knih$CESpref <- "STT"
+rel_knih <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Knihy", "neurčená")), pdsb_knih,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- MILI -------------------------------------
+rel_mili <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Militária", "neurčená")), pdsb_mili,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- NEGA -------------------------------------
+sort(unique(pdsb_nega$CESpref))
+sort(unique(MUS_ka$MUSpref[MUS_ka$MUSzdroj == "Negativy a diapozitivy"]))
+rel_nega <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Negativy a diapozitivy", "neurčená")), pdsb_nega,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- NUMI -------------------------------------
+rel_numi <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Numizmatická", "neurčená")), pdsb_numi,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- PALE -------------------------------------
+sort(unique(pdsb_pale$CESpref))
+pdsb_pale$CESpref <- "GPA"
+rel_pale <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Paleontologická", "neurčená")), pdsb_pale,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- PETR -------------------------------------
+sort(unique(pdsb_petr$CESpref))
+pdsb_petr$CESpref <- "GMP"
+rel_petr <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Petrografická", "neurčená")), pdsb_petr,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- PIST -------------------------------------
+sort(unique(pdsb_pist$CESpref))
+pdsb_pist$CESpref <- "RUK"
+rel_pist <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Písemnosti a tisky", "neurčená")), pdsb_pist,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- UMEL -------------------------------------
+sort(unique(pdsb_umel$CESpref))
+pdsb_umel$CESpref <- case_when(pdsb_umel$CESpref == "H/Br" ~ "HBR",
+                               pdsb_umel$CESpref == "H/Cn" ~ "HCN", 
+                               pdsb_umel$CESpref == "H/Mě" ~ "HME", 
+                               pdsb_umel$CESpref == "H/Mos" ~ "HMOS", 
+                               pdsb_umel$CESpref %in% c("H/Nb", "H/Nb L", "H/Nb M") ~ "HNB", 
+                               pdsb_umel$CESpref == "H/Stř" ~ "HSTR", 
+                               pdsb_umel$CESpref == "HKp" ~ "HKP", 
+                               pdsb_umel$CESpref == "H/ZL" ~ "H-ZL", 
+                               TRUE ~ NA) 
+
+rel_umel <- full_join(MUS_ka %>% filter (MUSzdroj %in% c("Uměleckého řemesla", "neurčená")), pdsb_umel,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- UMPP -------------------------------------
+sort(unique(pdsb_umpp$CESpref))
+pdsb_umpp$CESpref <- case_when(pdsb_umpp$CESpref %in% c("H/Ke", "HKe") ~ "HKE",
+                               pdsb_umpp$CESpref %in% c("H/S-L", "H/S-M", "HS") ~ "HS", 
+                                TRUE ~ NA)
+
+rel_umpp<- full_join(MUS_ka %>% filter (MUSzdroj %in% c("Uměleckoprůmyslové práce", "neurčená")), pdsb_umpp,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- VTPV -------------------------------------
+sort(unique(pdsb_vtpv$CESpref)) # "H/Ht" "H/Kp" "H/Sk" "H/T"  "T"
+pdsb_vtpv$CESpref <- case_when(pdsb_vtpv$CESpref == "H/Sk" ~ "HSK",
+                               pdsb_vtpv$CESpref %in% c("H/T", "T") ~ "T",
+                               TRUE ~ pdsb_vtpv$CESpref)
+
+rel_vtpv<- full_join(MUS_ka %>% filter (MUSzdroj %in% c("Věda, technika a průmyslová výroba", "neurčená")), pdsb_vtpv,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- VYTV -------------------------------------
+sort(unique(pdsb_vytv$CESpref))
+sort(unique(MUS_ka$MUSpref[MUS_ka$MUSzdroj == "Výtvarného umění"]))
+musp_vytv <- MUS_ka %>% 
+  filter(MUSzdroj %in% c("Výtvarného umění", "neurčená")) %>% 
+  mutate(MUSpref = case_when(MUSpref %in% c("UGL", "UGM", "UG") ~ "UG",
+                               TRUE ~ MUSpref)) # jediny pripad, kde bylo treba sesekat MUSpref a ne CESpref
+
+rel_vytv <- full_join(musp_vytv, pdsb_vytv,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj)))
+
+# ----------------------------------- ZOOL -------------------------------------
+sort(unique(pdsb_zool$CESpref))
+rel_zool <- full_join(MUS_ka %>% filter(MUSzdroj %in% c("Entomologická", "Zoologická", "neurčená")), pdsb_zool,
+                      by = c("MUSpref"="CESpref", "MUSporc"="CESporc"), keep = T) %>% 
+  mutate(RELstatus = case_when(!is.na(MUSzdroj)&!is.na(CESzdroj) ~ "sparovano",
+                               is.na(MUSzdroj)&!is.na(CESzdroj) ~ "ne v MUS",
+                               !is.na(MUSzdroj)&is.na(CESzdroj) ~ "ne v CES", TRUE ~ NA)) %>% 
+  select(MUSzdroj, MUSid, MUScislo, CESzdroj, CEScislo, zmena, duvod, RELstatus) %>% 
+  filter(!(MUSzdroj == "neurčená"& is.na(CESzdroj))) %>% 
+  filter(!(MUSzdroj == "Entomologická"& is.na(CESzdroj))) 
+```
+
+## rbind
+
+```{r}
+# Get all dataframes with prefix "rel_"
+Ldfs <- mget(ls(pattern = "^rel_"))
+
+# Use do.call to rbind all dataframes in the list
+combined_df <- do.call(rbind, Ldfs) %>% 
+  arrange(desc(MUScislo))
+```
+
+## analyze
+
+```{r}
+podl <- combined_df %>% 
+  group_by(MUSid) %>% 
+  mutate(MUSpodl = ifelse(n()>1, "dupl", ""))
+```
+
+## SQL
+
+```{r}
+
+s <- combined_df %>%
+  filter(RELstatus == "sparovano" & zmena != "R") %>% 
+  mutate(prikaz = paste0("update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = '", CEScislo, "', uupd = \'krizova_impl\', dupd = GETDATE() WHERE PREDMET.ID = ", MUSid, ";")) %>% 
+  select(prikaz) %>% 
+  distinct()
+
+write.table(s, file = paste0(path_proj, "vystupy/", proj, "_KA_updt.sql"), 
+            quote = F, row.names = F, col.names = F)
+```
+
+
+## save
+
+```{r}
+
+f2s <- paste0(path_proj, "vystupy/OMGM_KA.xlsx")
+d2s <- rel_arch
+
+for (i in Ldfs) {
+  subset_df <- i %>% filter(RELstatus != "sparovano")
+  shtnam <- paste0(i$MUSzdroj[1])
+  gc()
+  write.xlsx(as.data.frame(subset_df), file = f2s, 
+             sheetName = shtnam, row.names = FALSE, append = TRUE)
+}
+
+# Error in .jcall(wb, "Lorg/apache/poi/ss/usermodel/Sheet;", "createSheet",  : 
+#   java.lang.IllegalArgumentException: The workbook already contains a sheet of this name --> PROTO:
+
+subset_df <- rel_zool %>% filter(RELstatus != "sparovano")
+write.xlsx(as.data.frame(subset_df), file = f2s, 
+             sheetName = "Zoologická", row.names = FALSE, append = TRUE)
+```
+
+PORESIT !!!
+- kde je v MUS podlomeni, aktualizovat jenom prvni MUSid!

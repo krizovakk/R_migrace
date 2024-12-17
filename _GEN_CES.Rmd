@@ -37,6 +37,66 @@ require(RODBC) # ::read_mdb
 require(odbc) # ::read_mdb
 ```
 
+# VYPISY Z MUSEIONU    -!- MIMO R -!- 
+
+Ukladat do slozky "vypMUS" jako
+  a) [nazevSpravce]_vypisPK.txt
+  b) [nazevSpravce]_vypisKA.txt
+  
+ANEBO
+
+Nakopirovat do listu souboru [nazevSpravce]_statistiky.txt, kam ukladame i info do tabulek do protokolu
+
+## Vypis podsbirky
+
+```{sql connection=}
+select id, nazev, cislo
+from podsbirka 
+where spravcesbirky_ID = (select id from spravcesbirky where nazev = 'nazevSpravce') --nazevSpravce nahradit spravcem
+;
+```
+
+## Výpis prirustkovych cisel
+
+vypise:
+= = = = 
+  cislo = prirustkove cislo
+  id = ID zaznamu v MUS
+  radaPK 
+  poradovecislo
+  poradovecislosub
+  cisloCES
+  podsbirka = kod podsbirky
+  nazev = nazev podsbirky
+  EVIDOVANO = 01
+  ZKATALOGIZOVANO = 01 = Rozepsano
+  HLASENODOCES = 01
+  info_invcislo = pripojenya inventarni cisla --> DULEZITE! Pokud (null), nezaskrtavat "Rozepsano", jinak uz se zaznamem nelze pracovat
+  
+
+```{sql connection=}
+select prirustek.cislo, prirustek.id, ciselnarada.kod radaPK, poradovecislo, poradovecislosub, cisloCES, podsbirka.cislo podsbirka, podsbirka.nazev, EVIDOVANO, ZKATALOGIZOVANO, HLASENODOCES, info_invcislo from prirustek 
+join podsbirka on podsbirka.id = prirustek.PODSBIRKA_ID
+join obdobiciselnerady on obdobiciselnerady_id =  obdobiciselnerady.id
+join ciselnarada on ciselnarada.id  = obdobiciselnerady.CISELNARADA_ID
+where prirustek.spravcesbirky_id =  (select id from spravcesbirky where nazev = 'nazevSpravce') --nazevSpravce nahradit spravcem
+;
+```
+
+## Vypis inventarnich cisel
+
+```{sql connection=}
+select predmet_cislo, sp_cislo, predmet.id sp_id, ciselnarada.kod radaPK, sp_porcislo, sp_porcislosub, sp_porcislodo, sp_porcislosubdo, sp_cisloCES, podsbirka.cislo podsbirka, podsbirka.nazev 
+from predmet 
+join invcislo on predmet_id = predmet.id
+join podsbirka on podsbirka.id = predmet.SP_PODSBIRKA_ID
+join obdobiciselnerady on sp_obdobiciselnerady_id =  obdobiciselnerady.id
+join ciselnarada on ciselnarada.id  = obdobiciselnerady.CISELNARADA_ID
+where predmet.spravcesbirky_id =  (select id from spravcesbirky where nazev = 'nazevSpravce')
+;
+```
+
+
 # PROJECT INFO
 
 ```{r}
@@ -253,8 +313,13 @@ Ukladam do excelu, ze ktereho nacitam (pojmenovavam "[kod projektu]_statistiky.x
 
 # prirustkova kniha
 
-CORE_mus_pk <- read.table(paste0(path_proj, "vypMUS/CES_vypisPK.txt"), 
-                          sep = ",", header = T, fileEncoding = "cp1250")
+# CORE_mus_pk <- read.table(paste0(path_proj, "vypMUS/CES_vypisPK.txt"), 
+#                           sep = ",", header = T, fileEncoding = "cp1250")
+
+CORE_mus_pk <- read_excel(paste0(path_ces, "/", proj, "/", proj, "_statistiky.xlsx"), 
+                  sheet = "SQL_vyp_PK", col_types="text") %>% 
+  mutate(MMUS_par = str_extract(cislo, "^...\\/....")) %>% 
+  filter(radaPK != "PK-test")
 
 MUS_pk <- CORE_mus_pk %>% 
   filter(radaPK != "TEST-PK") %>% 
@@ -263,11 +328,14 @@ MUS_pk <- CORE_mus_pk %>%
   select("MUSpodsb" = podsbirka, "MUSrada" = radaPK, MUSpref, "MUSporc" = poradovecislo, "MUSsubc" = poradovecislosub, MUSrok,
          "MUScislo" = cislo, "MUSid" = id)
 
-
 # katalog
 
-CORE_mus_ka <- read.table(paste0(path_proj, "vypMUS/CES_vypisKA.txt"), 
-                          sep = ",", header = T, fileEncoding = "cp1250")
+# CORE_mus_ka <- read.table(paste0(path_proj, "vypMUS/CES_vypisKA.txt"), 
+#                           sep = ",", header = T, fileEncoding = "cp1250")
+
+CORE_mus_ka <- read_excel(paste0(path_ces, "/", proj, "/", proj, "_statistiky.xlsx"), 
+                  sheet = "SQL_vyp_KA", col_types="text") %>% 
+  mutate(sp_porcislo = as.numeric(sp_porcislo))
 
 CORE_mus_ka[CORE_mus_ka == ""] <- NA
 
@@ -283,9 +351,7 @@ MUS_ka <- CORE_mus_ka %>%
 
 ```
 
-rm(df_filled)
-
-# ---------------------------------- PK
+rm(df_filled)# ---------------------------------- PK
 
 POZNAMKY:
 
@@ -395,6 +461,28 @@ write.xlsx(as.data.frame(REL_pk_neCES), file = paste0(path_proj, "vystupy/", pro
 
 ## SQL
 
+-- existuje INVC
+-- shoda (rozepsané + kontrola, zda existuje invc)
+update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '1/2002', uupd = "krizova_impl", dupd = now(),
+WHERE PRIRUSTEK.ID = 19450569 AND exists(select ID from sbirkovypredmetprirustek WHERE prirustek_id = 19450569);
+
+-- neexistuje INVC
+-- shoda (rozepsané + nastavit priznak 1 , který indikuje Rozepsano v CES)
+update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '1/2002', PRIZNAK1 = 1, uupd = "krizova_impl", dupd = now(),
+WHERE PRIRUSTEK.ID = 19450569 ;
+
+-- shoda (nové)
+update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '1/2002', uupd = "krizova_impl", dupd = now(),
+WHERE PRIRUSTEK.ID = 19450569;
+
+Oracle = sysdate
+MS SQL = current_timestamp
+Postgre = now, current_timestamp
+NEBO
+Vložit pevné datum
+
+
+
 ```{r}
 
 # rozepsane
@@ -503,6 +591,7 @@ celk <- bind_rows(spa_plne, spa_podlomeni, spa_ne) %>%
 
 ```{r}
 REL_ka_spa <- celk %>% filter(zmena != "R"&status=="plne sparovano") #  -> do SQL
+REL_ka_podl <- spa_podlomeni #  -> do EXCELU
 REL_ka_nespa <- celk %>% filter(zmena != "R"&status!="plne sparovano") # -> do EXCELU
 REL_ka_R <- celk %>% filter(zmena == "R")# -> rusene, jen pro info, do EXCELU
 ```

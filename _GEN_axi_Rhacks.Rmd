@@ -89,7 +89,6 @@ write.xlsx(part3, file = paste0(path_ces, proj, "/", proj, "_PK_R_part3.xlsx"))
 ```
 
 
-
 ### XLSX
 
  ~ PACKAGES ~
@@ -421,7 +420,7 @@ everything that follows "/"
 str_extract(predmet_cislo, "(?<=/).*$")
 ```
 
-everything that precedes ",-"
+everything that precedes "/"
 
 ```{r}
 str_extract(predmet_cislo, "(?<=/).*$")
@@ -724,6 +723,11 @@ Example: If you want to match "foo" only if it is not preceded by "bar", you can
 
 ### extract all numbers
 
+```{r}
+
+```
+
+
 ### extract all (except) letters
 
 ```{r}
@@ -873,6 +877,41 @@ left_join(biolib %>% dplyr::select('4nazevKategorie', '5nomen', '8nadrizenyTaxon
 \newpage
 
 # *REAL TASKS*
+
+## CES SQL
+
+uupd =
+  GETDATE() [MS SQL]
+  now()     [ORACLE]
+
+### KA - nove
+
+```{r}
+mutate(prikaz = paste0("update PREDMET set SP_HLASENODOCES = 1, SP_CISLOCES = '", CEScislo, "', uupd = \'krizova_impl\', dupd = GETDATE() WHERE PREDMET.ID = ", MUSid, ";"))
+```
+
+### PK - rozepsane s invc
+
+Pokud je pripojene inventarni cislo, lze zadat i priznak ZKAALOGIZOVANO. To znamena, ze prirustek uz nelze editovat.
+PRIZNAK1 zadavame u zaznamu, ktere byly do CES hlaseny jako V-R. Nutno pak prejmenovat v MUSEIONU - Nastaveni - Nastaveni privatni cast - zalozka Chronologicka evidence.
+
+```{r}
+mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, ZKATALOGIZOVANO = 1, CISLOCES = '", CEScislo, "', PRIZNAK1 = 1, uupd = \'krizova_impl\', dupd = GETDATE() WHERE PRIRUSTEK.ID = ", MUSid, ";"))
+```
+
+### PK - rozepsane bez invc
+
+```{r}
+mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '", CEScislo, "', PRIZNAK1 = 1, uupd = \'krizova_impl\', dupd = GETDATE() WHERE PRIRUSTEK.ID = ", MUSid, ";"))
+```
+
+### PK - nove a vyrazene (krome V-R)
+
+```{r}
+filter(duvod %in% c(NA, "N", "P", "O")) %>%
+mutate(prikaz = paste0("update PRIRUSTEK set HLASENODOCES = 1, CISLOCES = '", CEScislo, "', uupd = \'krizova_impl\', dupd = GETDATE() WHERE PRIRUSTEK.ID = ", MUSid, ";"))
+```
+
 
 ## Auto mus_tab -> csv
 
@@ -1065,6 +1104,8 @@ imp_check <- left_join(jpg_cs, mus_imp, by = c("MFN" = "MFN"), keep = T)
 na <- imp_check %>% filter(is.na(Číslo))
 
 ```
+
+## extrakce INVC (pref, porc, subc)
 
 
 \newpage
