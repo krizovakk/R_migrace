@@ -67,8 +67,6 @@ dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/
 dataframe <- XML::xmlToDataFrame("C:/Users/krizova/Documents/R/data/_piskoviste/PRM_BioLib_090_Fungi_Trida.xml") # ok
 print(dataframe)
 
-
-
 # lokalni piskoviste
 
 data <- XML::xmlParse(xml)
@@ -220,7 +218,7 @@ for (i in Lx) {
 ```
 
 
-*!!! NIZE JEN OVERENE A FUNKCNI PRIKAZY !!!*    
+*!!! NIZE JEN OVERENE A FUNKCNI PRIKAZY pro XML!!!*    
 
 ```{r LOAD AND EDIT XML}
 
@@ -1070,6 +1068,7 @@ write.xlsx(dat_long, paste0(path_data, "OMGM_PK-L_upravaKK.xlsx"))
 
 ```
 
+<<<<<<< HEAD
 # MARC21 VERBIS NM
 
 ```{r TRIAL} 
@@ -1140,6 +1139,7 @@ fin <- fill %>%
 
 writeClipboard(fin$b)
 ```
+
 # HELA NG stavy 2
 10.9.2024
 
@@ -1415,3 +1415,76 @@ df <- read.table(paste0(path_data, "data(in).csv"),
 
 ```
 
+# HELA NG stavy 3
+31.1.2025
+M:\03 klienti\narodni galerie - NG\02 ng konverze\2025-CKS-Arch+F+X\proKK
+
+```{r}
+require(readxl)
+
+Rev_data <- read_excel("M:/03 klienti/narodni galerie - NG/02 ng konverze/2025-CKS-Arch+F+X/proKK/proKK_revize.xlsx", col_types="text")
+Sb_stav <- read_excel("M:/03 klienti/narodni galerie - NG/02 ng konverze/2025-CKS-Arch+F+X/proKK/proKK_stav.xlsx", col_types="text")
+
+revdata <- Rev_data %>% 
+  select(sb_data_id, rev_data_id, datum_rev) %>% 
+  mutate(datum_rev = str_remove(datum_rev, " 00:00:00"),
+         MDATE_rev = as.POSIXct(datum_rev)) %>% 
+  group_by(sb_data_id) %>% 
+  mutate(isDupl = ifelse(n() == 1, F, T)) %>%
+  ungroup() %>% 
+  arrange(sb_data_id, MDATE_rev) %>% 
+  select(-datum_rev)
+
+sbstav <- Sb_stav %>% 
+  # mutate(Mdatum = case_when(sb_data_id == "40934" ~ "2007-01-01 00:00:00",
+  #                           sb_data_id == "352912" ~ "2010-01-01 00:00:00",
+  #                           sb_data_id == "41380" ~ "2022-09-06 00:00:00",
+  #                           TRUE ~ datum)) %>% 
+  select(sb_data_id, datum, MSTAV, MPOPISSTAVU) %>% 
+  drop_na(MSTAV) %>% 
+  mutate(MDATE_stav = as.POSIXct(datum)) %>% 
+  group_by(sb_data_id) %>% 
+  # mutate(idid = seq_along(sb_data_id)) %>% 
+  ungroup() %>% 
+  arrange(sb_data_id, MDATE_stav) %>% 
+  select(-datum)
+
+join <- left_join(revdata, sbstav, by = "sb_data_id") %>% 
+  select(1,2,3,7,5,6)
+
+closedate <- join %>%  # chatGPT poradil, jak odecist data
+  mutate(diff = as.numeric(difftime(MDATE_rev, MDATE_stav, units = "days"))) %>% 
+  group_by(sb_data_id, rev_data_id) %>% 
+  mutate(diff = ifelse(diff < 0, NA, diff)) %>% # chceme jen NA a kladne hodnoty
+  group_modify(~ {
+    if (all(is.na(.x$diff))) { # pokud je ve skupine jen NA, tak necha vsechny zaznamy (pozdeji zredukujeme distinctem)
+      .x
+    } else {
+      .x %>%
+        filter(diff == min(diff, na.rm = TRUE)) # pokud pole diff obsahuje cislo, vyfiltruje jen to nejnizsi (tzn nejblizsi datum v historii)
+    }
+  }) %>% 
+  ungroup()
+  
+fin <- closedate %>% 
+  mutate(kk_MSTAV = ifelse(is.na(diff), NA, MSTAV),
+         kk_MPOPISSTAVU = ifelse(is.na(diff), NA, MPOPISSTAVU)) %>% 
+  distinct(sb_data_id, rev_data_id, .keep_all = TRUE) %>% 
+  select(sb_data_id, rev_data_id, "datum_rev" = MDATE_rev, "datum_stav" = MDATE_stav, "MSTAV" = kk_MSTAV, "MPOPISSTAVU" = kk_MPOPISSTAVU) %>% 
+  mutate(MPOPISSTAVU = str_trim(MPOPISSTAVU))
+  
+check <- fin %>% group_by(sb_data_id) %>% filter(n()>4)  
+
+write.table(fin, file = "M:/03 klienti/narodni galerie - NG/02 ng konverze/2025-CKS-Arch+F+X/proKK/KK_revize_stavy_n12905_TRIM.csv", 
+            quote = F, row.names = F, 
+            sep = ";", dec = ",", 
+            na = "", fileEncoding="cp1250") # quote = F proto, ze v datech jsou uvozovky a v prvnim pripade pri ulozeni pridava backslash
+  
+```
+
+
+
+
+
+=======
+>>>>>>> a7c64368e1a29af04b265c72b7609886510c093f

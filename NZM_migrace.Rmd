@@ -1,0 +1,282 @@
+---
+title: "Migrace NZM"
+subtitle: ""
+author: "Kateřina Křížová"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: false
+    fig_caption: true
+  fontsize: 11pt
+  geometry: margin=1in
+
+---
+# B A S E
+
+```{r}
+require(tidyverse)
+require(readxl)
+require(stringr) # ::str_split_fixed
+require(stringi) # ::stri_detect_fixed - detect empty string
+require(mdbr) # ::read_mdb
+require(RODBC) # ::read_mdb
+require(odbc) # ::read_mdb
+require(xlsx) # write excel in sheets
+
+path_data <- "M:/03 klienti/narodni zemedelske muzeum - NZM/nzm - zdrojdat/"
+```
+
+# READ
+
+## single
+
+```{r}
+df <- read.csv(paste0(path_data, "Archeologie zemědělství.csv"), header = TRUE, sep = ";")
+```
+
+## loop 24
+
+```{r}
+Lcsv <- list.files(paste0(path_data, "SbirkyCSV/"), pattern = "*.csv")
+
+df_filled <- data.frame()
+
+for(i in Lcsv) {
+  a <- read.csv(paste0(path_data, i), header = TRUE, sep = ";")
+  a$zdroj <- paste(i) # add source txt file name
+  # print(count(a))
+  df_filled <- rbind(df_filled, a)
+  print(i)
+  # rm(a)
+}
+
+```
+
+
+## pk.zip
+
+```{r}
+pk <- read.csv(paste0(path_data, "pk.csv"), header = TRUE, sep = ";")
+```
+
+
+# BASE
+
+prejmenovani sloupcu pro lepsi praci s daty
+```{r}
+nzm <- df_filled %>% 
+  rename("prvni" = X,
+         "podsbirka" = 'Podsbírka.',
+         "skupina" = 'Skupina.',
+         "podskupina" = 'Podskupina.',
+         "invc" = 'Inventární.číslo.',
+         "prirc" = 'Přírůstkové.číslo.',
+         "cisloNegativu" = 'Číslo.negativu.pozitivu.',
+         "jineCislo" = 'Jiné.číslo.',
+         "cisloKonzervKarty" = 'Č..konzerv..karty.',
+         "zapsCES" = 'Zapsáno.do.CES.',
+         "predmet" = 'Předmět.',
+         "altNazev" = 'Alternativní.název.',
+         "popis" = 'Popis.',
+         "titul" = 'Titul.',
+         "hlMotiv" = 'Hlavní.motiv.',
+         "vedlMotiv" = 'Vedlejší.motiv.',
+         "druh" = 'Druh.',
+         "orientace" = 'Orientace.',
+         "nakladatel" = 'Nakladatel.',
+         "autor" = 'Autor.',
+         "datovani" = 'Datování.',
+         "mistoVzniku" = 'Místo.vzniku.',
+         "katastr" = 'Katastr.',
+         "lokalita" = 'Lokalita.',
+         "material" = 'Materiál.',
+         "provedeni" = 'Provedení.',
+         "objekt" = 'Objekt.',
+         "rozmery" = 'Rozměry.',
+         "pocetKs" = 'Počet.kusů.',
+         "napisy" = 'Nápisy.',
+         "hmotnost" = 'Hmotnost.',
+         "zpNabyti" = 'Způsob.nabytí.',
+         "datNabyti" = 'Datum.nabytí.',
+         "urcil" = 'Určil.',
+         "datUrceni" = 'Datum.určení.',
+         "trvaleUlozeni" = 'Trvalé.uložení.',
+         "aktUlozeni" = 'Aktuální.uložení.',
+         "pravaKPredmetu" = 'Práva.k.předmětu.',
+         "odpis" = 'Odpis.',
+         "revize" = 'Revize.',
+         "stav" = 'Stav.',
+         "publikace" = 'Publikace.',
+         "poznamka" = 'Poznámka.',
+         "kompletnost" = 'Kompletnost.',
+         "mapa" = 'Mapa.',
+         "naleziste" = 'Náleziště.',
+         "objSkladba" = 'Objektová.skladba.',
+         "nalezOkolnosti" = 'Nálezové.okolnosti.',
+         "konzervovano" = 'Konzervováno.',
+         "zapsal" = 'Zapsal.',
+         "zapsano" = 'Zapsáno.',
+         "aktualizoval" = 'Aktualizoval.',
+         "aktualizovano" = 'Aktualizováno.',
+         "souborPrilohy" = 'Soubor.přílohy',
+         "poznPrilohy" = 'Poznámka.přílohy',
+         "popisPrilohy" = 'Popis.přílohy',
+         "typPrilohy" = 'Mime.typ.přílohy')
+
+nzm[nzm == ""] <- NA
+```
+
+## img --done
+
+seznam inventarnich cisel a prislusnych souborovych priloh
+
+```{r}
+img <- nzm %>% 
+  select(invc, souborPrilohy) %>% 
+  fill(invc, .direction = "down") %>% 
+  mutate(souborPrilohy = ifelse(souborPrilohy == "", NA, souborPrilohy)) %>% 
+  filter(!is.na(souborPrilohy))
+```
+
+## import --ip
+
+```{r}
+imp <- nzm %>% 
+  select(-souborPrilohy, -poznPrilohy, -popisPrilohy, -typPrilohy) %>% 
+  drop_na(invc) %>% 
+  mutate(across(where(is.character), str_trim))
+
+dupl <- imp %>% 
+  group_by(invc) %>% 
+  filter(n()!=1) # - - - - - - - - - - zadne duplicity
+
+```
+
+### imp EDA --ip
+
+```{r}
+
+vyplnenost <- tibble(pole = names(imp), pocet = colSums(!is.na(imp)))
+write.table(vyplnenost$pocet, "clipboard", sep = "\t", row.names = FALSE)
+
+vyplnenost_pdsb <- imp %>% 
+  group_by(podsbirka) %>% 
+  summarise(across(everything(), ~sum(!is.na(.))))
+write.table(vyplnenost_pdsb, "clipboard", sep = "\t", row.names = FALSE)
+
+# pro ucely slovniku predmetu
+imp$predmet <- as.factor(imp$predmet)
+pt <- imp %>% 
+  select(predmet) %>% 
+  group_by(predmet) %>% 
+  summarise(Count = n())
+  
+```
+
+
+# SLOVNIKY
+
+## podsbirky
+
+```{r}
+pdsb <- imp %>% 
+  select(podsbirka) %>% 
+  distinct()
+
+# "Potravinářská výroba" a "Potravinářska výroba"
+# "Fotoarchivhttps://promuzeum.nzm.cz/web-obsb/VAADIN"
+
+```
+
+## skupiny
+
+```{r}
+skup <- imp %>% 
+  select(skupina) %>% 
+  distinct() %>% 
+  mutate(skupCislo = str_extract(skupina, "^\\d+\\.\\d*"),
+         skupNazev = ifelse(str_detect(skupina, "^\\d+"), str_remove(skupina, "^\\d+\\.\\d*\\s+"), skupina))
+
+sort(unique(skup$skupNazev))
+```
+
+## podskupiny
+
+```{r}
+podsk <- imp %>% 
+  select(podskupina) %>% 
+  distinct() %>% 
+  mutate(podskCislo = str_extract(podskupina, "^\\d+\\.\\d*\\.*\\d*"),
+         podskNazev = ifelse(str_detect(podskupina, "^\\d+"), str_remove(podskupina, "^\\d+\\.\\d*\\.*\\d*\\s*"), podskupina))
+
+sort(unique(podsk$podskNazev))
+```
+
+## predmet
+
+```{r}
+predmet <- imp %>% 
+  select(predmet) %>% 
+  distinct() 
+  
+sort(unique(predmet$predmet))
+```
+
+## autor
+
+? jak se importuje více titulů před jménem?
+- oddělit PO a FO
+
+```{r}
+autor <- imp %>% 
+  select(autor) %>% 
+  distinct() %>% 
+  mutate(tit1 = str_extract(autor, regex("Prof\\.", ignore_case = T)),
+         tit2 = str_extract(autor, regex("Doc\\.", ignore_case = T)),
+         tit3 = str_extract(autor, regex("Dr\\.", ignore_case = T)),
+         tit4 = str_extract(autor, regex("arch\\.", ignore_case = T)),
+         tit5 = str_extract(autor, regex("ing\\.", ignore_case = T)),
+        # titulPred = case_when(str_detect(autor, "Dr."str_extract(autor, regex("ing\\.", ignore_case = T)),
+         titulPo = str_extract(autor, regex("CSc\\.", ignore_case = T)))
+  
+sort(unique(autor$autor))
+```
+
+## material
+
+hodně chaotické hodnoty; i multiple
+```{r}
+mat <- imp %>% 
+  select(material) %>% 
+  distinct() 
+  
+sort(unique(mat$material))
+```
+
+## techniky
+
+neni jen technika, ale i charakteristika (vit "černobílé")
+```{r}
+tech <- imp %>% 
+  select(provedeni) %>% 
+  distinct() 
+  
+sort(unique(tech$provedeni))
+```
+
+## stav
+
+vice nez 1200 hodnot !!
+```{r}
+stav <- imp %>% 
+  select(stav) %>% 
+  distinct() 
+  
+sort(unique(stav$stav))
+```
+
+
+
+

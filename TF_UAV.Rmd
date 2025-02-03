@@ -1,0 +1,357 @@
+---
+title: "UAV / multispectral data processing"
+author: "Katerina Krizova"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document: 
+    toc: yes
+    toc_depth: 3
+---
+
+\newpage 
+
+```{r SETUP PACKAGES INDEX, include=FALSE}
+
+# RMARKDOWN SETUP
+
+knitr::opts_chunk$set(echo = F, message=FALSE, fig.dim = c(8, 4))
+
+# PACKAGES
+
+# list.of.packages <- c("devtools","mapview", "leaflet","randomcoloR","Rcpp", "sf", "tidyverse", "whitebox")
+# install.packages(list.of.packages)
+# install.packages('raster', repos='https://rspatial.r-universe.dev')
+# 
+# lapply(list.of.packages, require, character.only = TRUE)
+# require(raster)
+# 
+# rm(list.of.packages)
+
+# !!!!!!!!!!!!!!!!!!!!!!!! S W I T C H !!!!!!!!!!!!!!!!!!!!!!!!
+
+index <- "ndvi" #pse
+# index <- "sipi" # BAND RESOLUTION ISSUE TO SOLVE
+# index <- "ndre" #pse
+# index <- "gndvi" #pse
+# index <- "evi" # BAND RESOLUTION ISSUE TO SOLVE
+# index <- "tgi" #pse
+# index <- "vari" #pse
+# index <- "gli" # BAND RESOLUTION ISSUE TO SOLVE
+# index <- "exg"
+# index <- "ngrdi" #pse
+# index <- "cvi" #pse
+
+# kat indexy
+# index <- "exr"
+# index <- "exgexr"
+# index <- "savi"
+# index <- "sr"
+# index <- "mcari"
+
+# !!!!!!!!!!!!!!!!!!!!!!!! S W I T C H !!!!!!!!!!!!!!!!!!!!!!!!
+
+```
+
+
+# PATHS AND PARAMS
+
+*CRS*
+
+EPSG 32633 (UTM 33N)
+
+```{r PATH PARAMS}
+
+
+# !!!!!!!!!!!!!!!!!!   S W I T C H   !!!!!!!!!!!!!!!!!!
+
+# project <- "jecmen"
+project <- "psenice"
+
+# !!!!!!!!!!!!!!!!!!   S W I T C H   !!!!!!!!!!!!!!!!!!
+
+# path <- "C:/Users/krizovak/Documents/TF_UAV/" # home folder 
+
+path_in <- paste0(path, "data/", project, "/")
+path_alt <- paste0("D:/VURV/_____odchod/TF_UAV/data/", project, "/")
+path_out <- paste0(path, "results/", project, "/")
+
+
+if (project == "jecmen") {
+    Lterm <- c(
+      "220510", "220514", "220521", "220529", "220605", "220612",
+               "220618", "220625", "220702", "220709", "220716"
+      ) 
+} else if (project == "psenice") {
+    Lterm <- c(
+      "220410", "220423", "220429", "220510", "220522", "220529",
+    "220605", "220612",
+    "220618", "220625", "220702", "220709", "220716"
+    )  
+} else {print("UNSUCCESSUL")}
+  
+```
+
+
+# VECTOR LAYERS
+
+```{r LOAD POINTS CREATE BUFFER}
+
+# load points and convert to shp
+
+# pts_csv <- read.csv(paste0(path_in, "pts_", project, ".csv"), sep = ";", 
+#                     check.names = F, encoding = "Windows-1250") %>% 
+#   na.omit()
+# pts4326 <- sf::st_as_sf(pts_csv, coords = c("lon", "lat"))
+# ggplot()+
+#   geom_sf(data = pts4326)+
+#   theme_classic()
+
+# pekar 2025_1
+pts_xlsx <- read_excel(paste0(path, "body.xlsx"), sheet = "body") %>% 
+  na.omit() %>% 
+  mutate(bod_id = paste0(body_a, "_", body_b))
+
+# pts4326 <- sf::st_as_sf(pts_xlsx, coords = c("lon", "lat"))
+pts4326 <- sf::st_as_sf(pts_xlsx, coords = c("x", "y"))
+g <- ggplot()+
+  geom_sf(data = pts4326)+
+  theme_classic()
+g
+print(pts4326)
+
+pts_csv <- read.csv(paste0(path_in, "pts_", project, ".csv"), sep = ";", 
+                    check.names = F, encoding = "Windows-1250") %>% 
+  na.omit()
+pts4326 <- sf::st_as_sf(pts_csv, coords = c("lon", "lat"))
+ggplot()+
+  geom_sf(data = pts4326)+
+  theme_classic()
+
+# transform CRS to 32633
+
+sf::st_crs(pts4326) = 4326
+pts <- sf::st_transform(pts4326, crs = 32633)
+
+# library(ggsflabel)
+
+g <- ggplot()+
+  # geom_sf(data = buf, color = "gold", fill = "gold", size = 2)+
+  geom_sf(data = pts_xlsx, size = 2)+
+  # geom_text(data = pts_xlsx, aes(lon, lat, label = ID))+
+  # geom_text(data = pts_xlsx, aes(lon, lat, label = bod_id))+
+  coord_sf(crs = 32633)+
+  labs(title = paste0("Sampling points"))+
+  theme_classic()+
+  theme(plot.title=element_text(hjust=0.5))
+g
+ggsave(g, filename = paste0(path_out, "pts_map.jpg"))
+
+# remove unnecessary objects
+
+rm(pts_csv)
+rm(pts4326)
+
+
+```
+
+# RASTER LAYERS 
+
+```{r LOAD BANDS, eval = F}
+
+rgb <- raster(paste0(path_in, "220529_rgb.tif"), quiet = T) # 4 bands: b1:B b2:G b3:R b4:EMPTY
+ms <- raster(paste0(path_in, "220529_ms.tif"), quiet = T) # 5 bands: b1:G b2:R b3:NIR b4:REDEDGE b5:EMPTY
+
+ms <- raster(paste0(path_in, "220410/"), pattern = "*_M*.tiff"), quiet = T) # 5 bands: b1:G b2:R b3:NIR b4:REDEDGE b5:EMPTY
+
+# RGB 
+# blue <- raster(paste0(path_in, "220529_rgb.tif"), band = 1, quiet = T)
+# green <- raster(paste0(path_in, "220529_rgb.tif"), band = 2, quiet = T)
+# red <- raster(paste0(path_in, "220529_rgb.tif"), band = 3, quiet = T)
+# rgb_empty <- raster(paste0(path_in, "220529_rgb.tif"), band = 4, quiet = T)
+
+# MS
+
+green <- raster(paste0(path_in, "220529_ms.tif"), band = 1, quiet = T)
+red <- raster(paste0(path_in, "220529_ms.tif"), band = 2, quiet = T)
+re <- raster(paste0(path_in, "220529_ms.tif"), band = 3, quiet = T)
+nir <- raster(paste0(path_in, "220529_ms.tif"), band = 4, quiet = T)
+ms_empty <- raster(paste0(path_in, "220529_ms.tif"), band = 5, quiet = T)
+
+# pekar 2025_1
+
+green <- raster(paste0(path, "ndvi_20240415.tif"), band = 1, quiet = T)
+red <- raster(paste0(path, "ndvi_20240415.tif"), band = 2, quiet = T)
+re <- raster(paste0(path, "ndvi_20240415.tif"), band = 3, quiet = T)
+nir <- raster(paste0(path, "ndvi_20240415.tif"), band = 4, quiet = T)
+ms_empty <- raster(paste0(path, "ndvi_20240415.tif"), band = 5, quiet = T)
+
+ndvi <- raster(paste0(path, "ndvi_20240415.tif"), quiet = T)
+nlayers(ndvi)
+```
+
+
+# CALCULATE VI
+
+```{r CALCULATE VI LOOP, warning = F}
+
+# imagery
+
+# 4 bands: b1:B b2:G b3:R b4:EMPTY
+# 5 bands: b1:G b2:R b3:NIR b4:REDEDGE b5:EMPTY
+
+# index calculation LOOP
+
+for(i in Lterm){
+  blue <- raster(paste0(path_in, i, "/rgb.tif"), band = 1, quiet = T)
+  green <- raster(paste0(path_in, i, "/rgb.tif"), band = 2, quiet = T)
+  c_red <- raster(paste0(path_in, i, "/rgb.tif"), band = 3, quiet = T)
+  m_green <- raster(paste0(path_in, i, "/ms.tif"), band = 1, quiet = T)
+  red <- raster(paste0(path_in, i, "/ms.tif"), band = 2, quiet = T)
+  edge <- raster(paste0(path_in, i, "/ms.tif"), band = 3, quiet = T)
+  nir <- raster(paste0(path_in, i, "/ms.tif"), band = 4, quiet = T)
+  new1 <- raster(paste0(path_in, i, "/020722.data.tif"), band = 1, quiet = T) # blue ?
+  new2 <- raster(paste0(path_in, i, "/020722.rgb.tif"), band = 1, quiet = T)
+# # alternative source
+  # blue <- raster(paste0(path_alt, i, "/rgb.tif"), band = 1, quiet = T)
+  # green <- raster(paste0(path_alt, i, "/rgb.tif"), band = 2, quiet = T)
+  # c_red <- raster(paste0(path_alt, i, "/rgb.tif"), band = 3, quiet = T)
+  # m_green <- raster(paste0(path_alt, i, "/ms.tif"), band = 1, quiet = T)
+  # red <- raster(paste0(path_alt, i, "/ms.tif"), band = 2, quiet = T)
+  # edge <- raster(paste0(path_alt, i, "/ms.tif"), band = 3, quiet = T)
+  # nir <- raster(paste0(path_alt, i, "/ms.tif"), band = 4, quiet = T)
+#index
+  if(index == "evi") {
+    vi <- 2.5*(nir-red)/(nir + 6*red - 7.5*blue + 1)
+    } else if(index == "cvi") {
+      vi <- (nir/m_green)*(red/m_green)
+    } else if(index == "exg") {
+      vi <- 2*(green/(green+blue+c_red))-(c_red/(green+blue+c_red))-(blue/(green+blue+c_red))
+    } else if(index == "exr") {
+      vi <- 1.4*((green/(green+blue+red))-(blue/(green+blue+red)))
+    } else if(index == "exgexr") {
+      vi <- exg-exr
+    } else if(index == "gli") {
+      vi <- (2*green-red-blue)/(2*green+red+blue)
+    } else if(index == "gndvi") {
+      vi <- (nir-m_green)/(nir+m_green)
+    } else if(index == "mcari") {
+      vi <- ((nir-red)-0.2*(nir-green))*(nir/red)
+    } else if(index == "ndre") {
+      vi <- (nir - edge)/(nir + edge)
+    } else if(index == "ndvi") {
+      vi <- (nir-red)/(nir+red)
+    } else if(index == "ngrdi") {
+      vi <- (m_green-red)/(m_green+red)
+    } else if(index == "savi") {
+      vi <- (1.5*(nir-red))/(nir+red+0.5)
+    } else if(index == "sipi") {
+      vi <- (nir-blue)/(nir-red)
+    } else if(index == "sr") {
+      vi <- nir/red
+    } else if(index == "tgi") {
+      vi <- green-0.39*c_red-0.61*blue
+    } else if(index == "vari") {
+      vi <- (green-c_red)/(green+c_red-blue)
+    }else {(print("UNSUCCESSFUL"))}
+  dir.create(paste0(path_out, index))
+  # writeRaster(vi, paste0(path_out, index, "/", i, "_", index, ".tif"), format="GTiff", overwrite=TRUE)
+  # writeRaster(vi, paste0("D:/VURV/_____odchod/", i, "_", index, ".tif"), format="GTiff", overwrite=TRUE)
+}
+
+```
+
+# ZONAL STATISTICS
+
+```{r ZONAL STAT, eval = F}
+
+# !!!!!!!!!!!!!!!!!!   S W I T C H   !!!!!!!!!!!!!!!!!!
+
+# distance <- 1 # psenice # jecmen
+# distance <- 5 # psenice
+distance <- 10 # psenice
+
+# !!!!!!!!!!!!!!!!!!   S W I T C H   !!!!!!!!!!!!!!!!!!
+
+# create buffer
+
+buf <- sf::st_buffer(pts, dist = distance) 
+# buf <- sf::st_transform(pts, crs = 4326)
+
+# zonal stat folder and file
+
+VI_results <- data.frame() # create empty dataframe for results
+
+# zonal stat LOOP
+
+cbind.fill <- function(...){
+    nm <- list(...) 
+    nm <- lapply(nm, as.matrix)
+    n <- max(sapply(nm, nrow)) 
+    do.call(cbind, lapply(nm, function (x) 
+        rbind(x, matrix(, n-nrow(x), ncol(x))))) 
+} # FUNCTION from: https://stackoverflow.com/questions/7962267/cbind-a-dataframe-with-an-empty-dataframe-cbind-fill
+
+for(i in Lterm){
+  vi <- raster(paste0(path_out, index, "/", i, "_", index, ".tif"), quiet = T)
+  vi_mean <- raster::extract(vi, buf, fun='mean', na.rm=TRUE, df=TRUE, weights = TRUE)
+  df <- data.frame(vi_mean) 
+  colnames(df)[2] <- i
+  VI_results <- cbind.fill(VI_results, df)
+}
+
+# zonal stat tab
+
+VI_results <- unique(VI_results, MARGIN=2)
+VI_results <- as.data.frame(VI_results)
+VI_results$ID <- as.factor(VI_results$ID)
+# buf$Bod <- as.factor(buf$Bod)
+buf$ID <- as.factor(buf$ID)
+# levels(VI_results$ID) = levels(buf$Bod)
+levels(VI_results$ID) = levels(buf$ID)
+
+write.table(VI_results, paste0(path_out, index, "_mean_buffer_", distance, ".txt"), row.names=F, quote = F)
+
+```
+
+# ZONAL STATISTICS LOOP
+
+```{r ZONAL STAT LOOP}
+
+cbind.fill <- function(...){
+    nm <- list(...) 
+    nm <- lapply(nm, as.matrix)
+    n <- max(sapply(nm, nrow)) 
+    do.call(cbind, lapply(nm, function (x) 
+        # rbind(x, matrix(, n-nrow(x), ncol(x))))) 
+        rbind(x, matrix(n-nrow(x), ncol(x))))) 
+} # FUNCTION from: https://stackoverflow.com/questions/7962267/cbind-a-dataframe-with-an-empty-dataframe-cbind-fill
+
+
+if(project == "jecmen"){
+  Ldist <- c(1)
+} else if (project == "psenice"){
+  Ldist <- c(1,5,10)
+} else {print("UNSUCCESSUL")}
+cust_seq <-1:12
+
+for(i in Ldist){
+ buf <- sf::st_buffer(pts, dist = i) 
+ VI_results <- data.frame(cust_seq) # create empty dataframe for results
+ for(j in Lterm){
+  vi <- raster(paste0(path_out, index, "/", j, "_", index, ".tif"), quiet = T)
+  vi_mean <- raster::extract(vi, buf, fun='mean', na.rm=TRUE, df=TRUE, weights = TRUE)
+  df <- data.frame(vi_mean) 
+  colnames(df)[2] <- j
+  VI_results <- cbind(VI_results, df)
+  VI_results <- unique(VI_results, MARGIN=2)
+  VI_results <- as.data.frame(VI_results)
+  # VI_results$ID <- as.factor(VI_results$ID)
+  # # buf$Bod <- as.factor(buf$Bod)
+  # buf$ID <- as.factor(buf$ID)
+  # # levels(VI_results$ID) = levels(buf$Bod)
+  # levels(VI_results$ID) = levels(buf$ID)
+  write.table(VI_results, paste0(path_out, index, "_mean_buffer_", i, ".txt"), row.names=F, quote = F)
+  }
+} 
+
+```

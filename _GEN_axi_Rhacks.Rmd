@@ -329,7 +329,7 @@ floor(x) = rounds values down to nearest integer
 trunc(x) = truncates (cuts off) decimal places from values
 
 ### Date conversion
-
+   
 28138 -> 13.01.1977
 pokud mame oba formaty, resime pomoci vnorenzch ifelsu takto:
 
@@ -361,7 +361,6 @@ mutate(Mpskp_len = nchar(pskup))
 ```{r}
 
 ```
-
 
 ### Similarity
 

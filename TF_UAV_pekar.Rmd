@@ -1,0 +1,74 @@
+---
+title: "Pekar 2025/1"
+output: pdf_document
+date: "2025-01-30"
+---
+
+# packages
+
+```{r}
+
+# install.packages("devtools")
+# install.packages("usethis")
+# install.packages("mapview")
+# install.packages("leaflet")
+# install.packages("randomcoloR")
+# install.packages("Rcpp")
+# install.packages("sf")
+# install.packages("whitebox")
+# install.packages("readxl")
+# install.packages("raster")
+
+require(tidyverse)
+require(devtools)
+require(usethis)
+require(mapview)
+require(leaflet)
+require(randomcoloR)
+require(Rcpp)
+require(sf)
+require(whitebox)
+require(readxl)
+require(raster)
+```
+
+# paths and params
+
+```{r}
+path <- "D:/pekar/" # home folder 
+```
+
+# pts
+
+```{r}
+
+pts_xlsx <- read_excel(paste0(path, "body.xlsx"), sheet = "body") %>% 
+  na.omit() %>% 
+  select(-1) %>% 
+  mutate(bod_id = paste0(body_a, "_", body_b))
+
+# pts4326 <- sf::st_as_sf(pts_xlsx, coords = c("lon", "lat"))
+pts4326 <- sf::st_as_sf(pts_xlsx, coords = c("x", "y"))
+g <- ggplot()+
+  geom_sf(data = pts4326)+
+  theme_classic()
+g
+
+```
+
+# visible
+
+```{r}
+rgb <- raster(paste0(path, "visible_20240415.tif"), quiet = T) # 4 bands: b1:B b2:G b3:R b4:EMPTY
+nlayers(rgb)
+
+
+# ms <- raster(paste0(path_in, "220529_ms.tif"), quiet = T) # 5 bands: b1:G b2:R b3:NIR b4:REDEDGE b5:EMPTY
+```
+# ndvi 
+
+```{r}
+ndvi <- raster(paste0(path, "ndvi_20240415.tif"), quiet = T)
+nlayers(ndvi)
+```
+
